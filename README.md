@@ -134,8 +134,18 @@ rather than running in a degraded state.
 ```bash
 npm run smoke             # gate + security headers, no BuddyPro spend
 LIVE=1 npm run smoke      # also spends one real BuddyPro call
-node scripts/shots.js     # screenshots at 4 viewports + overflow detection
+npm run shots             # screenshots at 4 viewports + overflow detection
+npm run shots:extra       # chat, call and history views, with assertions
+npm run test:embed        # THE important one - see below
+npm run probe:audio       # re-check whether BuddyPro audio has been enabled
 ```
+
+`npm run test:embed` is the end-to-end integration test. It stands up a fake Uscreen
+storefront on a **different origin**, iframes `/embed` into it, runs the real identity bridge
+from `uscreen/head-code.html`, and asserts the whole path: the handshake in both directions,
+bearer authentication across origins, and a live answer from BuddyPro inside the frame. Run it
+with `MEMBER_GATE_MODE=frame` (add `http://localhost:8099` to `ALLOWED_FRAME_ORIGINS`) to
+exercise the production gate rather than the dev one.
 
 `scripts/shots.js` drives the installed Chrome through `puppeteer-core` and asserts
 `scrollWidth <= clientWidth` at 1440/820/414/360. Plain `chrome --screenshot --window-size`

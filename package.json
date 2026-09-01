@@ -14,7 +14,8 @@
     "smoke": "node scripts/smoke.js",
     "shots": "node scripts/shots.js",
     "shots:extra": "node scripts/shots-extra.js",
-    "probe:audio": "node scripts/probe-audio.js"
+    "probe:audio": "node scripts/probe-audio.js",
+    "test:embed": "node scripts/test-embed.js"
   },
   "dependencies": {
     "express": "^4.21.2"
