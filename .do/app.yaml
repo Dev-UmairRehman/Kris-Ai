@@ -17,14 +17,14 @@
 # Cost at basic-xxs: ~$5/month.
 # ===========================================================================
 
-name: kris-ai
+name: kris-ai-memory
 region: fra
 
 services:
   - name: web
     # ---- source ----------------------------------------------------------
     github:
-      repo: REPLACE_ME/kris-ai
+      repo: Dev-UmairRehman/Kris-Ai
       branch: main
       deploy_on_push: true
     source_dir: /
