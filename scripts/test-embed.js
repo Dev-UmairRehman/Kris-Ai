@@ -103,16 +103,12 @@ const PARENT_HTML = `<!doctype html>
 
   const state = await frame.evaluate(() => {
     const app = document.getElementById('app');
-    const style = (s) => {
-      const el = document.querySelector(s);
-      return el ? getComputedStyle(el).display : 'missing';
-    };
     return {
       mode: app.dataset.mode,
       gated: app.classList.contains('is-gated'),
       booting: app.classList.contains('is-booting'),
-      navHidden: style('.stnav') === 'none',
-      footHidden: style('.stfoot') === 'none',
+      noOwnNav: !document.querySelector('.stnav'),
+      noOwnFooter: !document.querySelector('.stfoot'),
       composerUsable: !document.getElementById('input').disabled,
     };
   });
@@ -121,7 +117,10 @@ const PARENT_HTML = `<!doctype html>
   check('the widget rendered in embed mode', state.mode === 'embed', state.mode);
   check('boot completed', !state.booting);
   check('the member was NOT gated', !state.gated);
-  check('storefront chrome stays hidden inside the embed', state.navHidden && state.footHidden);
+  check(
+    'the widget ships no chrome of its own (Uscreen supplies it)',
+    state.noOwnNav && state.noOwnFooter
+  );
   check('the composer is usable', state.composerUsable);
 
   /* The bridge handshake should have happened in both directions. */

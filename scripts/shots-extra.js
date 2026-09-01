@@ -56,15 +56,17 @@ async function ready(page) {
   await embed.setViewport({ width: 900, height: 820 });
   await embed.goto(BASE + '/embed', { waitUntil: 'networkidle2' });
   await ready(embed);
-  const chromeState = await embed.evaluate(() => {
-    const d = (s) => {
-      const el = document.querySelector(s);
-      return el ? getComputedStyle(el).display : 'missing';
-    };
-    return { nav: d('.stnav'), foot: d('.stfoot'), mode: document.getElementById('app').dataset.mode };
-  });
-  check('embed hides the storefront nav', chromeState.nav === 'none', chromeState.nav);
-  check('embed hides the storefront footer', chromeState.foot === 'none', chromeState.foot);
+  /* Uscreen renders the StrategyTraining nav and footer around the widget, so
+     the widget must not ship any of its own - in either mode. */
+  const chromeState = await embed.evaluate(() => ({
+    nav: !!document.querySelector('.stnav'),
+    foot: !!document.querySelector('.stfoot'),
+    legal: !!document.querySelector('.legal'),
+    mode: document.getElementById('app').dataset.mode,
+  }));
+  check('no duplicated storefront nav', !chromeState.nav);
+  check('no duplicated storefront footer', !chromeState.foot);
+  check('no legal small print', !chromeState.legal);
   await embed.screenshot({ path: path.join(OUT, 'embed.png') });
   await embed.close();
 
@@ -91,8 +93,8 @@ async function ready(page) {
       chips: document.querySelectorAll('#suggestList .chip').length,
     };
   });
-  check('badge reads FIRMSconsulting', /FIRMSConsulting/i.test(landing.badge), landing.badge);
-  check('badge title is FIRMSconsulting', landing.badgeTitle === 'FIRMSconsulting', landing.badgeTitle);
+  check('badge reads StrategyTraining', /StrategyTraining/i.test(landing.badge), landing.badge);
+  check('badge title is StrategyTraining', landing.badgeTitle === 'StrategyTraining', landing.badgeTitle);
   check('header identity hidden on landing', !landing.whoVisible);
   check('header call icon hidden on landing', !landing.callIconVisible);
   check('docked suggestions hidden on landing', !landing.dockVisible);
@@ -171,34 +173,66 @@ async function ready(page) {
   await page.screenshot({ path: path.join(OUT, 'chat-suggestions.png') });
   await page.click('#suggestToggle');
 
-  /* ---- markdown rendering --------------------------------------------- */
-  console.log('\nmarkdown');
-  const md = await page.evaluate(() => {
-    /* Render a crafted answer straight through the real renderer. */
-    const thread = document.getElementById('thread');
-    const before = thread.children.length;
-    const sample =
-      'Start with **the architecture** at [strategytraining.com](https://strategytraining.com).\n\n' +
-      'It matters [1] and so does https://firmsconsulting.com — *really*.';
-    /* Reuse the app's own path by simulating a reply through history restore. */
+  /* ---- markdown rendering + history restore --------------------------- */
+  console.log('');
+  console.log('markdown and history');
+
+  /* A crafted answer covering every inline form the renderer supports, with a
+     blank line so the bubble split is exercised too. */
+  const BREAK = String.fromCharCode(10) + String.fromCharCode(10);
+  await page.evaluate((brk) => {
     localStorage.setItem(
       'kris_ai_history_v1',
-      JSON.stringify([{ role: 'kris', text: sample, at: Date.now() }])
+      JSON.stringify([
+        { role: 'me', text: 'Where should I start?', at: Date.now() - 60000 },
+        {
+          role: 'kris',
+          text:
+            'Start with **the architecture** at [strategytraining.com](https://strategytraining.com).' +
+            brk +
+            'It matters [1] and so does https://firmsconsulting.com - *really*.',
+          at: Date.now() - 59000,
+        },
+      ])
     );
-    return { before: before, seeded: true };
-  });
+  }, BREAK);
   await page.reload({ waitUntil: 'networkidle2' });
   await ready(page);
   await page.click('#historyBtn');
   await wait(250);
-  await page.screenshot({ path: path.join(OUT, 'history.png') });
   const histCount = await page.$$eval('.history__item', (e) => e.length);
-  console.log('        history items: ' + histCount + ' (kris-only seed -> expected 0)');
-  await page.click('#historyClose');
+  check('history lists the stored question', histCount === 1, 'items=' + histCount);
+  await page.screenshot({ path: path.join(OUT, 'history.png') });
+
+  await page.click('.history__item');
+  await wait(300);
+  const rendered = await page.evaluate(() => {
+    const kris = document.querySelector('.turn--kris');
+    return {
+      turns: document.querySelectorAll('.turn').length,
+      bold: kris ? kris.querySelectorAll('strong').length : 0,
+      chips: kris ? kris.querySelectorAll('.linkchip').length : 0,
+      cites: kris ? kris.querySelectorAll('.cite').length : 0,
+      italics: kris ? kris.querySelectorAll('em').length : 0,
+      leakedStars: kris ? /\*\*/.test(kris.textContent) : true,
+      bubbles: kris ? kris.querySelectorAll('.bubble').length : 0,
+    };
+  });
+  console.log('        ' + JSON.stringify(rendered));
+  check('clicking history restores the transcript', rendered.turns >= 2, 'turns=' + rendered.turns);
+  check('bold renders', rendered.bold >= 1, String(rendered.bold));
+  check('links render as chips', rendered.chips >= 2, String(rendered.chips));
+  check('citations render', rendered.cites >= 1, String(rendered.cites));
+  check('italics render', rendered.italics >= 1, String(rendered.italics));
+  check('no leaked ** markers', !rendered.leakedStars);
+  check('the answer splits into bubbles', rendered.bubbles >= 2, String(rendered.bubbles));
+  await page.screenshot({ path: path.join(OUT, 'markdown.png') });
 
   /* ---- call view ------------------------------------------------------- */
   console.log('\ncall view');
-  await page.click('#callBtn');
+  /* A conversation is open, so the landing Call pill is hidden by design - the
+     header phone icon is the way in from here, same as the reference. */
+  await page.click('#headerCallBtn');
   await page.waitForSelector('.app.in-call', { timeout: 5000 });
   const callIdle = await page.evaluate(() => {
     const style = (s) => getComputedStyle(document.querySelector(s));
@@ -208,7 +242,6 @@ async function ready(page) {
       ctlHidden: style('.callctl').display === 'none',
       meterHidden: style('.callview__meter').display === 'none',
       startLabel: document.getElementById('callStart').textContent.trim(),
-      note: document.getElementById('callNote').textContent.slice(0, 60),
       budget: document.getElementById('callBudget').textContent,
       langs: document.querySelectorAll('#callLang option').length,
     };

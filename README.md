@@ -18,7 +18,7 @@ One codebase, two routes:
 | Route | Purpose |
 | --- | --- |
 | `/embed` | Bare widget. Goes in an iframe on the Uscreen `/delphi` page. No header or footer — Uscreen supplies those. |
-| `/` | Standalone full page. Same chat, plus its own top bar and footer. |
+| `/` | Standalone route. Same widget, reachable with a handoff token. |
 | `/api/session` | Exchanges a store identity claim for a signed session cookie. |
 | `/api/chat` | One question in, one answer out. |
 | `/healthz` | Liveness, and reports which gate mode is active. |
@@ -349,11 +349,12 @@ Rebuilt to match the live widget rather than the public Delphi page:
 - collapsible **Suggested Questions** docked above the composer
 - a floating jump-to-latest button that appears only when content is hidden below the fold
 
-### Other deviations
+### No header or footer, on purpose
 
-Delphi's own commercial chrome is not reproduced, because this deployment replaces Delphi:
-"Sign In" / "Create Your Delphi" and the Delphi footer become StrategyTraining equivalents on
-the standalone page, and are hidden entirely in embed mode where Uscreen supplies its own.
+The widget renders **no site chrome at all** - no nav, no footer, no legal small print.
+Uscreen already draws the StrategyTraining header and footer around the iframe, and shipping
+our own duplicated them. Both routes are chrome-free, and `npm run shots:extra` asserts it
+(`no duplicated storefront nav` / `footer`).
 
 The composer is **pinned** to the bottom of a fixed shell rather than flowing inline after
 the suggestion cards as it does on the Uscreen page. Inside a fixed-height iframe that keeps

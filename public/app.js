@@ -94,8 +94,6 @@
   var callDots = document.getElementById('callDots');
   var callClock = document.getElementById('callClock');
   var callBudget = document.getElementById('callBudget');
-  var callTranscript = document.getElementById('callTranscript');
-  var callNote = document.getElementById('callNote');
   var callLang = document.getElementById('callLang');
 
   var isEmbed = app.getAttribute('data-mode') === 'embed';
@@ -110,7 +108,6 @@
   var sessionToken = null;
   var handoffToken = null;
 
-  document.getElementById('year').textContent = String(new Date().getFullYear());
   gateJoin.href = BOOT.joinUrl;
   gateSignIn.href = BOOT.signInUrl;
 
@@ -627,7 +624,6 @@
     if (!options.silentUser) addTurn('me', message);
     input.value = '';
     armSend();
-    input.placeholder = 'Type…';
 
     var pending = addTurn('kris', null, { store: false });
     setBusy(true);
@@ -678,7 +674,6 @@
 
   chatBtn.addEventListener('click', function () {
     enterThread();
-    input.placeholder = 'Type…';
     input.focus();
     scrollToEnd();
   });
@@ -783,16 +778,11 @@
     inCall = true;
     app.classList.add('in-call');
     app.classList.remove('call-connecting', 'call-live');
-    callTranscript.textContent = '';
     paintBudget();
 
-    callNote.textContent = speechSupported
-      ? 'Your speech is transcribed by your browser, then answered by Kris AI Memory. ' +
-        'The spoken reply uses your device voice, not a clone of Kris.'
-      : 'Calls need Chrome or Edge. On this browser, use the chat instead.';
 
     callStart.disabled = !speechSupported;
-    if (!speechSupported) callStart.textContent = 'Calls need Chrome or Edge';
+    callStart.textContent = speechSupported ? 'Start a call' : 'Calls need Chrome or Edge';
   }
 
   function closeCallView() {
@@ -860,9 +850,6 @@
       .catch(function () {
         app.classList.remove('call-connecting');
         setCallStatus('Microphone blocked', null);
-        callNote.textContent =
-          'Microphone permission was declined, so the call cannot start. Allow the ' +
-          'microphone in your browser and try again.';
       });
   }
 
@@ -886,7 +873,6 @@
         if (result.isFinal) finalText += result[0].transcript;
         else interim += result[0].transcript;
       }
-      callTranscript.textContent = (finalText + ' ' + interim).trim();
     };
 
     recognition.onerror = function (event) {
@@ -933,7 +919,6 @@
 
   function askOnCall(question) {
     setCallStatus('Thinking', null);
-    callTranscript.textContent = question;
 
     send(question, {
       onReply: function (content) {
@@ -956,7 +941,6 @@
     }
 
     setCallStatus('Talking', 'speaking');
-    callTranscript.textContent = '';
 
     /* Cancel anything queued, then speak. Recognition stays off while Kris
        talks, otherwise the synthesised voice gets transcribed straight back. */
@@ -1036,7 +1020,6 @@
     muted = false;
     callMic.classList.remove('is-muted');
     setCallStatus('Connecting', null);
-    callTranscript.textContent = '';
     paintBudget();
   }
 
