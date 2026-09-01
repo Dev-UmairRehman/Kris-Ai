@@ -1,0 +1,73 @@
+<!-- ==========================================================================
+     StrategyTraining - Kris AI Memory embed
+     Paste into the /delphi page's Custom HTML block, replacing the Delphi embed.
+
+     Note: Uscreen's editor canvas does not render Custom HTML. Use "Preview
+     page" to check it.
+
+     BEFORE PASTING: replace WIDGET_ORIGIN below with the deployed URL, and set
+     the same value in uscreen/head-code.html.
+     ========================================================================== -->
+
+<style>
+  .kris-ai-embed {
+    /* Fill the space Uscreen gives us without ever causing a double scrollbar.
+       The widget manages its own internal scrolling. */
+    position: relative;
+    width: 100%;
+    /* Leaves room for the ST header; the widget is a fixed shell inside. */
+    height: min(82vh, 940px);
+    min-height: 520px;
+    margin: 0 auto;
+    background: #1b1b1b;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .kris-ai-embed iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+  /* On short screens give it the whole viewport minus the header. */
+  @media (max-height: 700px) {
+    .kris-ai-embed {
+      height: calc(100vh - 120px);
+    }
+  }
+  @media (max-width: 640px) {
+    .kris-ai-embed {
+      border-radius: 0;
+      height: calc(100dvh - 130px);
+    }
+  }
+</style>
+
+<div class="kris-ai-embed">
+  <iframe
+    src="https://kris-ai-REPLACE.ondigitalocean.app/embed"
+    title="Kris AI Memory"
+    loading="eager"
+    allow="microphone https://kris-ai-REPLACE.ondigitalocean.app"
+    referrerpolicy="strict-origin-when-cross-origin"
+  ></iframe>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* Must match the iframe src origin and head-code.html. */
+  var WIDGET_ORIGIN = 'https://kris-ai-REPLACE.ondigitalocean.app';
+
+  /* The widget tells us when it has gated a visitor, so the page can explain
+     itself rather than showing a silent box. Uscreen already hides /delphi from
+     non-subscribers, so this is a belt-and-braces path. */
+  window.addEventListener('message', function (event) {
+    if (event.origin !== WIDGET_ORIGIN) return;
+    var data = event.data;
+    if (!data || data.type !== 'kris-ai:gated') return;
+    console.log('[st-kris] widget gated this visitor:', data.reason);
+  });
+})();
+</script>

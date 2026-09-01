@@ -1,0 +1,25 @@
+{
+  "name": "kris-ai-memory",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Kris AI Memory - members-only chat for StrategyTraining.com, backed by BuddyPro. Clone of the /delphi page.",
+  "type": "commonjs",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "smoke": "node scripts/smoke.js",
+    "shots": "node scripts/shots.js",
+    "shots:extra": "node scripts/shots-extra.js",
+    "probe:audio": "node scripts/probe-audio.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.9.0"
+  }
+}

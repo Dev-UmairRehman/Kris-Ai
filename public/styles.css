@@ -1,0 +1,1306 @@
+/* ===========================================================================
+   Kris AI Memory - styles
+
+   Matches the live /delphi widget inside the StrategyTraining storefront:
+
+     landing   circular avatar + online dot, name + verified + FIRMSconsulting
+               badge, "Ask Kris...", Chat/Call pills, Suggested Questions cards
+     chat      centred header (avatar + name + phone), grey left bubbles with no
+               per-message avatar, cyan right bubbles, answers split across
+               several bubbles, link chips, citation marks, collapsible
+               Suggested Questions, composer with paperclip + Type... + mic
+     call      full screen: Start a call -> Connecting -> in call with timer,
+               minutes remaining, pulsing rings, Talking status, mic + end call
+
+   In embed mode Uscreen supplies the header and footer, so only the widget
+   band renders.
+   =========================================================================== */
+
+:root {
+  --font-sans: Poppins, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+
+  /* ST brand. --primary is the storefront token; the fallback is its value. */
+  --accent: var(--primary, #2bc0e3);
+  --accent-deep: #1a9cbd;
+  --accent-soft: #d9f2fa;
+  --on-accent: #ffffff;
+  --navy: hsl(206, 35%, 16%);
+
+  --bg: #ffffff;
+  --surface: hsl(206, 30%, 98%);
+  --surface-2: hsl(206, 20%, 95%);
+  --bubble: #eaebec;
+  --line: hsl(206, 20%, 90%);
+  --line-strong: hsl(206, 16%, 84%);
+
+  --text: hsl(206, 30%, 12%);
+  --muted: hsl(206, 14%, 42%);
+  --subtle: hsl(206, 12%, 58%);
+
+  --online: #22c55e;
+  --verified: #1d9bf0;
+  --danger: #dc2626;
+  --danger-soft: #fde8e8;
+
+  --radius-card: 14px;
+  --radius-bubble: 18px;
+  --pill: 9999px;
+
+  --col: 668px;
+  --gutter: clamp(16px, 4vw, 28px);
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* A class rule like `.iconbtn { display: grid }` outranks the user agent's
+   [hidden] rule, so el.hidden would silently do nothing. Make it win. */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  /* The widget is iframed at arbitrary widths; sideways scroll reads as broken. */
+  overflow-x: hidden;
+}
+
+:where(h1, h2, h3, p, ul, li) {
+  margin: 0;
+  padding: 0;
+}
+:where(ul, li) {
+  list-style: none;
+}
+:where(a) {
+  color: inherit;
+  text-decoration: none;
+}
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* --- shell ---------------------------------------------------------------- */
+
+/* A fixed shell, not a growing document: the scroll lives inside .app__scroll
+   and the composer stays reachable without scrolling the host page. */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-height: 100dvh;
+  max-width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+@supports not (height: 100dvh) {
+  .app {
+    height: 100vh;
+    max-height: 100vh;
+  }
+}
+
+/* The widget band. Overlays (call, history) are positioned against this, so
+   the storefront nav and footer remain visible behind them. */
+.app__main {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wrap {
+  width: 100%;
+  max-width: var(--col);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  min-width: 0;
+}
+
+/* min-height:0 lets this flex child shrink below its content so it can scroll
+   rather than pushing the composer off screen. */
+.app__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+/* --- storefront chrome (standalone page only) ---------------------------- */
+
+.stnav,
+.stfoot {
+  flex: 0 0 auto;
+}
+.app[data-mode='embed'] .stnav,
+.app[data-mode='embed'] .stfoot {
+  display: none; /* Uscreen renders its own */
+}
+
+.stnav {
+  background: var(--navy);
+  color: #fff;
+  height: 62px;
+  display: flex;
+  align-items: center;
+}
+.stnav__inner {
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 3vw, 28px);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.stnav__mark {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+.stnav__spacer {
+  flex: 1 1 auto;
+}
+.stnav__link {
+  font-size: 13.5px;
+  color: var(--accent);
+  font-weight: 500;
+  border-bottom: 3px solid var(--accent);
+  padding-bottom: 3px;
+}
+
+.stfoot {
+  background: var(--navy);
+  color: hsl(206, 18%, 72%);
+  padding: 18px var(--gutter);
+  text-align: center;
+  font-size: 12.5px;
+}
+.stfoot a:hover {
+  color: #fff;
+}
+.stfoot .stfoot__cta {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* --- widget header ------------------------------------------------------- */
+
+.chatbar {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 14px clamp(14px, 3vw, 24px) 8px;
+}
+
+.chatbar__history {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  justify-self: start;
+  font-size: 14px;
+  color: var(--muted);
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.chatbar__history:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+/* Centre identity and the call icon only exist once a conversation is open. */
+.chatbar__who {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  justify-self: center;
+  min-width: 0;
+}
+.chatbar__call {
+  display: none;
+  place-items: center;
+  justify-self: end;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: var(--text);
+  transition: background-color 0.15s ease;
+}
+.chatbar__call:hover {
+  background: var(--surface-2);
+}
+.app.in-thread .chatbar__who {
+  display: flex;
+}
+.app.in-thread .chatbar__call {
+  display: grid;
+}
+
+.chatbar__avatar {
+  position: relative;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+}
+.chatbar__avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.chatbar__dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--online);
+  border: 2px solid var(--bg);
+}
+.chatbar__name {
+  font-size: 15.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- landing ------------------------------------------------------------- */
+
+.intro {
+  padding: clamp(16px, 4vh, 30px) 0 26px;
+}
+
+.avatar {
+  position: relative;
+  width: 128px;
+  height: 128px;
+  margin: 0 auto;
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  background: var(--surface-2);
+}
+.avatar__dot {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--online);
+  border: 3px solid var(--bg);
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 22px;
+  font-size: clamp(25px, 3.4vw, 31px);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+.name__verified {
+  flex: 0 0 auto;
+  color: var(--verified);
+}
+/* The FIRMSconsulting credential mark beside the verified tick. */
+.name__badge {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border-radius: 3px;
+  background: #111820;
+  color: #fff;
+  font-size: 4.6px;
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  overflow: hidden;
+}
+
+.tagline {
+  margin-top: 9px;
+  text-align: center;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 22px;
+}
+.actionbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 9px 20px;
+  border-radius: var(--pill);
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+.actionbtn:hover {
+  background: var(--accent-deep);
+  transform: translateY(-1px);
+}
+
+/* --- suggested questions ------------------------------------------------ */
+
+.suggest {
+  margin-top: clamp(30px, 5vh, 52px);
+}
+.suggest__title {
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.suggest__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.chip {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 15px 18px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--text);
+  transition: border-color 0.15s ease, background-color 0.15s ease,
+    transform 0.15s ease;
+}
+.chip:hover {
+  border-color: var(--accent);
+  background: var(--bg);
+  transform: translateY(-1px);
+}
+.chip svg {
+  flex: 0 0 auto;
+  margin-top: 3px;
+  color: var(--subtle);
+}
+.chip:hover svg {
+  color: var(--accent);
+}
+
+/* Collapsible version that sits above the composer during a conversation. */
+.suggestdock {
+  display: none;
+  padding-bottom: 10px;
+}
+.app.in-thread .suggestdock {
+  display: block;
+}
+.suggestdock__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 auto;
+  font-size: 13.5px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--pill);
+  padding: 7px 15px;
+  transition: border-color 0.15s ease;
+}
+.suggestdock__toggle:hover {
+  border-color: var(--line-strong);
+}
+.suggestdock__toggle svg {
+  transition: transform 0.18s ease;
+}
+.suggestdock.is-open .suggestdock__toggle svg {
+  transform: rotate(180deg);
+}
+.suggestdock__list {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.suggestdock.is-open .suggestdock__list {
+  display: flex;
+}
+
+/* --- thread ------------------------------------------------------------- */
+
+.thread {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 0 16px;
+}
+.app.in-thread .thread {
+  display: flex;
+}
+.app.in-thread .intro {
+  display: none;
+}
+
+/* Consecutive bubbles from one turn sit close; a new turn gets air. */
+.turn {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.turn + .turn {
+  margin-top: 14px;
+}
+.turn--me {
+  align-items: flex-end;
+}
+.turn--kris {
+  align-items: flex-start;
+}
+
+.bubble {
+  max-width: 78%;
+  border-radius: var(--radius-bubble);
+  padding: 11px 16px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.turn--kris .bubble {
+  background: var(--bubble);
+  color: var(--text);
+}
+.turn--me .bubble {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.turn--error .bubble {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.bubble strong {
+  font-weight: 600;
+}
+.bubble em {
+  font-style: italic;
+}
+.bubble a.inline {
+  color: var(--accent-deep);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.turn--me .bubble a.inline {
+  color: #fff;
+}
+
+/* Link rendered as a chip, the way the reference shows sources. */
+.linkchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  vertical-align: baseline;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 5px 10px 5px 6px;
+  margin: 2px 1px;
+  font-size: 13px;
+  color: var(--text);
+  transition: border-color 0.15s ease;
+}
+.linkchip:hover {
+  border-color: var(--accent);
+}
+.linkchip__mark {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.linkchip__out {
+  color: var(--subtle);
+}
+
+/* Citation marker. */
+.cite {
+  display: inline-grid;
+  place-items: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  margin-left: 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.07);
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--muted);
+  vertical-align: 2px;
+}
+.turn--me .cite {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+/* Answers take 5-9s and do not stream, so the wait must read as deliberate. */
+.dots {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  height: 20px;
+}
+.dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--subtle);
+  animation: dot 1.3s infinite ease-in-out;
+}
+.dots span:nth-child(2) {
+  animation-delay: 0.16s;
+}
+.dots span:nth-child(3) {
+  animation-delay: 0.32s;
+}
+@keyframes dot {
+  0%,
+  62%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  31% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* --- scroll to bottom --------------------------------------------------- */
+
+.scrolldown {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  display: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--text);
+  box-shadow: 0 2px 8px -2px rgba(16, 42, 58, 0.18);
+  z-index: 5;
+}
+.scrolldown.is-shown {
+  display: grid;
+}
+
+/* --- composer ----------------------------------------------------------- */
+
+.composer {
+  flex: 0 0 auto;
+  background: var(--bg);
+  padding: 10px 0 14px;
+  position: relative;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--pill);
+  padding: 5px 5px 5px 14px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.field:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px hsl(191 76% 55% / 0.14);
+}
+.field__spark {
+  flex: 0 0 auto;
+  color: var(--subtle);
+}
+
+.field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 14.5px;
+  color: var(--text);
+  padding: 9px 0;
+}
+.field input::placeholder {
+  color: var(--subtle);
+}
+.field input:disabled {
+  opacity: 0.6;
+}
+
+.iconbtn {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.iconbtn:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.iconbtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.send {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.send:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.field:focus-within .send,
+.send.is-armed {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.legal {
+  margin-top: 9px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--subtle);
+  text-align: center;
+}
+.legal a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.notice {
+  display: none;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #78350f;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.notice.is-shown {
+  display: block;
+}
+
+/* --- call view ---------------------------------------------------------- */
+
+.callview {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: var(--bg);
+  flex-direction: column;
+}
+.app.in-call .callview {
+  display: flex;
+}
+
+.callview__top {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 16px clamp(14px, 3vw, 26px);
+}
+
+.callview__back {
+  justify-self: start;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--text);
+}
+.callview__back:hover {
+  background: var(--surface-2);
+}
+
+.callview__meter {
+  justify-self: center;
+  display: none;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--pill);
+  padding: 7px 16px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 6px -2px rgba(16, 42, 58, 0.12);
+}
+.app.call-live .callview__meter {
+  display: flex;
+}
+.callview__meter span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.callview__meter .sep {
+  width: 1px;
+  height: 14px;
+  background: var(--line);
+}
+.callview__meter .left {
+  color: var(--muted);
+}
+.callview__meter .left svg {
+  color: var(--accent);
+}
+
+.lang {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--pill);
+  padding: 7px 13px;
+  font-size: 13.5px;
+}
+.lang select {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--text);
+  cursor: pointer;
+  appearance: none;
+  padding-right: 2px;
+}
+
+.callview__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0;
+  padding: 0 var(--gutter) clamp(20px, 6vh, 48px);
+}
+
+.callavatar {
+  position: relative;
+  width: clamp(180px, 30vh, 250px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+.callavatar img {
+  position: relative;
+  z-index: 2;
+  width: 86%;
+  height: 86%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+/* Idle: a plain thick ring. Live: cyan haloes that breathe. */
+.callavatar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--surface-2);
+  z-index: 1;
+}
+.callavatar__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  opacity: 0;
+}
+.app.call-live .callavatar::before {
+  background: var(--accent-soft);
+}
+.app.call-live .callavatar__ring {
+  animation: halo 2.4s infinite ease-out;
+}
+.app.call-live .callavatar__ring:nth-child(2) {
+  animation-delay: 0.8s;
+}
+@keyframes halo {
+  0% {
+    opacity: 0.55;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.16);
+  }
+}
+
+.callview__name {
+  margin-top: 26px;
+  font-size: clamp(26px, 3.6vw, 34px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.callstart {
+  margin-top: 22px;
+  background: #111820;
+  color: #fff;
+  font-size: 14.5px;
+  font-weight: 500;
+  padding: 12px 28px;
+  border-radius: var(--pill);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+.callstart:hover {
+  background: #000;
+  transform: translateY(-1px);
+}
+.app.call-live .callstart,
+.app.call-connecting .callstart {
+  display: none;
+}
+
+.callstatus {
+  display: none;
+  align-items: center;
+  gap: 9px;
+  margin-top: 22px;
+  border-radius: var(--pill);
+  padding: 9px 20px;
+  font-size: 14px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.app.call-connecting .callstatus,
+.app.call-live .callstatus {
+  display: inline-flex;
+}
+.callstatus.is-speaking {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+.callstatus.is-listening {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* Three-bar level meter used in the Talking state. */
+.bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+.bars i {
+  width: 3px;
+  height: 4px;
+  border-radius: 1px;
+  background: currentColor;
+  animation: bar 0.9s infinite ease-in-out;
+}
+.bars i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.bars i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes bar {
+  0%,
+  100% {
+    height: 4px;
+  }
+  50% {
+    height: 12px;
+  }
+}
+
+.callctl {
+  display: none;
+  gap: 22px;
+  margin-top: 26px;
+}
+.app.call-connecting .callctl,
+.app.call-live .callctl {
+  display: flex;
+}
+
+.callctl button {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+.callctl button:hover {
+  transform: translateY(-1px);
+}
+.callmic {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.callmic.is-muted {
+  background: var(--surface-2);
+  color: var(--subtle);
+}
+.callend {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.callend:hover {
+  background: #fbd5d5;
+}
+
+.calltranscript {
+  margin-top: 22px;
+  max-width: 460px;
+  text-align: center;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--muted);
+  min-height: 2.6em;
+}
+
+.callnote {
+  margin-top: 14px;
+  max-width: 420px;
+  text-align: center;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--subtle);
+}
+
+/* --- chat history drawer ------------------------------------------------ */
+
+.history {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+  display: none;
+  background: hsl(206 30% 12% / 0.32);
+}
+.history.is-open {
+  display: block;
+}
+
+.history__panel {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: min(380px, 88%);
+  background: var(--bg);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 40px -10px hsl(206 30% 12% / 0.3);
+}
+
+.history__head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.history__title {
+  font-size: 15px;
+  font-weight: 600;
+}
+.history__close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.history__close:hover {
+  background: var(--line);
+  color: var(--text);
+}
+.history__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+}
+.history__empty {
+  padding: 26px 14px;
+  text-align: center;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--subtle);
+}
+.history__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  background: var(--surface);
+  transition: border-color 0.15s ease;
+}
+.history__item:hover {
+  border-color: var(--accent);
+}
+.history__q {
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.history__when {
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--subtle);
+}
+.history__foot {
+  flex: 0 0 auto;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+}
+.history__clear {
+  font-size: 12.5px;
+  color: var(--danger);
+}
+.history__clear:hover {
+  text-decoration: underline;
+}
+
+/* --- gate --------------------------------------------------------------- */
+
+.gate {
+  display: none;
+  flex: 1 1 auto;
+  place-content: center;
+  text-align: center;
+  padding: clamp(36px, 10vh, 84px) var(--gutter);
+}
+.app.is-gated .gate {
+  display: grid;
+}
+.app.is-gated .app__scroll,
+.app.is-gated .composer,
+.app.is-gated .chatbar,
+.app.is-gated .callview {
+  display: none;
+}
+
+.gate__inner {
+  max-width: 430px;
+  margin: 0 auto;
+}
+.gate__avatar {
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0 auto 20px;
+  display: block;
+}
+.gate__title {
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.gate__body {
+  margin-top: 12px;
+  font-size: 14px;
+  line-height: 1.62;
+  color: var(--muted);
+}
+.gate__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 24px;
+}
+.gate__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: var(--pill);
+  font-size: 14px;
+  font-weight: 500;
+  border: 1.5px solid transparent;
+}
+.gate__btn--primary {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.gate__btn--primary:hover {
+  background: var(--accent-deep);
+}
+.gate__btn--ghost {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+.gate__btn--ghost:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* --- boot veil ---------------------------------------------------------- */
+
+/* Hides the chat until the session check resolves, so a non-member never sees
+   a composer they cannot use. */
+.app.is-booting .app__scroll,
+.app.is-booting .composer,
+.app.is-booting .chatbar {
+  visibility: hidden;
+}
+.boot {
+  display: none;
+  position: absolute;
+  inset: 0;
+  place-items: center;
+}
+.app.is-booting .boot {
+  display: grid;
+}
+.boot__spin {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- responsive --------------------------------------------------------- */
+
+@media (max-width: 560px) {
+  :root {
+    --col: 100%;
+  }
+  .avatar {
+    width: 104px;
+    height: 104px;
+  }
+  .avatar__dot {
+    width: 20px;
+    height: 20px;
+  }
+  .bubble {
+    max-width: 86%;
+  }
+  .suggest {
+    margin-top: 26px;
+  }
+  .stnav__mark {
+    font-size: 13px;
+  }
+  .callctl button {
+    width: 56px;
+    height: 56px;
+  }
+  .callview__top {
+    padding: 12px 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

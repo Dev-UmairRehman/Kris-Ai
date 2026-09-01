@@ -1,0 +1,194 @@
+<!-- ==========================================================================
+     StrategyTraining - Kris AI Memory identity bridge
+     Paste into: Settings > Snippets > Head Code  (ADD to the existing block,
+     do not replace it - the gift card and sub-nav snippets must stay.)
+
+     WHAT THIS DOES
+     The Kris AI widget runs on its own domain inside an iframe, so it cannot
+     read the Uscreen session cookie. This snippet tells the widget which
+     member is signed in. The widget forwards that claim to its own server,
+     which verifies it against the Uscreen API before trusting it - so a forged
+     value here does not grant access.
+
+     PROTOCOL
+       widget -> parent :  { type: 'kris-ai:ready' }
+       parent -> widget :  { type: 'st-kris:identity', email, uscreenId }
+
+     Both sides post to an explicit origin, never '*'.
+
+     IF THE EMAIL CANNOT BE FOUND
+     The widget falls back to whatever the server's MEMBER_GATE_MODE allows.
+     Open the browser console on /delphi and look for the [st-kris] line: it
+     names the source that worked, or reports that none did. Send me that line
+     and I will pin the lookup to the one that works on your store.
+     ========================================================================== -->
+<script>
+(function () {
+  'use strict';
+
+  /* The origin the widget is served from. UPDATE THIS after deploying. */
+  var WIDGET_ORIGIN = 'https://kris-ai-REPLACE.ondigitalocean.app';
+
+  var cached = null;
+
+  /* ---- find the signed-in member ---------------------------------------- */
+
+  /* Synchronous sources first - these cost nothing. */
+  function fromGlobals() {
+    var roots = [window.Uscreen, window.uscreen, window.USCREEN, window.currentUser];
+    for (var i = 0; i < roots.length; i++) {
+      var root = roots[i];
+      if (!root || typeof root !== 'object') continue;
+      var user = root.user || root.currentUser || root.customer || root;
+      if (user && typeof user.email === 'string' && user.email.indexOf('@') > 0) {
+        return { email: user.email, uscreenId: user.id || '', via: 'window global' };
+      }
+    }
+    return null;
+  }
+
+  function fromMeta() {
+    var names = [
+      'current-user-email',
+      'current_user_email',
+      'user-email',
+      'customer-email',
+    ];
+    for (var i = 0; i < names.length; i++) {
+      var tag = document.querySelector('meta[name="' + names[i] + '"]');
+      var value = tag && tag.getAttribute('content');
+      if (value && value.indexOf('@') > 0) {
+        return { email: value, uscreenId: '', via: 'meta[' + names[i] + ']' };
+      }
+    }
+    return null;
+  }
+
+  function fromDataAttributes() {
+    var nodes = document.querySelectorAll('[data-user-email], [data-customer-email], [data-email]');
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      var value =
+        el.getAttribute('data-user-email') ||
+        el.getAttribute('data-customer-email') ||
+        el.getAttribute('data-email');
+      if (value && value.indexOf('@') > 0) {
+        return {
+          email: value,
+          uscreenId: el.getAttribute('data-user-id') || '',
+          via: 'data attribute',
+        };
+      }
+    }
+    return null;
+  }
+
+  /* Then same-origin authenticated endpoints. These carry the Uscreen session
+     cookie automatically, so they only ever return the current member. */
+  var ENDPOINTS = [
+    '/api/v1/users/me',
+    '/api/v1/customers/me',
+    '/api/v1/me',
+    '/users/me.json',
+    '/account.json',
+    '/api/customer',
+  ];
+
+  function pluckEmail(payload) {
+    if (!payload || typeof payload !== 'object') return null;
+    var candidates = [payload, payload.user, payload.customer, payload.data, payload.me];
+    for (var i = 0; i < candidates.length; i++) {
+      var c = candidates[i];
+      if (c && typeof c.email === 'string' && c.email.indexOf('@') > 0) {
+        return { email: c.email, uscreenId: c.id || c.uuid || '' };
+      }
+    }
+    return null;
+  }
+
+  function fromEndpoints() {
+    var chain = Promise.resolve(null);
+
+    ENDPOINTS.forEach(function (path) {
+      chain = chain.then(function (found) {
+        if (found) return found;
+        return fetch(path, {
+          credentials: 'same-origin',
+          headers: { Accept: 'application/json' },
+        })
+          .then(function (res) {
+            if (!res.ok) return null;
+            var type = res.headers.get('content-type') || '';
+            if (type.indexOf('json') === -1) return null; // an HTML login page
+            return res.json();
+          })
+          .then(function (body) {
+            var hit = pluckEmail(body);
+            if (hit) hit.via = 'fetch ' + path;
+            return hit;
+          })
+          .catch(function () {
+            return null;
+          });
+      });
+    });
+
+    return chain;
+  }
+
+  function resolveIdentity() {
+    if (cached) return Promise.resolve(cached);
+
+    var sync = fromGlobals() || fromMeta() || fromDataAttributes();
+    if (sync) {
+      cached = sync;
+      console.log('[st-kris] identity via ' + sync.via);
+      return Promise.resolve(sync);
+    }
+
+    return fromEndpoints().then(function (found) {
+      if (found) {
+        cached = found;
+        console.log('[st-kris] identity via ' + found.via);
+      } else {
+        console.warn(
+          '[st-kris] could not determine the signed-in member. Kris AI will fall ' +
+            'back to the server gate. Send this line to your developer.'
+        );
+      }
+      return found;
+    });
+  }
+
+  /* ---- answer the widget ------------------------------------------------- */
+
+  window.addEventListener('message', function (event) {
+    if (event.origin !== WIDGET_ORIGIN) return;
+
+    var data = event.data;
+    if (!data || data.type !== 'kris-ai:ready') return;
+
+    var frame = event.source;
+
+    resolveIdentity().then(function (identity) {
+      try {
+        frame.postMessage(
+          {
+            type: 'st-kris:identity',
+            email: (identity && identity.email) || '',
+            uscreenId: (identity && identity.uscreenId) || '',
+          },
+          WIDGET_ORIGIN
+        );
+      } catch (e) {
+        /* frame went away */
+      }
+    });
+  });
+
+  /* Warm the lookup so the answer is ready the moment the widget asks. */
+  if (location.pathname.replace(/\/+$/, '') === '/delphi') {
+    resolveIdentity();
+  }
+})();
+</script>

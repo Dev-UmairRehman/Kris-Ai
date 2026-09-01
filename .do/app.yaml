@@ -1,0 +1,140 @@
+# ===========================================================================
+# DigitalOcean App Platform spec - Kris AI
+#
+# NOT APPLIED YET. Nothing exists on DigitalOcean for this project.
+# Deploy with:
+#   doctl apps create --spec .do/app.yaml
+# Update an existing app with:
+#   doctl apps update <APP_ID> --spec .do/app.yaml
+#
+# App Platform builds from a Git repo, so `github` below must point at a repo
+# containing this directory. Replace the repo/branch, then set the SECRET
+# values in the DO dashboard (or with --spec after filling them in) - never
+# commit real keys to the repo.
+#
+# Built with the Node buildpack (environment_slug: node-js). No Docker.
+#
+# Cost at basic-xxs: ~$5/month.
+# ===========================================================================
+
+name: kris-ai
+region: fra
+
+services:
+  - name: web
+    # ---- source ----------------------------------------------------------
+    github:
+      repo: REPLACE_ME/kris-ai
+      branch: main
+      deploy_on_push: true
+    source_dir: /
+
+    # ---- runtime ---------------------------------------------------------
+    run_command: node server.js
+    environment_slug: node-js
+
+    # IMPORTANT: the rate limiter is in-process. More than one instance
+    # multiplies the effective BuddyPro request rate, and BuddyPro allows only
+    # 30/min per key. Keep this at 1, or divide RATE_GLOBAL_PER_MIN by the
+    # instance count.
+    instance_count: 1
+    instance_size_slug: basic-xxs
+
+    http_port: 8080
+
+    health_check:
+      http_path: /healthz
+      initial_delay_seconds: 10
+      period_seconds: 20
+      timeout_seconds: 5
+      failure_threshold: 3
+
+    # ---- env -------------------------------------------------------------
+    envs:
+      - key: NODE_ENV
+        scope: RUN_TIME
+        value: production
+
+      - key: PORT
+        scope: RUN_TIME
+        value: "8080"
+
+      # --- BuddyPro ---
+      - key: BUDDYPRO_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_WITH_BAPI_KEY
+
+      - key: BUDDYPRO_BASE_URL
+        scope: RUN_TIME
+        value: https://api.buddypro.ai
+
+      # --- signing ---
+      # Generate each with:
+      #   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+      # MEMBER_ID_SALT must never change once live - changing it orphans every
+      # member's BuddyPro conversation memory.
+      - key: MEMBER_ID_SALT
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_WITH_32_BYTE_HEX
+
+      - key: SESSION_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_WITH_32_BYTE_HEX
+
+      - key: SESSION_TTL_SECONDS
+        scope: RUN_TIME
+        value: "7200"
+
+      # --- store ---
+      - key: STORE_ORIGIN
+        scope: RUN_TIME
+        value: https://www.strategytraining.com
+
+      - key: JOIN_URL
+        scope: RUN_TIME
+        value: https://www.strategytraining.com/join
+
+      - key: SIGN_IN_URL
+        scope: RUN_TIME
+        value: https://www.strategytraining.com/sign_in
+
+      - key: ALLOWED_FRAME_ORIGINS
+        scope: RUN_TIME
+        value: https://www.strategytraining.com,https://strategytraining.com
+
+      # --- Uscreen membership verification ---
+      # Fill these in and set MEMBER_GATE_MODE=strict for a verified gate.
+      - key: USCREEN_API_BASE
+        scope: RUN_TIME
+        value: ""
+
+      - key: USCREEN_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+
+      # strict = verify every visitor against Uscreen (requires the two above)
+      # frame  = trust the members-only /delphi iframe (no Uscreen key needed)
+      - key: MEMBER_GATE_MODE
+        scope: RUN_TIME
+        value: frame
+
+      # --- rate limiting ---
+      - key: RATE_GLOBAL_PER_MIN
+        scope: RUN_TIME
+        value: "25"
+
+      - key: RATE_SESSION_PER_MIN
+        scope: RUN_TIME
+        value: "12"
+
+ingress:
+  rules:
+    - match:
+        path:
+          prefix: /
+      component:
+        name: web
