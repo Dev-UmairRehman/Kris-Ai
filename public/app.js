@@ -96,6 +96,11 @@
   var callBudget = document.getElementById('callBudget');
   var callLang = document.getElementById('callLang');
 
+  var recTime = document.getElementById('recTime');
+  var recWave = document.getElementById('recWave');
+  var recSend = document.getElementById('recSend');
+  var recCancel = document.getElementById('recCancel');
+
   var isEmbed = app.getAttribute('data-mode') === 'embed';
   var busy = false;
   var inThread = false;
@@ -164,83 +169,177 @@
     }
   }
 
-  function readHistory() {
-    var parsed = readStore(HISTORY_KEY, []);
-    return Array.isArray(parsed) ? parsed : [];
+  /* History is a list of CONVERSATIONS, not loose turns - the reference groups
+     them under date headings and marks each as a chat or a call. */
+  var CONV_KEY = 'kris_ai_conversations_v1';
+  var CONV_MAX = 60;
+  var currentConvId = null;
+
+  function readConversations() {
+    var parsed = readStore(CONV_KEY, null);
+    if (Array.isArray(parsed)) return parsed;
+
+    /* One-time migration from the old flat per-turn store. */
+    var legacy = readStore(HISTORY_KEY, []);
+    if (Array.isArray(legacy) && legacy.length) {
+      var first = legacy.filter(function (e) {
+        return e.role === 'me';
+      })[0];
+      var migrated = [
+        {
+          id: 'legacy',
+          kind: 'chat',
+          title: (first && first.text) || 'Earlier conversation',
+          at: legacy[0].at || Date.now(),
+          turns: legacy,
+        },
+      ];
+      writeStore(CONV_KEY, migrated);
+      return migrated;
+    }
+    return [];
+  }
+
+  function startConversation(kind) {
+    currentConvId = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    var list = readConversations();
+    list.push({ id: currentConvId, kind: kind || 'chat', title: '', at: Date.now(), turns: [] });
+    writeStore(CONV_KEY, list.slice(-CONV_MAX));
+    return currentConvId;
   }
 
   function recordTurn(role, text) {
     if (!text) return;
-    var entries = readHistory();
-    entries.push({ role: role, text: text, at: Date.now() });
-    writeStore(HISTORY_KEY, entries.slice(-HISTORY_MAX));
+    if (!currentConvId) startConversation('chat');
+
+    var list = readConversations();
+    var conv = null;
+    for (var i = list.length - 1; i >= 0; i--) {
+      if (list[i].id === currentConvId) {
+        conv = list[i];
+        break;
+      }
+    }
+    if (!conv) {
+      conv = { id: currentConvId, kind: 'chat', title: '', at: Date.now(), turns: [] };
+      list.push(conv);
+    }
+
+    conv.turns.push({ role: role, text: text, at: Date.now() });
+    if (conv.turns.length > HISTORY_MAX) conv.turns = conv.turns.slice(-HISTORY_MAX);
+
+    /* The first thing the member says names the conversation. */
+    if (!conv.title && role === 'me') {
+      conv.title = text.replace(/\s+/g, ' ').trim().slice(0, 80);
+    }
+
+    writeStore(CONV_KEY, list.slice(-CONV_MAX));
   }
 
-  function relativeTime(ms) {
-    var seconds = Math.round((Date.now() - ms) / 1000);
-    if (seconds < 60) return 'just now';
-    var minutes = Math.round(seconds / 60);
-    if (minutes < 60) return minutes + (minutes === 1 ? ' minute ago' : ' minutes ago');
-    var hours = Math.round(minutes / 60);
-    if (hours < 24) return hours + (hours === 1 ? ' hour ago' : ' hours ago');
-    var days = Math.round(hours / 24);
-    if (days < 30) return days + (days === 1 ? ' day ago' : ' days ago');
-    return new Date(ms).toLocaleDateString();
+  /* "Today" / "Yesterday" / "August 30", matching the reference. */
+  function dayLabel(ms) {
+    var then = new Date(ms);
+    var today = new Date();
+    var startOf = function (d) {
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    };
+    var days = Math.round((startOf(today) - startOf(then)) / 86400000);
+    if (days <= 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    return then.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
   }
+
+  var CHAT_ICON =
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<rect x="3" y="4.5" width="18" height="13" rx="2.5"/><path d="M7.5 20l3-2.5"/></svg>';
+  var CALL_ICON =
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.5.6.6 0 1 ' +
+    '.4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.4c.6 0 1 .4 1 1 0 1.2.2 2.4.6 ' +
+    '3.5.1.4 0 .8-.2 1z"/></svg>';
 
   function renderHistory() {
-    var questions = readHistory().filter(function (e) {
-      return e.role === 'me';
+    var list = readConversations().filter(function (conv) {
+      return conv && conv.turns && conv.turns.length && conv.title;
     });
 
     historyBody.textContent = '';
 
-    if (!questions.length) {
+    if (!list.length) {
       var empty = document.createElement('p');
       empty.className = 'history__empty';
       empty.textContent =
-        'No questions yet on this device. Kris remembers your conversation either way, ' +
-        'so you can pick up where you left off.';
+        'No conversations yet on this device. Kris remembers you either way, so you can ' +
+        'pick up where you left off.';
       historyBody.appendChild(empty);
       return;
     }
 
-    questions
+    /* Newest first, grouped by day. */
+    var groups = [];
+    var index = {};
+    list
       .slice()
-      .reverse()
-      .forEach(function (entry) {
+      .sort(function (a, b) {
+        return b.at - a.at;
+      })
+      .forEach(function (conv) {
+        var label = dayLabel(conv.at);
+        if (!index[label]) {
+          index[label] = { label: label, items: [] };
+          groups.push(index[label]);
+        }
+        index[label].items.push(conv);
+      });
+
+    groups.forEach(function (group) {
+      var wrap = document.createElement('div');
+      wrap.className = 'history__group';
+
+      var heading = document.createElement('div');
+      heading.className = 'history__date';
+      heading.textContent = group.label;
+      wrap.appendChild(heading);
+
+      group.items.forEach(function (conv) {
         var item = document.createElement('button');
         item.type = 'button';
         item.className = 'history__item';
+        item.innerHTML = conv.kind === 'call' ? CALL_ICON : CHAT_ICON;
 
-        var q = document.createElement('div');
-        q.className = 'history__q';
-        q.textContent = entry.text;
+        var title = document.createElement('span');
+        title.className = 'history__q';
+        title.textContent = conv.title;
+        item.appendChild(title);
 
-        var when = document.createElement('div');
-        when.className = 'history__when';
-        when.textContent = relativeTime(entry.at);
-
-        item.appendChild(q);
-        item.appendChild(when);
         item.addEventListener('click', function () {
-          restoreTranscript();
+          restoreConversation(conv.id);
           closeHistory();
         });
 
-        historyBody.appendChild(item);
+        wrap.appendChild(item);
       });
+
+      historyBody.appendChild(wrap);
+    });
   }
 
-  function restoreTranscript() {
-    var entries = readHistory();
-    if (!entries.length) return;
+  function restoreConversation(id) {
+    var list = readConversations();
+    var conv = null;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id === id) conv = list[i];
+    }
+    if (!conv || !conv.turns.length) return;
 
     thread.textContent = '';
     enterThread({ welcome: false });
-    entries.forEach(function (entry) {
+    conv.turns.forEach(function (entry) {
       addTurn(entry.role === 'me' ? 'me' : 'kris', entry.text, { silent: true });
     });
+    currentConvId = conv.id;
     scrollToEnd();
   }
 
@@ -261,7 +360,9 @@
   });
   historyClear.addEventListener('click', function () {
     try {
+      window.localStorage.removeItem(CONV_KEY);
       window.localStorage.removeItem(HISTORY_KEY);
+      currentConvId = null;
     } catch (e) {
       /* nothing to do */
     }
@@ -592,6 +693,185 @@
     scroll.scrollTop = scroll.scrollHeight;
   }
 
+  /* ---- voice notes ------------------------------------------------------ */
+
+  var PLAY_SVG =
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+    '<path d="M8 5.2v13.6a1 1 0 001.5.87l11-6.8a1 1 0 000-1.74l-11-6.8A1 1 0 008 5.2z"/></svg>';
+  var PAUSE_SVG =
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+    '<rect x="6" y="4.5" width="4.2" height="15" rx="1.4"/>' +
+    '<rect x="13.8" y="4.5" width="4.2" height="15" rx="1.4"/></svg>';
+
+  function formatSeconds(total) {
+    var s = Math.max(0, Math.round(total || 0));
+    return Math.floor(s / 60) + ':' + (s % 60 < 10 ? '0' : '') + (s % 60);
+  }
+
+  /**
+   * A voice note bubble.
+   *
+   * `src` plays real audio. Without one it speaks `speakText` through the
+   * device voice instead - which is what happens for Kris, because BuddyPro
+   * withholds its TTS from API-created profiles (measured; see README).
+   */
+  function buildVoiceBubble(spec) {
+    var bubble = document.createElement('div');
+    bubble.className = 'bubble';
+
+    var box = document.createElement('div');
+    box.className = 'voicebubble';
+
+    var play = document.createElement('button');
+    play.type = 'button';
+    play.className = 'voicebubble__play';
+    play.innerHTML = PLAY_SVG;
+    play.setAttribute('aria-label', 'Play voice message');
+
+    var wave = document.createElement('div');
+    wave.className = 'voicebubble__wave';
+    var BARS = 26;
+    var bars = [];
+    for (var i = 0; i < BARS; i++) {
+      var bar = document.createElement('i');
+      /* Deterministic pseudo-random heights so a note looks like a waveform
+         but never re-shuffles on re-render. */
+      var h = 5 + ((Math.sin(i * 1.7 + (spec.seed || 1) * 0.9) + 1) / 2) * 15;
+      bar.style.height = h.toFixed(1) + 'px';
+      wave.appendChild(bar);
+      bars.push(bar);
+    }
+
+    var time = document.createElement('span');
+    time.className = 'voicebubble__time';
+    time.textContent = formatSeconds(spec.seconds);
+
+    box.appendChild(play);
+    box.appendChild(wave);
+    box.appendChild(time);
+    bubble.appendChild(box);
+
+    if (spec.text) {
+      var caption = document.createElement('div');
+      caption.className = 'voicebubble__text';
+      caption.textContent = spec.text;
+      bubble.appendChild(caption);
+    }
+
+    function paint(ratio) {
+      var upto = Math.round(ratio * BARS);
+      for (var b = 0; b < BARS; b++) bars[b].classList.toggle('is-played', b < upto);
+    }
+    function reset() {
+      box.classList.remove('is-playing');
+      play.innerHTML = PLAY_SVG;
+      paint(0);
+      time.textContent = formatSeconds(spec.seconds);
+    }
+
+    /* --- real audio --- */
+    if (spec.src) {
+      var player = new Audio(spec.src);
+      player.addEventListener('loadedmetadata', function () {
+        if (isFinite(player.duration)) {
+          spec.seconds = player.duration;
+          time.textContent = formatSeconds(player.duration);
+        }
+      });
+      player.addEventListener('timeupdate', function () {
+        if (player.duration) {
+          paint(player.currentTime / player.duration);
+          time.textContent = formatSeconds(player.duration - player.currentTime);
+        }
+      });
+      player.addEventListener('ended', reset);
+
+      play.addEventListener('click', function () {
+        if (player.paused) {
+          player.play().catch(function () {});
+          box.classList.add('is-playing');
+          play.innerHTML = PAUSE_SVG;
+        } else {
+          player.pause();
+          box.classList.remove('is-playing');
+          play.innerHTML = PLAY_SVG;
+        }
+      });
+
+      bubble.__play = function () {
+        player.play().catch(function () {});
+        box.classList.add('is-playing');
+        play.innerHTML = PAUSE_SVG;
+      };
+      return bubble;
+    }
+
+    /* --- spoken by the device --- */
+    var progressTimer = null;
+
+    function stopSpeaking() {
+      if (progressTimer) clearInterval(progressTimer);
+      progressTimer = null;
+      try {
+        if (synth) synth.cancel();
+      } catch (e) {
+        /* ignore */
+      }
+      reset();
+    }
+
+    function startSpeaking() {
+      if (!synth) return;
+      speak(spec.speakText || '', {
+        onStart: function (estimate) {
+          spec.seconds = estimate;
+          time.textContent = formatSeconds(estimate);
+          box.classList.add('is-playing');
+          play.innerHTML = PAUSE_SVG;
+
+          var began = Date.now();
+          if (progressTimer) clearInterval(progressTimer);
+          progressTimer = setInterval(function () {
+            var elapsed = (Date.now() - began) / 1000;
+            paint(Math.min(1, elapsed / Math.max(1, estimate)));
+            time.textContent = formatSeconds(Math.max(0, estimate - elapsed));
+          }, 120);
+        },
+        onEnd: function () {
+          if (progressTimer) clearInterval(progressTimer);
+          progressTimer = null;
+          reset();
+        },
+      });
+    }
+
+    play.addEventListener('click', function () {
+      if (box.classList.contains('is-playing')) stopSpeaking();
+      else startSpeaking();
+    });
+
+    bubble.__play = startSpeaking;
+    return bubble;
+  }
+
+  function addVoiceTurn(role, spec) {
+    var turn = document.createElement('div');
+    turn.className = 'turn turn--' + role;
+
+    var bubble = buildVoiceBubble({
+      src: spec.src || null,
+      speakText: spec.speakText || spec.text || '',
+      text: spec.text || '',
+      seconds: spec.seconds || 0,
+      seed: thread.children.length + 1,
+    });
+
+    turn.appendChild(bubble);
+    thread.appendChild(turn);
+    scrollToEnd();
+    return { turn: turn, bubble: bubble, play: bubble.__play };
+  }
+
   /* The floating jump button only earns its place when there is hidden content
      below the fold. */
   function syncScrollDown() {
@@ -621,7 +901,20 @@
     hideNotice();
     enterThread();
 
-    if (!options.silentUser) addTurn('me', message);
+    if (!options.silentUser) {
+      if (options.voice) {
+        /* A recorded question is shown as a voice note, the way a messenger
+           does it, with the transcript kept small underneath. */
+        addVoiceTurn('me', {
+          src: options.voice.src,
+          seconds: options.voice.seconds,
+          text: message,
+        });
+        recordTurn('me', message);
+      } else {
+        addTurn('me', message);
+      }
+    }
     input.value = '';
     armSend();
 
@@ -647,9 +940,26 @@
         }
 
         var content = (res.data && res.data.content) || '';
-        pending.setText(content);
+        var replyAudio = (res.data && res.data.audio) || null;
         recordTurn('kris', content);
-        return { content: content, audio: (res.data && res.data.audio) || null };
+
+        /* A spoken question deserves a spoken answer. BuddyPro's own voice is
+           used when it sends one; otherwise the note plays through the device
+           voice, with the text kept underneath so nothing is lost. */
+        if (options.spokenReply) {
+          pending.turn.remove();
+          var note = addVoiceTurn('kris', {
+            src: replyAudio,
+            speakText: content,
+            text: content,
+            seconds: 0,
+          });
+          if (note.play) note.play();
+        } else {
+          pending.setText(content);
+        }
+
+        return { content: content, audio: replyAudio };
       })
       .catch(function () {
         pending.turn.classList.add('turn--error');
@@ -688,10 +998,10 @@
     scrollToEnd();
   });
 
-  /* ---- dictation (composer microphone) ---------------------------------
-     Uses the same browser speech engine as the call. BuddyPro's own audio
-     endpoint is rejected by this instance, so recording and uploading is not
-     an option; transcribing locally and sending text is.
+  /* ---- speech engine ----------------------------------------------------
+     Both the composer recorder and the call use the browser's speech engine.
+     BuddyPro rejects audio uploads on this instance (measured), so speech is
+     transcribed here and only text is sent up.
      -------------------------------------------------------------------- */
 
   var SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -717,7 +1027,8 @@
    * discards perfectly good interim text - which is exactly what happened.
    *
    * So: continuous=true (Chrome never decides), a silence timer decides, and
-   * interim text counts. Returns a handle with stop() and abort().
+   * interim text counts. Pass silenceMs:0 to disable the pause detector when the
+   * caller ends the turn itself. Returns a handle with stop() and abort().
    */
   function listenOnce(options) {
     var rec = new SpeechRecognitionCtor();
@@ -755,6 +1066,9 @@
     }
 
     function armSilence() {
+      /* silenceMs: 0 means the caller ends the turn, not a pause - that is how
+         the composer recorder works, so a thinking pause never cuts you off. */
+      if (options.silenceMs === 0) return;
       if (silenceTimer) clearTimeout(silenceTimer);
       silenceTimer = setTimeout(function () {
         /* Only end the turn if something was actually said. Silence with no
@@ -776,7 +1090,7 @@
 
     rec.onerror = function (event) {
       /* 'no-speech' and 'aborted' are routine - a quiet moment, or our own
-         abort() - and must not tear the call down. */
+         abort() - and must not tear the turn down. */
       if (event.error === 'no-speech' || event.error === 'aborted') return;
       if (settled) return;
       settled = true;
@@ -823,47 +1137,178 @@
     };
   }
 
-  var dictation = null;
 
-  micBtn.addEventListener('click', function () {
-    if (!speechSupported) {
-      showNotice('Voice input needs Chrome or Edge. Type your question instead.');
-      return;
+  /* ---- composer recorder (tap to record, then send) ---------------------
+     Modelled on a messenger: tapping the microphone turns the composer into a
+     recorder with a timer, a live level trace, cancel and send. The turn ends
+     when the member sends it, never on a pause, so thinking mid-sentence
+     cannot cut them off.
+
+     Two things run at once: MediaRecorder captures the audio so the question
+     can be shown as a real voice note, and SpeechRecognition transcribes it
+     because BuddyPro rejects audio uploads on this instance (measured). The
+     recording is played back locally; the transcript is what is sent.
+     -------------------------------------------------------------------- */
+
+  var recording = null;
+
+  function stopRecordingUi() {
+    form.classList.remove('is-recording');
+    if (recording && recording.ticker) clearInterval(recording.ticker);
+    if (recording && recording.raf) cancelAnimationFrame(recording.raf);
+  }
+
+  function beginRecording() {
+    var state = {
+      listener: null,
+      recorder: null,
+      chunks: [],
+      stream: null,
+      audioCtx: null,
+      analyser: null,
+      startedAt: Date.now(),
+      ticker: null,
+      raf: null,
+      text: '',
+    };
+    recording = state;
+
+    form.classList.add('is-recording');
+    recTime.textContent = '0:00';
+    hideNotice();
+
+    /* Level trace. */
+    recWave.textContent = '';
+    var bars = [];
+    for (var i = 0; i < 30; i++) {
+      var bar = document.createElement('i');
+      recWave.appendChild(bar);
+      bars.push(bar);
     }
 
-    /* Second tap = "I am done", rather than waiting for the pause. */
-    if (dictation) {
-      dictation.stop();
-      return;
+    state.ticker = setInterval(function () {
+      recTime.textContent = formatSeconds((Date.now() - state.startedAt) / 1000);
+    }, 250);
+
+    if (navigator.mediaDevices && window.MediaRecorder) {
+      navigator.mediaDevices
+        .getUserMedia({ audio: true })
+        .then(function (stream) {
+          if (!recording) {
+            stream.getTracks().forEach(function (t) {
+              t.stop();
+            });
+            return;
+          }
+          state.stream = stream;
+
+          try {
+            state.recorder = new MediaRecorder(stream);
+            state.recorder.ondataavailable = function (e) {
+              if (e.data && e.data.size) state.chunks.push(e.data);
+            };
+            state.recorder.start();
+          } catch (e) {
+            state.recorder = null;
+          }
+
+          /* Drive the trace from real amplitude. */
+          try {
+            var Ctx = window.AudioContext || window.webkitAudioContext;
+            if (Ctx) {
+              state.audioCtx = new Ctx();
+              var source = state.audioCtx.createMediaStreamSource(stream);
+              state.analyser = state.audioCtx.createAnalyser();
+              state.analyser.fftSize = 256;
+              source.connect(state.analyser);
+
+              var buffer = new Uint8Array(state.analyser.fftSize);
+              var levels = [];
+              var draw = function () {
+                if (!recording || !state.analyser) return;
+                state.analyser.getByteTimeDomainData(buffer);
+                var sum = 0;
+                for (var n = 0; n < buffer.length; n++) {
+                  var d = (buffer[n] - 128) / 128;
+                  sum += d * d;
+                }
+                var rms = Math.sqrt(sum / buffer.length);
+                levels.push(rms);
+                while (levels.length > bars.length) levels.shift();
+
+                for (var b = 0; b < bars.length; b++) {
+                  var v = levels[levels.length - bars.length + b] || 0;
+                  var h = Math.max(3, Math.min(22, v * 70));
+                  bars[b].style.height = h.toFixed(1) + 'px';
+                  bars[b].classList.toggle('is-hot', v > 0.04);
+                }
+                state.raf = requestAnimationFrame(draw);
+              };
+              state.raf = requestAnimationFrame(draw);
+            }
+          } catch (e) {
+            /* trace is decoration; recording still works */
+          }
+        })
+        .catch(function () {
+          /* No microphone for MediaRecorder - recognition may still work. */
+        });
     }
 
-    micBtn.classList.add('is-armed');
-    showNotice('Listening… pause when you have finished, or tap the microphone again.');
-
-    function done() {
-      dictation = null;
-      micBtn.classList.remove('is-armed');
+    function releaseStream() {
+      if (state.audioCtx && state.audioCtx.state !== 'closed') {
+        state.audioCtx.close().catch(function () {});
+      }
+      state.audioCtx = null;
+      state.analyser = null;
+      if (state.stream) {
+        state.stream.getTracks().forEach(function (t) {
+          t.stop();
+        });
+        state.stream = null;
+      }
     }
 
-    dictation = listenOnce({
+    state.collect = function (then) {
+      if (!state.recorder || state.recorder.state !== 'recording') {
+        releaseStream();
+        then(null);
+        return;
+      }
+      state.recorder.onstop = function () {
+        var blob = state.chunks.length
+          ? new Blob(state.chunks, { type: state.recorder.mimeType || 'audio/webm' })
+          : null;
+        state.chunks = [];
+        releaseStream();
+        then(blob ? URL.createObjectURL(blob) : null);
+      };
+      try {
+        state.recorder.stop();
+      } catch (e) {
+        releaseStream();
+        then(null);
+      }
+    };
+
+    state.listener = listenOnce({
       lang: currentLanguage(),
+      silenceMs: 0, // the member decides when the message is finished
+      maxMs: 120000,
       onInterim: function (text) {
-        input.value = text;
-        armSend();
+        state.text = text;
       },
       onResult: function (text) {
-        done();
-        hideNotice();
-        input.value = text;
-        armSend();
-        if (text) send(text);
+        state.text = text || state.text;
+        finishRecording(true);
       },
       onEmpty: function () {
-        done();
-        showNotice('I did not catch that. Try again, or type your question.');
+        finishRecording(true);
       },
       onError: function (err) {
-        done();
+        recording = null;
+        stopRecordingUi();
+        releaseStream();
         showNotice(
           err === 'not-allowed' || err === 'service-not-allowed'
             ? 'Microphone permission was declined.'
@@ -871,7 +1316,61 @@
         );
       },
     });
+  }
+
+  /** @param {boolean} keep send it, or throw it away */
+  function finishRecording(keep) {
+    var state = recording;
+    if (!state) return;
+    recording = null;
+    stopRecordingUi();
+
+    var seconds = (Date.now() - state.startedAt) / 1000;
+    var text = (state.text || '').trim();
+
+    if (state.listener) {
+      if (keep) state.listener.stop();
+      else state.listener.abort();
+    }
+
+    if (!keep) {
+      state.collect(function (src) {
+        if (src) URL.revokeObjectURL(src);
+      });
+      return;
+    }
+
+    state.collect(function (src) {
+      if (!text) {
+        if (src) URL.revokeObjectURL(src);
+        showNotice('I did not catch that. Try again, or type your question.');
+        return;
+      }
+      send(text, {
+        voice: { src: src, seconds: seconds },
+        wantAudio: true,
+        spokenReply: true,
+      });
+    });
+  }
+
+  micBtn.addEventListener('click', function () {
+    if (!speechSupported) {
+      showNotice('Voice messages need Chrome or Edge. Type your question instead.');
+      return;
+    }
+    if (recording) return;
+    beginRecording();
   });
+
+  recSend.addEventListener('click', function () {
+    finishRecording(true);
+  });
+
+  recCancel.addEventListener('click', function () {
+    finishRecording(false);
+  });
+
 
   /* ---- call ------------------------------------------------------------- */
 
@@ -973,6 +1472,8 @@
         app.classList.add('call-live');
         callLive = true;
         enterThread();
+        /* Calls are listed separately from chats, with the phone icon. */
+        startConversation('call');
 
         callSeconds = 0;
         callClock.textContent = '00:00';
@@ -1123,25 +1624,36 @@
     }
   }
 
-  function speak(text) {
-    if (!text) {
-      if (callLive) {
-        setCallStatus('Listening', 'listening');
-        startListening();
-      }
-      return;
-    }
-    if (!synth) {
+  /**
+   * @param {string} text
+   * @param {{onStart?:Function,onEnd?:Function}} [opts] when given, this is a
+   *   voice-note playback in the chat rather than a call turn, so the call
+   *   status and the listening loop are left alone.
+   */
+  function speak(text, opts) {
+    var standalone = !!opts;
+    var onStart = (opts && opts.onStart) || null;
+    var onEnd = (opts && opts.onEnd) || null;
+
+    function finished() {
+      if (onEnd) onEnd();
+      if (standalone) return;
+      if (!callLive) return;
       setCallStatus('Listening', 'listening');
       startListening();
+    }
+
+    if (!text || !synth) {
+      finished();
       return;
     }
 
-    setCallStatus('Talking', 'speaking');
+    if (!standalone) setCallStatus('Talking', 'speaking');
 
-    /* Cancel anything queued, then speak. Recognition stays off while Kris
-       talks, otherwise the synthesised voice gets transcribed straight back. */
-    stopListening();
+    /* Cancel anything queued, then speak. During a call recognition stays off
+       while Kris talks, otherwise the synthesised voice gets transcribed
+       straight back in as the next question. */
+    if (!standalone) stopListening();
     try {
       synth.cancel();
     } catch (e) {
@@ -1163,16 +1675,12 @@
     if (female.length) utterance.voice = female[0];
     else if (preferred.length) utterance.voice = preferred[0];
 
-    utterance.onend = function () {
-      if (!callLive) return;
-      setCallStatus('Listening', 'listening');
-      startListening();
-    };
-    utterance.onerror = function () {
-      if (!callLive) return;
-      setCallStatus('Listening', 'listening');
-      startListening();
-    };
+    utterance.onend = finished;
+    utterance.onerror = finished;
+
+    /* Rough duration estimate so a voice note can show a countdown: English
+       speech runs about 15 characters a second at this rate. */
+    if (onStart) onStart(Math.max(1, Math.round(utterance.text.length / 15)));
 
     synth.speak(utterance);
   }

@@ -139,7 +139,7 @@ npm run shots:extra       # chat, call and history views, with assertions
 npm run test:embed        # THE important one - see below
 npm run probe:audio       # re-check whether BuddyPro audio has been enabled
 npm run probe:language    # what actually forces BuddyPro into one language
-npm run test:speech       # speech endpointing, with a stubbed recogniser
+npm run test:speech       # the recorder and the call, with a stubbed recogniser
 ```
 
 `npm run test:embed` is the end-to-end integration test. It stands up a fake Uscreen
@@ -351,6 +351,46 @@ Two honest limitations, surfaced in the UI itself rather than buried here:
 
 The minutes budget (100, counting down, banked across reloads in `localStorage`) is cosmetic
 parity with the reference. Real quota enforcement belongs server-side; not built.
+
+### Voice messages, and why the voice is not Kris's
+
+Tapping the microphone turns the composer into a recorder, the way a messenger does it: a
+running timer, a live level trace from real microphone amplitude, cancel, and send. **A pause
+never sends it** - the member decides. The question then appears as a voice note with a play
+control and the transcript kept small underneath, and the answer comes back as a voice note
+too.
+
+Two things run at once while recording: `MediaRecorder` captures the audio so the question can
+be played back, and `SpeechRecognition` transcribes it. Only the transcript is sent, because
+BuddyPro rejects audio uploads on this instance.
+
+**The spoken reply uses the device voice, not Kris's.** BuddyPro's TTS is real - it is the
+Telegram voice - but it is withheld from API-created profiles. Measured, repeatedly
+(`npm run probe:audio`):
+
+```
+isolated user + saveToHistory:false     AUDIO NO
+isolated user + saveToHistory:true      AUDIO NO
+isolated user, 2nd turn (warm)          AUDIO NO
+default profile + saveToHistory:false   AUDIO YES  mp3 29KB
+default profile + saveToHistory:true    AUDIO YES  mp3 48KB
+```
+
+So the voice is only available on the owner's **default** profile - where every member would
+share one conversation and one memory. Per-member isolation is not negotiable, so the reply is
+requested with `modalities:['text','audio']` on every voice turn and the client falls back to
+the device voice when none arrives. **The moment BuddyPro enables TTS for `user` profiles,
+Kris's real voice appears with no code change.**
+
+Worth asking BuddyPro for, alongside that: they document voice cloning via
+`/createVoiceClone`, `/useVoiceCloneForMe:true` and `/useVoiceCloneForEverybody:true`.
+
+### Chat history
+
+Conversations, not loose questions - grouped under **Today / Yesterday / August 30** headings,
+each row a single truncated title with an icon showing whether it was a chat or a call.
+Clicking one replays it. Stored per browser in `localStorage` (BuddyPro exposes no endpoint to
+read its own history back), migrating automatically from the older per-turn format.
 
 ### Speech endpointing: why it listened forever
 

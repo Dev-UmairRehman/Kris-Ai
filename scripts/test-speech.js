@@ -125,7 +125,7 @@ function installStub() {
     .catch(() => {});
 
   /* ---- composer microphone -------------------------------------------- */
-  console.log('\ncomposer microphone (interim-only, no onend - the failing case)');
+  console.log('\ncomposer recorder (tap to record, then send)');
 
   const micVisible = await page.evaluate(
     () => getComputedStyle(document.getElementById('micBtn')).display !== 'none'
@@ -133,41 +133,73 @@ function installStub() {
   check('the microphone is offered when speech is supported', micVisible);
 
   await page.click('#micBtn');
-  await wait(400);
+  await wait(500);
 
   const mid = await page.evaluate(() => ({
-    armed: document.getElementById('micBtn').classList.contains('is-armed'),
-    input: document.getElementById('input').value,
+    recordingUi: document.getElementById('form').classList.contains('is-recording'),
+    inputHidden: getComputedStyle(document.getElementById('input')).display === 'none',
+    sendShown: getComputedStyle(document.getElementById('recSend')).display !== 'none',
+    cancelShown: getComputedStyle(document.getElementById('recCancel')).display !== 'none',
+    timer: document.getElementById('recTime').textContent,
+    bars: document.querySelectorAll('#recWave i').length,
     started: window.__speech.started,
+    noticeShown: document.getElementById('notice').classList.contains('is-shown'),
+    turns: document.querySelectorAll('.turn--me').length,
   }));
+  console.log('        ' + JSON.stringify(mid));
   check('recognition actually started', mid.started === 1, 'started=' + mid.started);
-  check('the button shows it is listening', mid.armed);
-  check(
-    'interim speech reaches the composer',
-    /what should I/i.test(mid.input),
-    JSON.stringify(mid.input)
-  );
+  check('the composer becomes the recorder', mid.recordingUi && mid.inputHidden);
+  check('send and cancel are offered', mid.sendShown && mid.cancelShown);
+  check('a level trace is drawn', mid.bars > 0, 'bars=' + mid.bars);
+  check('no instruction text is shown', !mid.noticeShown);
 
-  /* The silence timer is 1500ms. Before the fix nothing happened here, ever. */
+  /* A pause must NOT send it - the member decides, like a messenger. */
+  await wait(2200);
+  const paused = await page.evaluate(() => ({
+    stillRecording: document.getElementById('form').classList.contains('is-recording'),
+    turns: document.querySelectorAll('.turn--me').length,
+    timer: document.getElementById('recTime').textContent,
+  }));
+  console.log('        after a 2.2s pause: ' + JSON.stringify(paused));
+  check('a pause does not send it', paused.stillRecording && paused.turns === 0, JSON.stringify(paused));
+  check('the timer is running', paused.timer !== '0:00', paused.timer);
+
+  /* Cancel throws it away. */
+  await page.click('#recCancel');
+  await wait(400);
+  const cancelled = await page.evaluate(() => ({
+    recording: document.getElementById('form').classList.contains('is-recording'),
+    turns: document.querySelectorAll('.turn--me').length,
+    inputBack: getComputedStyle(document.getElementById('input')).display !== 'none',
+  }));
+  check('cancel discards the recording', !cancelled.recording && cancelled.turns === 0, JSON.stringify(cancelled));
+  check('the text input comes back', cancelled.inputBack);
+
+  /* Record again and send it. */
+  await page.click('#micBtn');
+  await wait(500);
+  await page.click('#recSend');
+
   await page.waitForFunction(() => document.querySelectorAll('.turn--me').length > 0, {
-    timeout: 6000,
+    timeout: 8000,
   }).catch(() => {});
 
   const after = await page.evaluate(() => ({
-    armed: document.getElementById('micBtn').classList.contains('is-armed'),
+    armed: document.getElementById('form').classList.contains('is-recording'),
     sentTurns: document.querySelectorAll('.turn--me').length,
-    sentText: (document.querySelector('.turn--me .bubble') || {}).textContent || '',
+    voiceBubbles: document.querySelectorAll('.turn--me .voicebubble').length,
+    caption: (document.querySelector('.turn--me .voicebubble__text') || {}).textContent || '',
     stopped: window.__speech.stopped,
   }));
   console.log('        ' + JSON.stringify(after));
-  check('the turn ends on silence instead of hanging', after.sentTurns === 1, JSON.stringify(after));
+  check('send posts the voice message', after.sentTurns === 1, JSON.stringify(after));
+  check('it renders as a voice note, not plain text', after.voiceBubbles === 1);
   check(
-    'the interim text is what got sent',
-    /what should I focus on/i.test(after.sentText),
-    after.sentText
+    'the transcript is kept as the caption',
+    /what should I focus on/i.test(after.caption),
+    after.caption
   );
-  check('the recogniser was stopped', after.stopped >= 1, 'stopped=' + after.stopped);
-  check('the microphone is no longer armed', !after.armed);
+  check('the recorder closed', !after.armed);
 
   await page.screenshot({ path: path.join(OUT, 'speech-dictation.png') });
 

@@ -86,7 +86,7 @@ async function ready(page) {
     const badge = document.querySelector('.name__badge');
     return {
       badge: (badge && badge.textContent.trim().replace(/\s+/g, '')) || '',
-      badgeTitle: badge && badge.getAttribute('title'),
+      badgeTitle: badge && badge.getAttribute('aria-label'),
       whoVisible: getComputedStyle(document.querySelector('.chatbar__who')).display !== 'none',
       callIconVisible: getComputedStyle(document.querySelector('.chatbar__call')).display !== 'none',
       dockVisible: getComputedStyle(document.getElementById('suggestDock')).display !== 'none',
@@ -182,16 +182,24 @@ async function ready(page) {
   const BREAK = String.fromCharCode(10) + String.fromCharCode(10);
   await page.evaluate((brk) => {
     localStorage.setItem(
-      'kris_ai_history_v1',
+      'kris_ai_conversations_v1',
       JSON.stringify([
-        { role: 'me', text: 'Where should I start?', at: Date.now() - 60000 },
         {
-          role: 'kris',
-          text:
-            'Start with **the architecture** at [strategytraining.com](https://strategytraining.com).' +
-            brk +
-            'It matters [1] and so does https://firmsconsulting.com - *really*.',
-          at: Date.now() - 59000,
+          id: 'seed1',
+          kind: 'chat',
+          title: 'Where should I start?',
+          at: Date.now() - 60000,
+          turns: [
+            { role: 'me', text: 'Where should I start?', at: Date.now() - 60000 },
+            {
+              role: 'kris',
+              text:
+                'Start with **the architecture** at [strategytraining.com](https://strategytraining.com).' +
+                brk +
+                'It matters [1] and so does https://firmsconsulting.com - *really*.',
+              at: Date.now() - 59000,
+            },
+          ],
         },
       ])
     );
@@ -201,7 +209,7 @@ async function ready(page) {
   await page.click('#historyBtn');
   await wait(250);
   const histCount = await page.$$eval('.history__item', (e) => e.length);
-  check('history lists the stored question', histCount === 1, 'items=' + histCount);
+  check('history lists the stored conversation', histCount === 1, 'items=' + histCount);
   await page.screenshot({ path: path.join(OUT, 'history.png') });
 
   await page.click('.history__item');
