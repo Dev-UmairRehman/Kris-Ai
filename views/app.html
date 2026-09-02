@@ -112,13 +112,14 @@
   <div class="composer">
     <div class="wrap">
 
-      <!-- Suggested questions. A card above the composer while the
-           conversation is empty, collapsible by its own header, and hidden for
-           good once there is a turn on screen. -->
+      <!-- Suggested questions, as on the reference: a small centred pill above
+           the composer, which opens into a card holding the questions. Closed
+           to start with, and hidden for good once the member has asked
+           something. -->
       <section class="suggestpanel" id="suggestPanel" hidden>
-        <button class="suggestpanel__head" id="suggestToggle" type="button" aria-expanded="true" aria-controls="suggestDockList">
+        <button class="suggestpanel__head" id="suggestToggle" type="button" aria-expanded="false" aria-controls="suggestDockList">
           <span>Suggested Questions</span>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>
         </button>
         <div class="suggestpanel__list" id="suggestDockList"></div>
       </section>

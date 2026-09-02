@@ -130,22 +130,63 @@ const state = () =>
   ).catch(() => {});
 
   s = await page.evaluate(state);
-  check('the suggestion panel is showing', s.panelVisible);
+  check('the suggestions control is there', s.panelVisible);
   check('it holds the three questions', s.chipCount === 3, 'chips=' + s.chipCount);
-  const cols = await page.evaluate(
-    () => getComputedStyle(document.getElementById('suggestDockList')).gridTemplateColumns.split(' ').length
-  );
-  check('laid out three across, as on the reference', cols === 3, 'columns=' + cols);
   check('no horizontal scroll', !s.hScroll);
-  await page.screenshot({ path: path.join(OUT, 'ui-2-empty-chat.png') });
 
-  /* collapsing it from its own header */
-  await page.click('#suggestToggle');
-  const collapsed = await page.evaluate(
-    () => getComputedStyle(document.getElementById('suggestDockList')).display
+  /* Closed it is a centred pill, as on the reference - not a card. */
+  const shut = await page.evaluate(() => {
+    const panel = document.getElementById('suggestPanel');
+    const head = document.getElementById('suggestToggle');
+    const list = document.getElementById('suggestDockList');
+    return {
+      open: panel.classList.contains('is-open'),
+      listShown: getComputedStyle(list).display !== 'none',
+      headRadius: parseFloat(getComputedStyle(head).borderTopLeftRadius),
+      headBorder: parseFloat(getComputedStyle(head).borderTopWidth),
+      panelBorder: parseFloat(getComputedStyle(panel).borderTopWidth),
+      headWidth: head.getBoundingClientRect().width,
+      panelWidth: panel.getBoundingClientRect().width,
+    };
+  });
+  check('it starts closed', !shut.open);
+  check('the questions are not shown yet', !shut.listShown);
+  check('closed, it is a pill: rounded and outlined', shut.headRadius >= 14 && shut.headBorder >= 1, JSON.stringify(shut));
+  check('closed, the panel itself has no card border', shut.panelBorder === 0, 'border=' + shut.panelBorder);
+  check(
+    'closed, the pill is narrower than the column',
+    shut.headWidth < shut.panelWidth * 0.75,
+    'pill=' + Math.round(shut.headWidth) + ' column=' + Math.round(shut.panelWidth)
   );
-  check('its header collapses the list', collapsed === 'none', 'display=' + collapsed);
+  await page.screenshot({ path: path.join(OUT, 'ui-2a-pill-closed.png') });
+
+  /* Opened it becomes a card holding the questions, three across. */
   await page.click('#suggestToggle');
+  const open = await page.evaluate(() => {
+    const panel = document.getElementById('suggestPanel');
+    const list = document.getElementById('suggestDockList');
+    return {
+      open: panel.classList.contains('is-open'),
+      listShown: getComputedStyle(list).display !== 'none',
+      panelBorder: parseFloat(getComputedStyle(panel).borderTopWidth),
+      cols: getComputedStyle(list).gridTemplateColumns.split(' ').length,
+      expanded: document.getElementById('suggestToggle').getAttribute('aria-expanded'),
+    };
+  });
+  check('the pill opens into a card', open.open && open.panelBorder >= 1, JSON.stringify(open));
+  check('the questions appear', open.listShown);
+  check('laid out three across, as on the reference', open.cols === 3, 'columns=' + open.cols);
+  check('and it says so to a screen reader', open.expanded === 'true', open.expanded);
+  await page.screenshot({ path: path.join(OUT, 'ui-2b-card-open.png') });
+
+  /* And closes back to the pill. */
+  await page.click('#suggestToggle');
+  const reshut = await page.evaluate(() => ({
+    open: document.getElementById('suggestPanel').classList.contains('is-open'),
+    listShown:
+      getComputedStyle(document.getElementById('suggestDockList')).display !== 'none',
+  }));
+  check('its header closes it again', !reshut.open && !reshut.listShown, JSON.stringify(reshut));
 
   /* ---- once there is a turn -------------------------------------------- */
   console.log('\nafter a message (chat answered locally, no BuddyPro call)');

@@ -28,9 +28,12 @@
        The widget manages its own internal scrolling. */
     position: relative;
     width: 100%;
-    /* Leaves room for the ST header; the widget is a fixed shell inside. */
-    height: min(82vh, 940px);
-    min-height: 520px;
+    /* Set by the script below, which measures the room actually left. A fixed
+       height here is what caused the second scrollbar. */
+    height: 70vh;
+    /* Must match MIN_HEIGHT in the script below. A larger value here silently
+       overrides the measured height and the page starts scrolling again. */
+    min-height: 320px;
     margin: 0 auto;
     background: #ffffff;
     border-radius: 14px;
@@ -50,13 +53,15 @@
 </style>
 
 <!-- --------------------------------------------------------------------------
-     Height. A fixed 82vh left the page taller than the window once the store's
-     header and footer were added, so there were TWO scrollbars: the page's and
-     the widget's own. The widget already scrolls internally, so the fix is to
-     give it exactly the room that is left and no more.
+     Height. The widget scrolls its own messages, and that internal scroll is
+     the one to keep. The problem was the OUTER one: a fixed 82vh made the page
+     taller than the window once the store's header, footer and section padding
+     were added, so the page scrolled too.
 
-     Measured rather than guessed with calc(): the header and footer heights are
-     not ours to know, and they change with the viewport and with the admin bar.
+     The fix measures instead of guessing. It sizes the widget to the space left
+     below it, then subtracts whatever the page still overflows by and repeats -
+     which absorbs the footer, the section's padding and the admin bar without
+     needing to know any of their heights. calc() cannot do this.
      ------------------------------------------------------------------------ -->
 <div class="kris-ai-embed">
   <iframe
@@ -72,28 +77,51 @@
 (function () {
   'use strict';
 
-  var MIN_HEIGHT = 420;
+  /* Low enough to still fit on a 1366x768 screen once the store's nav, the
+     admin bar and the footer have taken their share. The widget scrolls its own
+     messages, so a short one is usable; a taller floor would force the page to
+     scroll, which is the thing being fixed. */
+  var MIN_HEIGHT = 320;
+
+  /* Re-entrancy guard: fit() changes the page height, which is exactly what the
+     ResizeObserver watches. */
+  var fitting = false;
 
   function fit() {
+    if (fitting) return;
     var box = document.querySelector('.kris-ai-embed');
     if (!box) return;
 
-    /* Distance from the top of the document to the top of the widget. Taken
-       from the box rather than assumed, so it is right whatever the store puts
-       above it - nav, sub-nav, admin bar, a heading block. */
-    var top = box.getBoundingClientRect().top + (window.pageYOffset || 0);
+    fitting = true;
+    try {
+      /* Where the widget starts, measured from the top of the document so the
+         answer is the same whether or not the page happens to be scrolled. */
+      var top = box.getBoundingClientRect().top + (window.pageYOffset || 0);
+      var height = window.innerHeight - top;
 
-    /* Whatever the store puts below it has to stay reachable without
-       scrolling, or the second scrollbar comes back. */
-    var below = 0;
-    var footer = document.querySelector('footer');
-    if (footer) {
-      var rect = footer.getBoundingClientRect();
-      if (rect.height && rect.height < window.innerHeight * 0.6) below = rect.height;
+      /* Then take off however much the page still overflows, and repeat. This
+         absorbs everything below the widget - the footer, the section's own
+         padding, the admin bar - without having to know what any of it is or
+         how tall it happens to be today. It converges in one or two passes;
+         the third is a guard. */
+      for (var pass = 0; pass < 4; pass++) {
+        var applied = Math.max(MIN_HEIGHT, Math.round(height));
+        box.style.height = applied + 'px';
+
+        var root = document.documentElement;
+        var over = root.scrollHeight - root.clientHeight;
+        if (over <= 1) break;
+
+        /* Already as small as it is allowed to be - on a very short window
+           something has to give, and it is better that it is the page than an
+           unusable widget. */
+        if (applied <= MIN_HEIGHT) break;
+
+        height = applied - over;
+      }
+    } finally {
+      fitting = false;
     }
-
-    var room = window.innerHeight - top - below - 8;
-    box.style.height = Math.max(MIN_HEIGHT, Math.round(room)) + 'px';
   }
 
   fit();

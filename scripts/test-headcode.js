@@ -111,13 +111,23 @@ function storefront(signedIn) {
 }
 
 /* A landing page: Uscreen does NOT inject the head code, so it is absent here
-   on purpose. Only the page's own Custom HTML block is present. */
+   on purpose. Only the page's own Custom HTML block is present.
+
+   The header, the section padding around the block and the footer are all here
+   because together they are what used to push the page past the window and give
+   it a second scrollbar. */
 function landing(signedIn) {
   return (
     '<!doctype html><html><head><meta charset="utf-8"><title>Kris AI Memory</title>' +
+    '<style>body{margin:0}header{height:64px;background:#16232e}' +
+    '.section{padding:28px 0}' +
+    'footer{height:96px;background:#16232e}</style>' +
     '</head><body>' +
     chrome(signedIn) +
+    '<div class="section">' +
     PAGE +
+    '</div>' +
+    '<footer>store footer</footer>' +
     '</body></html>'
   );
 }
@@ -339,6 +349,46 @@ function serve() {
     'the head code really is absent here (as Uscreen serves it)',
     r.hasApi === false,
     'ST_KRIS was present - the fixture is wrong'
+  );
+
+  /* The whole point of the height script: the widget scrolls its own messages,
+     the PAGE must not scroll as well. */
+  const fitted = await page.evaluate(() => {
+    const box = document.querySelector('.kris-ai-embed');
+    return {
+      pageScrolls:
+        document.documentElement.scrollHeight > document.documentElement.clientHeight + 1,
+      overflowBy:
+        document.documentElement.scrollHeight - document.documentElement.clientHeight,
+      boxHeight: box ? Math.round(box.getBoundingClientRect().height) : 0,
+      viewport: window.innerHeight,
+      /* The measured height is set inline. A CSS min-height larger than the
+         script's floor silently overrides it, which is how this regressed
+         once: the script said 320px and the stylesheet rendered 420px. */
+      inline: box ? box.style.height : '',
+      computed: box ? getComputedStyle(box).height : '',
+      footerReachable: (() => {
+        const f = document.querySelector('footer');
+        if (!f) return false;
+        return f.getBoundingClientRect().bottom <= window.innerHeight + 1;
+      })(),
+    };
+  });
+  check(
+    'the page itself does not scroll - only the widget does',
+    !fitted.pageScrolls,
+    'overflows by ' + fitted.overflowBy + 'px (widget ' + fitted.boxHeight + 'px of ' + fitted.viewport + 'px)'
+  );
+  check('the store footer stays on screen', fitted.footerReachable, JSON.stringify(fitted));
+  check(
+    'and the widget still gets real height',
+    fitted.boxHeight >= 300,
+    'height=' + fitted.boxHeight
+  );
+  check(
+    'the measured height is what actually renders',
+    parseFloat(fitted.inline) === parseFloat(fitted.computed),
+    'inline=' + fitted.inline + ' computed=' + fitted.computed + ' (CSS min-height is overriding it)'
   );
 
   let id = await identityFrom(page);

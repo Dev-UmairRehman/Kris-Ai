@@ -360,39 +360,62 @@ button {
   color: var(--accent);
 }
 
-/* Suggested questions, as a card above the composer while the conversation is
-   empty. It is a panel rather than a floating pill because the pill hovered
-   over the thread and read as a stray control. JS hides it once there is a turn
-   on screen, so it never competes with the conversation. */
+/* Suggested questions. Two shapes, as on the reference: a small centred pill
+   while closed, and a card holding the questions once opened. It is hidden
+   altogether after the member's first message, so it never competes with the
+   conversation. */
 .suggestpanel {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  padding: 6px;
-  margin-bottom: 10px;
+  display: flex;
+  justify-content: center;
+  padding-bottom: 10px;
 }
 .suggestpanel__head {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  width: 100%;
-  padding: 11px 14px;
-  font-size: 14.5px;
-  font-weight: 500;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 400;
   color: var(--text);
-  background: none;
-  border: 0;
-  text-align: left;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--pill);
+  padding: 8px 16px;
+  transition: border-color 0.15s ease;
+}
+.suggestpanel__head:hover {
+  border-color: var(--line-strong);
 }
 .suggestpanel__head svg {
   flex: 0 0 auto;
   color: var(--subtle);
   transition: transform 0.18s ease;
 }
-/* Chevron down when open, so it reads as "collapse me". */
-.suggestpanel:not(.is-open) .suggestpanel__head svg {
-  transform: rotate(-90deg);
+
+/* Opened: the pill becomes the card's header and the questions appear under
+   it. One block, so nothing jumps as it opens. */
+.suggestpanel.is-open {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 6px;
+  margin-bottom: 10px;
+}
+.suggestpanel.is-open .suggestpanel__head {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 11px 14px;
+  font-size: 14.5px;
+  font-weight: 500;
+  text-align: left;
+}
+/* Chevron flips to "collapse me". */
+.suggestpanel.is-open .suggestpanel__head svg {
+  transform: rotate(180deg);
 }
 .suggestpanel__list {
   display: none;

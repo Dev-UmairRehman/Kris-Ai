@@ -625,8 +625,7 @@
     suggestDockList.appendChild(buildChip(question));
   });
 
-  /* Open on the reference, and collapsible from its own header. */
-  suggestPanel.classList.add('is-open');
+  /* Closed to start with, as on the reference - it opens to a card. */
 
   suggestToggle.addEventListener('click', function () {
     var open = suggestPanel.classList.toggle('is-open');
