@@ -1,16 +1,26 @@
 'use strict';
 
 /* ---------------------------------------------------------------------------
-   The Head Code snippet, exercised in a real browser.
+   The two Uscreen paste-ins, exercised in a real browser.
 
-   uscreen/head-code.html is five blocks that go into one box in the Uscreen
-   admin, and a mistake there is invisible until a member hits it. This serves a
-   stand-in storefront with that exact file in its <head> and checks each block:
+   They go into different boxes in the Uscreen admin and a mistake in either is
+   invisible until a member hits it, so this serves a stand-in storefront and
+   checks both.
 
-     2  the page and link markers, on both Kris pages and on an unrelated page
-     3  the sub-nav hider and the nav highlight
-     4  routing a logged-out click to /join
-     5  the identity bridge answering the widget
+   IT MIRRORS ONE UNOBVIOUS USCREEN BEHAVIOUR, AND THAT IS THE POINT:
+   Uscreen does NOT inject the site-wide Head Code into landing pages. Verified
+   on the live store - the homepage and /join carry it, /pages/kris-ai-memory
+   carries none of it, not even the gift-card block that has been live since
+   February. So here the landing page is served WITHOUT the head code, exactly
+   as Uscreen serves it. That is why the identity bridge lives in the page's own
+   Custom HTML: a bridge in the head code would never run, and every member
+   would see "Please sign in" while logged in and subscribed.
+
+   What gets checked:
+     head code, block 2  page and link markers, on both Kris pages and elsewhere
+     head code, block 3  the sub-nav hider and the nav highlight
+     head code, block 4  routing a logged-out click to /join
+     page snippet        the identity bridge, with no head code present
 
    It spends nothing: the widget is a stub that records the reply, so BuddyPro
    is never called.
@@ -25,6 +35,8 @@ const puppeteer = require('puppeteer-core');
 
 const PORT = 8123;
 const ORIGIN = 'http://127.0.0.1:' + PORT;
+/* The host the nav's absolute hrefs point at. */
+const REAL_ORIGIN = 'https://www.strategytraining.com';
 
 const CHROME = [
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -44,48 +56,18 @@ function check(label, ok, detail) {
   }
 }
 
-const HEAD = fs.readFileSync(
-  path.join(__dirname, '..', 'uscreen', 'head-code.html'),
+const HEAD = fs.readFileSync(path.join(__dirname, '..', 'uscreen', 'head-code.html'), 'utf8');
+const PAGE = fs.readFileSync(
+  path.join(__dirname, '..', 'uscreen', 'kris-ai-memory-page.html'),
   'utf8'
 );
 
-/* The real widget origin the snippet is pinned to. The stub has to be served
-   from it for the bridge to answer, so requests to it are intercepted. */
 const WIDGET_ORIGIN = (HEAD.match(/widgetOrigin: '([^']+)'/) || [])[1];
 const MEMORY_PATH = (HEAD.match(/memory: '([^']+)'/) || [])[1];
 const DELPHI_PATH = (HEAD.match(/delphi: '([^']+)'/) || [])[1];
 
-/* A stand-in for the storefront. `signedIn` controls whether Uscreen's
-   logged-out marker (the /sign_in link) is rendered, which is the signal both
-   block 4 and block 5 read. */
-function storefront(pathname, signedIn, withWidget) {
-  const signInLink = signedIn ? '' : '<a href="/sign_in">Sign in</a>';
-  const frame = withWidget
-    ? '<iframe id="w" src="' + WIDGET_ORIGIN + '/embed"></iframe>'
-    : '';
-  return (
-    '<!doctype html><html><head><meta charset="utf-8">' +
-    '<title>Fake StrategyTraining</title>' +
-    HEAD +
-    '</head><body>' +
-    '<header>header</header>' +
-    /* the catalog sub-nav block 3 hides */
-    '<div class="w-full border-b border-ds-default bg-ds-main overflow-x-auto z-[20]">' +
-    'Browse Favorites Playlists</div>' +
-    '<nav>' +
-    signInLink +
-    /* the nav stores an absolute URL, as the real one does */
-    '<a id="navDelphi" href="https://www.strategytraining.com' + DELPHI_PATH + '">Kris AI</a>' +
-    '<a id="navMemory" href="https://www.strategytraining.com' + MEMORY_PATH + '">Kris AI Memory</a>' +
-    '<a id="navOther" href="/courses">Courses</a>' +
-    '</nav>' +
-    frame +
-    '</body></html>'
-  );
-}
-
-/* The widget stub. Speaks the widget's half of the protocol and records what
-   comes back, so no real request is ever made. */
+/* The widget stub: speaks the widget's half of the protocol and records the
+   answer, so no real request is ever made. */
 const WIDGET_STUB =
   '<!doctype html><html><head><meta charset="utf-8"></head><body>' +
   '<script>' +
@@ -94,24 +76,60 @@ const WIDGET_STUB =
   "parent.postMessage({ type: 'kris-ai:ready' }, '*');" +
   '<\/script></body></html>';
 
+/* `signedIn` controls whether Uscreen's logged-out marker (the /sign_in link)
+   is rendered - the signal both the routing block and the bridge read. */
+function chrome(signedIn) {
+  return (
+    '<header>header</header>' +
+    /* the catalog sub-nav the head code hides */
+    '<div class="w-full border-b border-ds-default bg-ds-main overflow-x-auto z-[20]">' +
+    'Browse Favorites Playlists</div>' +
+    '<nav>' +
+    (signedIn ? '' : '<a href="/sign_in">Sign in</a>') +
+    /* the nav stores absolute URLs, as the real one does */
+    '<a id="navDelphi" href="https://www.strategytraining.com' + DELPHI_PATH + '">Kris AI</a>' +
+    '<a id="navMemory" href="https://www.strategytraining.com' + MEMORY_PATH + '">Kris AI Memory</a>' +
+    '<a id="navOther" href="/courses">Courses</a>' +
+    '</nav>'
+  );
+}
+
+/* A normal storefront page: Uscreen DOES inject the head code here. */
+function storefront(signedIn) {
+  return (
+    '<!doctype html><html><head><meta charset="utf-8"><title>ST</title>' +
+    HEAD +
+    '</head><body>' +
+    chrome(signedIn) +
+    '</body></html>'
+  );
+}
+
+/* A landing page: Uscreen does NOT inject the head code, so it is absent here
+   on purpose. Only the page's own Custom HTML block is present. */
+function landing(signedIn) {
+  return (
+    '<!doctype html><html><head><meta charset="utf-8"><title>Kris AI Memory</title>' +
+    '</head><body>' +
+    chrome(signedIn) +
+    PAGE +
+    '</body></html>'
+  );
+}
+
 function serve() {
   return http.createServer((req, res) => {
     const url = new URL(req.url, ORIGIN);
     const p = url.pathname.replace(/\/+$/, '') || '/';
+    const signedIn = url.searchParams.get('signedIn') === '1';
 
-    if (p === '/embed') {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      return res.end(WIDGET_STUB);
-    }
     if (p === '/join') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       return res.end('<!doctype html><title>Join</title><h1>Join</h1>');
     }
 
-    const signedIn = url.searchParams.get('signedIn') === '1';
-    const withWidget = p === MEMORY_PATH;
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(storefront(p, signedIn, withWidget));
+    res.end(p === MEMORY_PATH ? landing(signedIn) : storefront(signedIn));
   });
 }
 
@@ -122,6 +140,15 @@ function serve() {
   }
   if (!WIDGET_ORIGIN || !MEMORY_PATH || !DELPHI_PATH) {
     console.error('Could not read widgetOrigin / page slugs out of head-code.html.');
+    process.exit(1);
+  }
+  if (/kris-ai:ready/.test(HEAD)) {
+    console.error('The identity bridge is back in head-code.html. It cannot work there -');
+    console.error('Uscreen does not inject Head Code into landing pages.');
+    process.exit(1);
+  }
+  if (!/kris-ai:ready/.test(PAGE)) {
+    console.error('The identity bridge is missing from the page snippet.');
     process.exit(1);
   }
 
@@ -139,8 +166,8 @@ function serve() {
   async function open(pathname, signedIn) {
     const page = await browser.newPage();
     page.on('pageerror', (e) => errors.push(pathname + ': ' + e.message));
-    /* Serve the widget origin from the local stub, so the bridge's pinned
-       origin check is exercised for real rather than relaxed. */
+    /* Serve the widget origin from the stub, so the bridge's pinned-origin
+       check is exercised for real rather than relaxed. */
     await page.setRequestInterception(true);
     page.on('request', (r) => {
       if (r.url().startsWith(WIDGET_ORIGIN)) {
@@ -148,6 +175,19 @@ function serve() {
           status: 200,
           contentType: 'text/html; charset=utf-8',
           body: WIDGET_STUB,
+        });
+      }
+      /* The nav stores absolute URLs, so following one would leave the fixture
+         and hit the real site. Serve those from the fixture instead, which is
+         what makes the absolute-href flow testable end to end. */
+      if (r.url().startsWith(REAL_ORIGIN)) {
+        const u = new URL(r.url());
+        const rp = u.pathname.replace(/\/+$/, '') || '/';
+        const rSignedIn = signedIn;
+        return r.respond({
+          status: 200,
+          contentType: 'text/html; charset=utf-8',
+          body: rp === MEMORY_PATH ? landing(rSignedIn) : storefront(rSignedIn),
         });
       }
       r.continue();
@@ -170,113 +210,103 @@ function serve() {
     delphiLink: document.getElementById('navDelphi').className,
     otherLink: document.getElementById('navOther').className,
     highlight: getComputedStyle(document.getElementById('navMemory')).boxShadow,
-    /* absolute and relative hrefs must both resolve */
     pageOf: window.ST_KRIS
       ? [
-          window.ST_KRIS.pageOf('https://www.strategytraining.com' + '/kris-ai-memory'),
+          window.ST_KRIS.pageOf('https://www.strategytraining.com/pages/kris-ai-memory'),
           window.ST_KRIS.pageOf('/delphi/'),
           window.ST_KRIS.pageOf('/courses'),
         ]
       : null,
   });
 
-  /* ---- block 2 and 3, on the new page --------------------------------- */
-  console.log('\nblocks 2 + 3: the Kris AI Memory page (signed in)');
+  /* Read the bridge's answer out of the widget stub. */
+  async function identityFrom(page) {
+    const handle = await page.$('.kris-ai-embed iframe');
+    if (!handle) return null;
+    const inner = await handle.contentFrame();
+    return inner
+      .waitForFunction(() => window.__got !== null, { timeout: 8000 })
+      .then(() => inner.evaluate(() => window.__got))
+      .catch(() => null);
+  }
+
+  /* ---- the page snippet, standing alone -------------------------------- */
+  console.log('\npage snippet: the landing page, NO head code, signed in');
   let page = await open(MEMORY_PATH, true);
   let r = await page.evaluate(probe);
 
+  check(
+    'the head code really is absent here (as Uscreen serves it)',
+    r.hasApi === false,
+    'ST_KRIS was present - the fixture is wrong'
+  );
+
+  let id = await identityFrom(page);
+  check('the widget gets an answer anyway', !!id, JSON.stringify(id));
+  check('it is the identity message', id && id.type === 'st-kris:identity', JSON.stringify(id));
+  check('a signed-in member is reported', id && id.signedIn === true, JSON.stringify(id));
+  await page.close();
+
+  console.log('\npage snippet: the same page, logged out');
+  page = await open(MEMORY_PATH, false);
+  id = await identityFrom(page);
+  check('signedIn is false for a visitor', id && id.signedIn === false, JSON.stringify(id));
+  check(
+    'no email leaks when logged out',
+    id && !id.email && !id.uscreenId,
+    JSON.stringify(id)
+  );
+  await page.close();
+
+  /* ---- head code blocks 2 and 3 --------------------------------------- */
+  console.log('\nhead code blocks 2 + 3: the existing Delphi page');
+  page = await open(DELPHI_PATH, true);
+  r = await page.evaluate(probe);
+
   check('the shared API is exposed', r.hasApi);
   check('<html> is marked st-kris', /\bst-kris\b/.test(r.cls), r.cls);
-  check('<html> is marked st-kris-memory', /st-kris-memory/.test(r.cls), r.cls);
-  check('it is NOT marked st-delphi', !/\bst-delphi\b/.test(r.cls), r.cls);
+  check('<html> is marked st-delphi', /\bst-delphi\b/.test(r.cls), r.cls);
   check('the catalog sub-nav is hidden', r.subnavHidden);
-  check('the Memory nav link is current', /is-current/.test(r.memoryLink), r.memoryLink);
-  check('the Delphi nav link is not current', !/is-current/.test(r.delphiLink), r.delphiLink);
+  check('the Delphi nav link is current', /is-current/.test(r.delphiLink), r.delphiLink);
+  check('the Memory nav link is not', !/is-current/.test(r.memoryLink), r.memoryLink);
   check('an unrelated nav link is untouched', r.otherLink === '', r.otherLink);
-  check('the current tab is highlighted', r.highlight !== 'none', r.highlight);
   check(
-    'pageOf resolves absolute and relative hrefs',
+    'pageOf resolves the real /pages/ slug, and relative hrefs',
     JSON.stringify(r.pageOf) === JSON.stringify(['memory', 'delphi', '']),
     JSON.stringify(r.pageOf)
   );
-
-  /* ---- block 5, the bridge -------------------------------------------- */
-  console.log('\nblock 5: the identity bridge');
-  const frameHandle = await page.$('#w');
-  const inner = await frameHandle.contentFrame();
-  const answered = await inner
-    .waitForFunction(() => window.__got !== null, { timeout: 8000 })
-    .then(() => inner.evaluate(() => window.__got))
-    .catch(() => null);
-
-  check('the widget gets an answer', !!answered, JSON.stringify(answered));
-  check(
-    'it is the identity message',
-    answered && answered.type === 'st-kris:identity',
-    JSON.stringify(answered)
-  );
-  check('a signed-in member is reported', answered && answered.signedIn === true, JSON.stringify(answered));
   await page.close();
 
-  /* ---- block 5 again, logged out -------------------------------------- */
-  console.log('\nblock 5: the same page, logged out');
-  page = await open(MEMORY_PATH, false);
-  const outFrame = await (await page.$('#w')).contentFrame();
-  const loggedOutAnswer = await outFrame
-    .waitForFunction(() => window.__got !== null, { timeout: 8000 })
-    .then(() => outFrame.evaluate(() => window.__got))
-    .catch(() => null);
-
-  check(
-    'signedIn is false for a visitor',
-    loggedOutAnswer && loggedOutAnswer.signedIn === false,
-    JSON.stringify(loggedOutAnswer)
-  );
-  check(
-    'no email leaks when logged out',
-    loggedOutAnswer && !loggedOutAnswer.email && !loggedOutAnswer.uscreenId,
-    JSON.stringify(loggedOutAnswer)
-  );
-  await page.close();
-
-  /* ---- block 2, the Delphi page is unaffected ------------------------- */
-  console.log('\nblock 2: the existing Delphi page still behaves');
-  page = await open(DELPHI_PATH, true);
-  r = await page.evaluate(probe);
-  check('<html> is marked st-delphi', /\bst-delphi\b/.test(r.cls), r.cls);
-  check('...and st-kris, so the sub-nav still hides', r.subnavHidden, r.cls);
-  check('the Delphi nav link is current', /is-current/.test(r.delphiLink), r.delphiLink);
-  check('the Memory nav link is not', !/is-current/.test(r.memoryLink), r.memoryLink);
-  await page.close();
-
-  /* ---- block 2, an unrelated page ------------------------------------- */
-  console.log('\nblock 2: an unrelated page is left alone');
+  /* ---- head code block 2, an unrelated page --------------------------- */
+  console.log('\nhead code block 2: an unrelated page is left alone');
   page = await open('/courses', true);
   r = await page.evaluate(probe);
   check('no Kris class is set', !/st-kris|st-delphi/.test(r.cls), r.cls || '(none)');
   check('the sub-nav is visible', !r.subnavHidden);
   check('no nav link is current', !/is-current/.test(r.memoryLink + r.delphiLink));
+  check('the Memory link is still recognised as a Kris link', /st-kris-link/.test(r.memoryLink), r.memoryLink);
   await page.close();
 
-  /* ---- block 4, routing ----------------------------------------------- */
-  console.log('\nblock 4: a logged-out click goes to /join');
+  /* ---- head code block 4, routing ------------------------------------- */
+  console.log('\nhead code block 4: a logged-out click goes to /join');
   page = await open('/courses', false);
   await page.click('#navMemory');
   await page.waitForFunction(() => location.pathname === '/join', { timeout: 8000 }).catch(() => {});
   check('logged out -> /join', new URL(page.url()).pathname === '/join', page.url());
   await page.close();
 
-  console.log('\nblock 4: a signed-in click is left alone');
+  console.log('\nhead code block 4: a signed-in click is left alone');
   page = await open('/courses', true);
   await page.click('#navMemory');
   await page
     .waitForFunction((p) => location.pathname.replace(/\/+$/, '') === p, { timeout: 8000 }, MEMORY_PATH)
     .catch(() => {});
   check(
-    'signed in -> the Kris AI Memory page',
+    'signed in -> the Kris AI Memory page, not /join',
     new URL(page.url()).pathname.replace(/\/+$/, '') === MEMORY_PATH,
     page.url()
   );
+  check('...and the widget lets them in once there', (await identityFrom(page) || {}).signedIn === true);
   await page.close();
 
   console.log('\njs errors: ' + (errors.length ? errors.join(' | ') : 'none'));

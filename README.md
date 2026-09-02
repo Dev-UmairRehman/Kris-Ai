@@ -245,25 +245,35 @@ If you scale out, divide `RATE_GLOBAL_PER_MIN` by the instance count.
 ## Wiring it into Uscreen
 
 Two files in `uscreen/`. The deployed origin is already filled in — nothing to replace.
-**Both are mandatory, in this order.**
 
-1. **`uscreen/head-code.html`** → *Settings → Snippets → Head Code*. **Append** to whatever is
-   in that box; do not replace it — the gift-card and sub-nav snippets already there must stay.
-   This is what grants access: without it every visitor, member or not, sees the sign-in screen.
-2. **`uscreen/kris-ai-memory-page.html`** → *Marketing → Website → Landing Pages → + New page*,
-   name it *Kris AI Memory*, add a **Custom HTML** block, paste the whole file, Publish.
-   Uscreen's editor canvas does not render Custom HTML; use *Preview page*, in a normal (not
-   incognito) tab so you are signed in.
+**Uscreen does not inject site-wide Head Code into landing pages.** Verified on the live
+store: `/` and `/join` carry it; `/pages/kris-ai-memory` carries none of it, not even the
+gift-card block that has been live since February. Landing pages render through a separate
+path. That is why the identity bridge lives in the page's own Custom HTML rather than the head
+code — put it in the head code and every member sees "Please sign in" while logged in and
+subscribed. `scripts/test-headcode.js` serves the landing page without the head code, exactly
+as Uscreen does, so this cannot regress silently.
 
-Then add the nav link to that page. Non-members will see the link, open the page, and get the
-sign-in screen with **Join** and **Sign in** buttons — the behaviour you asked for.
+1. **`uscreen/kris-ai-memory-page.html`** → *Marketing → Website → Landing Pages → + New page*,
+   add a **Custom HTML** block, paste the whole file, Publish. Self-contained: it carries the
+   widget **and** the identity bridge that grants access. Uscreen's editor canvas does not
+   render Custom HTML; use *Preview page*, in a normal (not incognito) tab so you are signed in.
+2. **`uscreen/head-code.html`** → *Settings → Snippets → Head Code*, replacing the whole box —
+   the file already contains everything that was in there. This does not grant access; it
+   styles and routes the nav across the rest of the site, including sending a logged-out click
+   on the Kris link to `/join`.
 
-The head snippet is the identity bridge. The widget cannot read the Uscreen session cookie
-across domains, so the store page tells it who is signed in:
+Uscreen serves landing pages under `/pages/`, so the real path is `/pages/kris-ai-memory`. If
+yours differs, change `PAGES.memory` in block 2 of the head code — the only place a slug is
+written.
+
+
+The page snippet carries the identity bridge. The widget cannot read the Uscreen session
+cookie across domains, so the page it sits on tells it who is signed in:
 
 ```
-widget -> parent :  { type: 'kris-ai:ready' }
-parent -> widget :  { type: 'st-kris:identity', signedIn, email, uscreenId }
+widget -> page   :  { type: 'kris-ai:ready' }
+page   -> widget :  { type: 'st-kris:identity', signedIn, email, uscreenId }
 ```
 
 Both sides post to an explicit origin, never `'*'`.

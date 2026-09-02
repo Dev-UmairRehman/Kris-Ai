@@ -1,17 +1,23 @@
 <!-- ==========================================================================
-     StrategyTraining - Kris AI Memory embed
+     StrategyTraining - Kris AI Memory page
 
-     WHERE THIS GOES  (step 2 of 2)
-     Marketing > Website > Landing Pages > + New page > name it "Kris AI Memory"
-     > add a Custom HTML block > paste this whole file into it > Publish.
+     WHERE THIS GOES
+     Marketing > Website > Landing Pages > your "Kris AI Memory" page >
+     add a Custom HTML block > paste this whole file into it > Publish.
 
-     STEP 1 IS NOT OPTIONAL. Paste uscreen/head-code.html into
-     Settings > Website > Head Code FIRST. A Uscreen landing page is public, so
-     that snippet is what tells the widget whether the visitor is signed in.
-     Without it nobody can use the widget - not even a paying member.
+     THIS FILE IS SELF-CONTAINED. It carries the widget AND the identity bridge
+     that lets a signed-in member in.
+
+     WHY THE BRIDGE IS IN HERE AND NOT IN THE HEAD CODE
+     Uscreen does NOT inject the site-wide Head Code into landing pages. Verified
+     on this store: the homepage and /join both carry it, /pages/kris-ai-memory
+     carries none of it - not even the gift-card block that has been live since
+     February. Landing pages render through a different path. So a bridge in the
+     Head Code would never run on the one page that needs it, and every member
+     would see "Please sign in" while logged in. It lives here instead.
 
      Uscreen's editor canvas does not render Custom HTML - use "Preview page",
-     and open the preview in a normal (not incognito) tab so you are signed in.
+     in a normal (not incognito) tab so you are signed in.
 
      The deployed origin is already filled in below. Nothing to replace.
      ========================================================================== -->
@@ -60,21 +66,247 @@
   ></iframe>
 </div>
 
+<!-- --------------------------------------------------------------------------
+     Identity bridge.  DO NOT DELETE - without it nobody can use the widget.
+
+     Kris AI Memory (BuddyPro) runs on its own domain inside the iframe above, so
+     it cannot read the Uscreen session cookie. This tells it whether anyone is
+     signed in, using the store's own signal: Uscreen renders a /sign_in link
+     only when logged out. The widget forwards that to its own server, which
+     will not open a session without it.
+
+     This page is a landing page, so it is PUBLIC. Being framed by
+     strategytraining.com therefore proves nothing, and the signed-in claim
+     below is what carries the gate. No claim, no session - it fails closed.
+
+     HOW STRONG IS THIS
+     Strong enough to stop every ordinary visitor. Not cryptographic: the claim
+     is made in the browser, so someone already on strategytraining.com with the
+     dev console open could assert it by hand. The widget's CSP frame-ancestors
+     rule stops it loading anywhere but strategytraining.com, and per-session and
+     global rate limits cap what any one of them could spend. For real
+     verification set MEMBER_GATE_MODE=strict on the app and supply the Uscreen
+     Publisher API key (UscreenPlus or Custom plan).
+
+     PROTOCOL
+       widget -> page :  { type: 'kris-ai:ready' }
+       page -> widget :  { type: 'st-kris:identity', signedIn, email, uscreenId }
+       widget -> page :  { type: 'kris-ai:gated', reason }   (logged only)
+
+     signedIn grants access. email/uscreenId only decide which memory thread the
+     member gets, and are blank when signedIn is false. Both sides post to an
+     explicit origin, never '*'.
+
+     IF THE EMAIL CANNOT BE FOUND
+     Access still works (login state is enough); only per-member memory is
+     affected, since members would share a per-browser thread. Open the console
+     on this page and look for the [st-kris] line - it names the source that
+     worked, or reports that none did. Send that line to your developer and the
+     lookup gets pinned to it.
+     ------------------------------------------------------------------------ -->
 <script>
 (function () {
   'use strict';
 
-  /* Must match the iframe src origin and head-code.html. */
+  /* The origin the widget is served from. */
   var WIDGET_ORIGIN = 'https://kris-ai-memory-baefm.ondigitalocean.app';
 
-  /* The widget tells us when it has gated a visitor, so the page can explain
-     itself rather than showing a silent box. The page itself is public - login state is what
-     the gate checks, so this is a belt-and-braces path. */
+  var cached = null;
+
+  /* Is anyone signed in? Uscreen renders a link to /sign_in in the header ONLY
+     for logged-out visitors, which is the same signal the public Kris AI
+     gateway page already uses on this store. Absence of that link means signed
+     in.
+
+     This matters because a Uscreen landing page is PUBLIC. The widget refuses
+     to open unless this says someone is signed in, so putting it on a public
+     page does not hand it to the world. */
+  function isSignedIn() {
+    var signInLink = document.querySelector(
+      'a[href="/sign_in"], a[href$="/sign_in"], a[href*="/sign_in?"]'
+    );
+    if (signInLink) return false;
+
+    /* Corroboration, where the storefront offers it. */
+    var signedOutHints = document.querySelector('a[href="/login"], a[href$="/login"]');
+    if (signedOutHints) return false;
+
+    return true;
+  }
+
+  /* ---- find the signed-in member ---------------------------------------- */
+
+  /* Synchronous sources first - these cost nothing. */
+  function fromGlobals() {
+    var roots = [window.Uscreen, window.uscreen, window.USCREEN, window.currentUser];
+    for (var i = 0; i < roots.length; i++) {
+      var root = roots[i];
+      if (!root || typeof root !== 'object') continue;
+      var user = root.user || root.currentUser || root.customer || root;
+      if (user && typeof user.email === 'string' && user.email.indexOf('@') > 0) {
+        return { email: user.email, uscreenId: user.id || '', via: 'window global' };
+      }
+    }
+    return null;
+  }
+
+  function fromMeta() {
+    var names = [
+      'current-user-email',
+      'current_user_email',
+      'user-email',
+      'customer-email',
+    ];
+    for (var i = 0; i < names.length; i++) {
+      var tag = document.querySelector('meta[name="' + names[i] + '"]');
+      var value = tag && tag.getAttribute('content');
+      if (value && value.indexOf('@') > 0) {
+        return { email: value, uscreenId: '', via: 'meta[' + names[i] + ']' };
+      }
+    }
+    return null;
+  }
+
+  function fromDataAttributes() {
+    var nodes = document.querySelectorAll('[data-user-email], [data-customer-email], [data-email]');
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      var value =
+        el.getAttribute('data-user-email') ||
+        el.getAttribute('data-customer-email') ||
+        el.getAttribute('data-email');
+      if (value && value.indexOf('@') > 0) {
+        return {
+          email: value,
+          uscreenId: el.getAttribute('data-user-id') || '',
+          via: 'data attribute',
+        };
+      }
+    }
+    return null;
+  }
+
+  /* Then same-origin authenticated endpoints. These carry the Uscreen session
+     cookie automatically, so they only ever return the current member. */
+  var ENDPOINTS = [
+    '/api/v1/users/me',
+    '/api/v1/customers/me',
+    '/api/v1/me',
+    '/users/me.json',
+    '/account.json',
+    '/api/customer',
+  ];
+
+  function pluckEmail(payload) {
+    if (!payload || typeof payload !== 'object') return null;
+    var candidates = [payload, payload.user, payload.customer, payload.data, payload.me];
+    for (var i = 0; i < candidates.length; i++) {
+      var c = candidates[i];
+      if (c && typeof c.email === 'string' && c.email.indexOf('@') > 0) {
+        return { email: c.email, uscreenId: c.id || c.uuid || '' };
+      }
+    }
+    return null;
+  }
+
+  function fromEndpoints() {
+    var chain = Promise.resolve(null);
+
+    ENDPOINTS.forEach(function (path) {
+      chain = chain.then(function (found) {
+        if (found) return found;
+        return fetch(path, {
+          credentials: 'same-origin',
+          headers: { Accept: 'application/json' },
+        })
+          .then(function (res) {
+            if (!res.ok) return null;
+            var type = res.headers.get('content-type') || '';
+            if (type.indexOf('json') === -1) return null; // an HTML login page
+            return res.json();
+          })
+          .then(function (body) {
+            var hit = pluckEmail(body);
+            if (hit) hit.via = 'fetch ' + path;
+            return hit;
+          })
+          .catch(function () {
+            return null;
+          });
+      });
+    });
+
+    return chain;
+  }
+
+  function resolveIdentity() {
+    if (cached) return Promise.resolve(cached);
+
+    var sync = fromGlobals() || fromMeta() || fromDataAttributes();
+    if (sync) {
+      cached = sync;
+      console.log('[st-kris] identity via ' + sync.via);
+      return Promise.resolve(sync);
+    }
+
+    return fromEndpoints().then(function (found) {
+      if (found) {
+        cached = found;
+        console.log('[st-kris] identity via ' + found.via);
+      } else {
+        console.warn(
+          '[st-kris] could not determine the signed-in member. Kris AI will fall ' +
+            'back to the server gate. Send this line to your developer.'
+        );
+      }
+      return found;
+    });
+  }
+
+  /* ---- answer the widget ------------------------------------------------- */
+
+  window.addEventListener('message', function (event) {
+    if (event.origin !== WIDGET_ORIGIN) return;
+
+    var data = event.data;
+    if (!data || data.type !== 'kris-ai:ready') return;
+
+    var frame = event.source;
+
+    var signedIn = isSignedIn();
+
+    resolveIdentity().then(function (identity) {
+      try {
+        frame.postMessage(
+          {
+            type: 'st-kris:identity',
+            /* The widget will not open without this. */
+            signedIn: signedIn,
+            email: (signedIn && identity && identity.email) || '',
+            uscreenId: (signedIn && identity && identity.uscreenId) || '',
+          },
+          WIDGET_ORIGIN
+        );
+      } catch (e) {
+        /* frame went away */
+      }
+    });
+  });
+
+  /* The widget reports when it turns someone away, so this page can say why in
+     the console instead of just showing a box. */
   window.addEventListener('message', function (event) {
     if (event.origin !== WIDGET_ORIGIN) return;
     var data = event.data;
     if (!data || data.type !== 'kris-ai:gated') return;
-    console.log('[st-kris] widget gated this visitor:', data.reason);
+    console.log('[st-kris] widget gated this visitor: ' + data.reason);
   });
+
+  /* Warm the lookup so the answer is ready the moment the widget asks. Keyed on
+     the widget being present rather than on a page slug, so renaming or moving
+     the Kris AI Memory page does not quietly disable this. */
+  if (document.querySelector('iframe[src*="' + WIDGET_ORIGIN + '"]')) {
+    resolveIdentity();
+  }
 })();
 </script>
