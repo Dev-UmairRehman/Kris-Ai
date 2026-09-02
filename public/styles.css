@@ -542,11 +542,13 @@ button {
   align-items: center;
   height: 20px;
 }
+/* Cyan, not grey: a thinking bubble has to read as activity, not as a
+   stalled message. */
 .dots span {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--subtle);
+  background: var(--accent);
   animation: dot 1.3s infinite ease-in-out;
 }
 .dots span:nth-child(2) {
@@ -757,29 +759,6 @@ button {
   color: var(--accent);
 }
 
-.lang {
-  justify-self: end;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--pill);
-  padding: 7px 13px;
-  font-size: 13.5px;
-}
-.lang select {
-  border: 0;
-  outline: 0;
-  background: transparent;
-  font: inherit;
-  font-size: 13.5px;
-  color: var(--text);
-  cursor: pointer;
-  appearance: none;
-  padding-right: 2px;
-}
-
 /* min-height:0 plus its own scroll keeps the centred content inside the band
    instead of overflowing into the chrome above and below it. */
 .callview__body {
@@ -881,7 +860,8 @@ button {
   padding: 9px 20px;
   font-size: 14px;
   background: var(--surface-2);
-  color: var(--muted);
+  font-weight: 500;
+  color: var(--text);
 }
 .app.call-connecting .callstatus,
 .app.call-live .callstatus {

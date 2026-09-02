@@ -357,17 +357,40 @@ app.post('/api/chat', async (req, res) => {
   }
 
   try {
-    const answer = await buddypro.ask({
-      text: message,
-      language,
-      profileId: session.sub,
-      wantAudio,
-      audioInput: audio,
-      audioFormat,
-    });
+    /* Sending the recording is what makes BuddyPro reply in its own voice, but
+       its audio handling is measurably intermittent - the same WAV that comes
+       back HTTP 200 with mp3 audio one minute returns 500 the next. So if the
+       audio attempt fails and we still have the transcript, ask again as text
+       rather than showing the member an error. They get an answer either way;
+       only the voice is lost. */
+    let answer;
+    try {
+      answer = await buddypro.ask({
+        text: message,
+        language,
+        profileId: session.sub,
+        wantAudio,
+        audioInput: audio,
+        audioFormat,
+      });
+    } catch (audioErr) {
+      const worthRetrying =
+        audio && message.trim() && audioErr instanceof buddypro.BuddyProError && audioErr.status >= 500;
+      if (!worthRetrying) throw audioErr;
+
+      console.warn('[chat] audio upload failed (%s); retrying as text', audioErr.code);
+      answer = await buddypro.ask({
+        text: message,
+        language,
+        profileId: session.sub,
+        wantAudio: false,
+      });
+      answer.audioFellBack = true;
+    }
 
     res.json({
       content: answer.content,
+      audioFellBack: answer.audioFellBack === true,
       audio: answer.audio ? answer.audio.dataUrl : null,
       transcript: answer.audio ? answer.audio.transcript : null,
       image: answer.image ? answer.image.dataUrl : null,

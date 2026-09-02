@@ -352,6 +352,76 @@ Two honest limitations, surfaced in the UI itself rather than buried here:
 The minutes budget (100, counting down, banked across reloads in `localStorage`) is cosmetic
 parity with the reference. Real quota enforcement belongs server-side; not built.
 
+### Voice: what BuddyPro actually does, measured
+
+BuddyPro's docs are explicit on the rule that governs everything here:
+
+> When `modalities` includes `"audio"`, TTS is enabled … **TTS only applies when audio input is
+> present in the request.** `audio.voice` is accepted but ignored — voice is set by the bot owner.
+
+So a spoken reply, in the owner's own cloned voice, requires **sending the recording**. Text-only
+requests get text back. That is why the app sends the audio rather than only its transcript.
+
+**Formats.** Measured with `npm run probe:audio`:
+
+| sent | result |
+| --- | --- |
+| real Ogg Vorbis file | HTTP 200, and mp3 audio comes back |
+| WAV re-encoded from a real browser recording (16 kHz mono) | HTTP 200, and mp3 audio comes back |
+| raw WebM/Opus - what Chrome actually records | HTTP 500, under every declared format |
+| synthetic tone as WAV | HTTP 500 |
+| audio by URL instead of base64 | HTTP 400 `invalid_media_data` |
+
+Chrome can only record `audio/webm;codecs=opus` or `audio/mp4` - never ogg - so every recording
+is decoded through `AudioContext` and re-encoded as **16 kHz mono WAV** before sending. That is
+the combination that works.
+
+**It is intermittent, though.** The same WAV that returned HTTP 200 with mp3 audio one minute
+returned 500 the next, and text-only TTS on the owner's default profile went from 3/3 working to
+0/4 within an hour. This is upstream, not payload shape - it was reproduced across fresh
+profiles, warm profiles, with and without `x_buddy_systemPrompt`.
+
+Because of that, `/api/chat` **retries as text** when an audio request fails with a 5xx and a
+transcript is available:
+
+```
+[buddypro] 500 upstream_error: Error processing the message
+[chat] audio upload failed (upstream_error); retrying as text
+```
+
+The member always gets an answer; only the voice is lost, falling back to the device voice.
+When BuddyPro's audio is healthy the reply plays in Kris's real cloned voice with no code change.
+
+**Worth raising with BuddyPro:** the intermittent 500s on `input_audio`, and that WebM/Opus - the
+only thing browsers can record - is not accepted.
+
+### Call — working
+
+Delphi's call is realtime voice with a minutes budget. BuddyPro has no realtime channel, so
+the call is assembled here:
+
+1. **`SpeechRecognition`** transcribes what the member says.
+2. The **text** goes to BuddyPro, which works fine.
+3. The answer is spoken back with **BuddyPro's own voice** when it is returned, and with
+   `speechSynthesis` otherwise (see the profile caveat above).
+4. Recognition is suspended while Kris talks, otherwise the synthesised voice is transcribed
+   straight back into the next question.
+
+The full flow matches the reference: **Start a call → Connecting ••• → live** with a call
+timer, minutes remaining, breathing cyan haloes, a **Talking** level meter, mic mute, end
+call, and a language selector (six languages, wired to both recognition and synthesis).
+
+Two honest limitations, surfaced in the UI itself rather than buried here:
+
+- **The voice is currently the device's**, only because BuddyPro withholds TTS on isolated
+  profiles. The wiring for the real voice is already in place and takes over automatically.
+- **Calls need Chrome or Edge.** `SpeechRecognition` is unavailable in Firefox, and the
+  button says so instead of failing. Note also that Chrome's implementation sends audio to
+  Google for transcription — worth a line in the privacy policy.
+
+The minutes budget (100, counting down, banked across reloads in `localStorage`) is cosmetic
+parity with the reference. Real quota enforcement belongs server-side; not built.
+
 ### Voice messages, and why the voice is not Kris's
 
 Tapping the microphone turns the composer into a recorder, the way a messenger does it: a

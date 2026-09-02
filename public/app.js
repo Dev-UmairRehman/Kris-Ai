@@ -94,7 +94,6 @@
   var callDots = document.getElementById('callDots');
   var callClock = document.getElementById('callClock');
   var callBudget = document.getElementById('callBudget');
-  var callLang = document.getElementById('callLang');
 
   var recTime = document.getElementById('recTime');
   var recWave = document.getElementById('recWave');
@@ -909,7 +908,9 @@
   function send(text, opts) {
     var options = opts || {};
     var message = (text || '').trim();
-    if (!message || busy) return Promise.resolve(null);
+    if (busy) return Promise.resolve(null);
+    /* A voice message can carry audio even with no usable transcript. */
+    if (!message && !options.audio) return Promise.resolve(null);
 
     hideNotice();
     enterThread();
@@ -937,7 +938,8 @@
 
     return api('/api/chat', {
       message: message,
-      language: currentLanguage(),
+      audio: options.audio || undefined,
+      audioFormat: options.audio ? options.audioFormat || 'wav' : undefined,
       wantAudio: options.wantAudio === true,
     })
       .then(function (res) {
@@ -995,10 +997,11 @@
     send(input.value);
   });
 
-  /* One language setting drives all three: BuddyPro's reply language, the
-     speech recogniser, and the speech synthesiser. */
+  /* Which language the SPEECH RECOGNISER listens in. Follows the browser, so a
+     member's own locale transcribes accurately. The REPLY language is decided
+     server side (RESPONSE_LANGUAGE) - BuddyPro drifts otherwise. */
   function currentLanguage() {
-    return (callLang && callLang.value) || 'en-US';
+    return navigator.language || 'en-US';
   }
 
   function armSend() {
@@ -1152,6 +1155,92 @@
   }
 
 
+  /* ---- audio conversion -------------------------------------------------
+     BuddyPro accepts mp3, wav, ogg, aac and flac - and returns spoken replies
+     ONLY when the request carries audio input (their docs are explicit). Chrome
+     can only record WebM/Opus, which BuddyPro rejects, so every recording is
+     decoded and re-encoded as 16 kHz mono WAV before it is sent. Measured:
+     that round trip comes back HTTP 200 with mp3 audio in Kris's own voice.
+     -------------------------------------------------------------------- */
+
+  var TARGET_RATE = 16000;
+
+  function encodeWav(samples, sampleRate) {
+    var buffer = new ArrayBuffer(44 + samples.length * 2);
+    var view = new DataView(buffer);
+    function str(offset, text) {
+      for (var i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
+    }
+    var dataBytes = samples.length * 2;
+    str(0, 'RIFF');
+    view.setUint32(4, 36 + dataBytes, true);
+    str(8, 'WAVE');
+    str(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    str(36, 'data');
+    view.setUint32(40, dataBytes, true);
+    var offset = 44;
+    for (var i = 0; i < samples.length; i++) {
+      var v = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(offset, v < 0 ? v * 0x8000 : v * 0x7fff, true);
+      offset += 2;
+    }
+    return new Blob([view], { type: 'audio/wav' });
+  }
+
+  /** Recorded blob -> base64 16 kHz mono WAV, ready to send. */
+  function toWavBase64(blob) {
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    var Offline = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!Ctx || !blob) return Promise.reject(new Error('no_audio_context'));
+
+    return blob
+      .arrayBuffer()
+      .then(function (raw) {
+        var ctx = new Ctx();
+        return new Promise(function (resolve, reject) {
+          ctx.decodeAudioData(
+            raw,
+            function (decoded) {
+              ctx.close();
+              resolve(decoded);
+            },
+            function (err) {
+              ctx.close();
+              reject(err || new Error('decode_failed'));
+            }
+          );
+        });
+      })
+      .then(function (decoded) {
+        if (!Offline) return encodeWav(decoded.getChannelData(0), Math.round(decoded.sampleRate));
+        var frames = Math.max(1, Math.ceil(decoded.duration * TARGET_RATE));
+        var offline = new Offline(1, frames, TARGET_RATE);
+        var source = offline.createBufferSource();
+        source.buffer = decoded;
+        source.connect(offline.destination);
+        source.start(0);
+        return offline.startRendering().then(function (rendered) {
+          return encodeWav(rendered.getChannelData(0), TARGET_RATE);
+        });
+      })
+      .then(function (wav) {
+        return new Promise(function (resolve, reject) {
+          var reader = new FileReader();
+          reader.onload = function () {
+            resolve(String(reader.result).split(',')[1]);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(wav);
+        });
+      });
+  }
   /* ---- composer recorder (tap to record, then send) ---------------------
      Modelled on a messenger: tapping the microphone turns the composer into a
      recorder with a timer, a live level trace, cancel and send. The turn ends
@@ -1295,7 +1384,7 @@
           : null;
         state.chunks = [];
         releaseStream();
-        then(blob ? { src: URL.createObjectURL(blob), bytes: blob.size } : null);
+        then(blob ? { src: URL.createObjectURL(blob), bytes: blob.size, blob: blob } : null);
       };
       try {
         state.recorder.stop();
@@ -1355,16 +1444,39 @@
     }
 
     state.collect(function (clip) {
-      if (!text) {
-        if (clip && clip.src) URL.revokeObjectURL(clip.src);
+      if (!text && !clip) {
         showNotice('I did not catch that. Try again, or type your question.');
         return;
       }
-      send(text, {
-        voice: { src: clip ? clip.src : null, bytes: clip ? clip.bytes : 0, seconds: seconds },
-        wantAudio: true,
-        spokenReply: true,
-      });
+
+      var voice = {
+        src: clip ? clip.src : null,
+        bytes: clip ? clip.bytes : 0,
+        seconds: seconds,
+      };
+
+      /* Send the recording itself. BuddyPro only returns a spoken reply when the
+         request carries audio, so this is what gets Kris's own voice back rather
+         than the device voice. The transcript rides along for history, and is
+         the fallback if conversion fails. */
+      if (!clip || !clip.blob) {
+        send(text, { voice: voice, wantAudio: true, spokenReply: true });
+        return;
+      }
+
+      toWavBase64(clip.blob)
+        .then(function (base64) {
+          send(text, {
+            voice: voice,
+            audio: base64,
+            audioFormat: 'wav',
+            wantAudio: true,
+            spokenReply: true,
+          });
+        })
+        .catch(function () {
+          send(text, { voice: voice, wantAudio: true, spokenReply: true });
+        });
     });
   }
 
@@ -1447,15 +1559,6 @@
     closeCallView();
   });
 
-  callLang.addEventListener('change', function () {
-    /* The language is fixed when a recogniser starts, so restart the turn to
-       pick up the new one. */
-    if (callLive && recognition && !muted) {
-      stopListening();
-      wantListening = true;
-      startListening();
-    }
-  });
 
   callStart.addEventListener('click', function () {
     if (!speechSupported) return;

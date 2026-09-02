@@ -251,7 +251,6 @@ async function ready(page) {
       meterHidden: style('.callview__meter').display === 'none',
       startLabel: document.getElementById('callStart').textContent.trim(),
       budget: document.getElementById('callBudget').textContent,
-      langs: document.querySelectorAll('#callLang option').length,
     };
   });
   console.log('        ' + JSON.stringify(callIdle));
@@ -260,7 +259,6 @@ async function ready(page) {
   check('call controls hidden before connecting', callIdle.ctlHidden);
   check('the meter is hidden before connecting', callIdle.meterHidden);
   check('a minutes budget is shown', /minutes left/.test(callIdle.budget), callIdle.budget);
-  check('a language selector is present', callIdle.langs >= 2, String(callIdle.langs));
   await page.screenshot({ path: path.join(OUT, 'call-idle.png') });
 
   /* Force the connecting and live states so both are captured and asserted
