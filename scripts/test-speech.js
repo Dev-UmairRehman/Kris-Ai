@@ -189,16 +189,13 @@ function installStub() {
     sentTurns: document.querySelectorAll('.turn--me').length,
     voiceBubbles: document.querySelectorAll('.turn--me .voicebubble').length,
     caption: (document.querySelector('.turn--me .voicebubble__text') || {}).textContent || '',
+    meta: (document.querySelector('.turn--me .voicebubble__meta') || {}).textContent || '',
     stopped: window.__speech.stopped,
   }));
   console.log('        ' + JSON.stringify(after));
   check('send posts the voice message', after.sentTurns === 1, JSON.stringify(after));
   check('it renders as a voice note, not plain text', after.voiceBubbles === 1);
-  check(
-    'the transcript is kept as the caption',
-    /what should I focus on/i.test(after.caption),
-    after.caption
-  );
+  check('no transcript is shown on a voice note', after.caption === '', after.caption);
   check('the recorder closed', !after.armed);
 
   await page.screenshot({ path: path.join(OUT, 'speech-dictation.png') });

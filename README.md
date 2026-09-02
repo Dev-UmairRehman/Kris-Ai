@@ -368,22 +368,30 @@ BuddyPro rejects audio uploads on this instance.
 Telegram voice - but it is withheld from API-created profiles. Measured, repeatedly
 (`npm run probe:audio`):
 
+First measurement:
+
 ```
-isolated user + saveToHistory:false     AUDIO NO
-isolated user + saveToHistory:true      AUDIO NO
-isolated user, 2nd turn (warm)          AUDIO NO
-default profile + saveToHistory:false   AUDIO YES  mp3 29KB
-default profile + saveToHistory:true    AUDIO YES  mp3 48KB
+isolated user (fresh / warm / saveToHistory either way)   AUDIO NO   0/3
+default profile (no `user` field)                        AUDIO YES  3/3, 29-48KB mp3
 ```
 
-So the voice is only available on the owner's **default** profile - where every member would
-share one conversation and one memory. Per-member isolation is not negotiable, so the reply is
-requested with `modalities:['text','audio']` on every voice turn and the client falls back to
-the device voice when none arrives. **The moment BuddyPro enables TTS for `user` profiles,
-Kris's real voice appears with no code change.**
+Re-measured after `/useVoiceCloneForEverybody:true` was enabled in Telegram:
 
-Worth asking BuddyPro for, alongside that: they document voice cloning via
-`/createVoiceClone`, `/useVoiceCloneForMe:true` and `/useVoiceCloneForEverybody:true`.
+```
+default profile           AUDIO NO   0/4     <- was 3/3
+isolated user, fresh      AUDIO NO
+isolated user, warm       AUDIO NO
+member-shaped profile id  AUDIO NO
+```
+
+So API audio output, which worked on the default profile earlier the same day, **stopped
+returning anything at all** - while the Telegram bot kept speaking in the cloned voice. That is
+an upstream regression to raise with BuddyPro, and it is the reason the app speaks with a
+different voice from Telegram.
+
+The app requests `modalities:['text','audio']` on every voice turn regardless and falls back to
+the device voice when none arrives, so **Kris's real voice appears with no code change** the
+moment BuddyPro returns audio again. Re-check any time with `npm run probe:audio`.
 
 ### Chat history
 

@@ -715,7 +715,18 @@
    * device voice instead - which is what happens for Kris, because BuddyPro
    * withholds its TTS from API-created profiles (measured; see README).
    */
+  /**
+   * A voice note, laid out the way Telegram does it: round play button, a
+   * fine-grained waveform, duration underneath. Deliberately no transcript -
+   * a voice message should be a voice message.
+   *
+   * `src` plays real audio. Without one it speaks `speakText` through the
+   * device voice, which is what happens for Kris because BuddyPro currently
+   * returns no audio through the API at all (measured; see README).
+   */
   function buildVoiceBubble(spec) {
+    var BARS = 38;
+
     var bubble = document.createElement('div');
     bubble.className = 'bubble';
 
@@ -728,35 +739,37 @@
     play.innerHTML = PLAY_SVG;
     play.setAttribute('aria-label', 'Play voice message');
 
+    var body = document.createElement('div');
+    body.className = 'voicebubble__body';
+
     var wave = document.createElement('div');
     wave.className = 'voicebubble__wave';
-    var BARS = 26;
     var bars = [];
     for (var i = 0; i < BARS; i++) {
       var bar = document.createElement('i');
-      /* Deterministic pseudo-random heights so a note looks like a waveform
-         but never re-shuffles on re-render. */
-      var h = 5 + ((Math.sin(i * 1.7 + (spec.seed || 1) * 0.9) + 1) / 2) * 15;
-      bar.style.height = h.toFixed(1) + 'px';
+      /* Deterministic pseudo-random heights, so a note looks like a waveform
+         and never reshuffles on re-render. */
+      var n = Math.sin(i * 1.9 + (spec.seed || 1) * 1.3) * Math.cos(i * 0.7 + (spec.seed || 1));
+      bar.style.height = (4 + ((n + 1) / 2) * 14).toFixed(1) + 'px';
       wave.appendChild(bar);
       bars.push(bar);
     }
 
-    var time = document.createElement('span');
-    time.className = 'voicebubble__time';
-    time.textContent = formatSeconds(spec.seconds);
+    var meta = document.createElement('div');
+    meta.className = 'voicebubble__meta';
 
-    box.appendChild(play);
-    box.appendChild(wave);
-    box.appendChild(time);
-    bubble.appendChild(box);
-
-    if (spec.text) {
-      var caption = document.createElement('div');
-      caption.className = 'voicebubble__text';
-      caption.textContent = spec.text;
-      bubble.appendChild(caption);
+    function metaText(seconds) {
+      var text = formatClock(Math.round(seconds || 0));
+      if (spec.bytes) text += ', ' + (spec.bytes / 1024).toFixed(1) + ' KB';
+      return text;
     }
+    meta.textContent = metaText(spec.seconds);
+
+    body.appendChild(wave);
+    body.appendChild(meta);
+    box.appendChild(play);
+    box.appendChild(body);
+    bubble.appendChild(box);
 
     function paint(ratio) {
       var upto = Math.round(ratio * BARS);
@@ -766,7 +779,7 @@
       box.classList.remove('is-playing');
       play.innerHTML = PLAY_SVG;
       paint(0);
-      time.textContent = formatSeconds(spec.seconds);
+      meta.textContent = metaText(spec.seconds);
     }
 
     /* --- real audio --- */
@@ -775,13 +788,13 @@
       player.addEventListener('loadedmetadata', function () {
         if (isFinite(player.duration)) {
           spec.seconds = player.duration;
-          time.textContent = formatSeconds(player.duration);
+          meta.textContent = metaText(player.duration);
         }
       });
       player.addEventListener('timeupdate', function () {
         if (player.duration) {
           paint(player.currentTime / player.duration);
-          time.textContent = formatSeconds(player.duration - player.currentTime);
+          meta.textContent = metaText(player.duration - player.currentTime);
         }
       });
       player.addEventListener('ended', reset);
@@ -825,7 +838,7 @@
       speak(spec.speakText || '', {
         onStart: function (estimate) {
           spec.seconds = estimate;
-          time.textContent = formatSeconds(estimate);
+          meta.textContent = metaText(estimate);
           box.classList.add('is-playing');
           play.innerHTML = PAUSE_SVG;
 
@@ -834,7 +847,7 @@
           progressTimer = setInterval(function () {
             var elapsed = (Date.now() - began) / 1000;
             paint(Math.min(1, elapsed / Math.max(1, estimate)));
-            time.textContent = formatSeconds(Math.max(0, estimate - elapsed));
+            meta.textContent = metaText(Math.max(0, estimate - elapsed));
           }, 120);
         },
         onEnd: function () {
@@ -860,8 +873,8 @@
 
     var bubble = buildVoiceBubble({
       src: spec.src || null,
-      speakText: spec.speakText || spec.text || '',
-      text: spec.text || '',
+      speakText: spec.speakText || '',
+      bytes: spec.bytes || 0,
       seconds: spec.seconds || 0,
       seed: thread.children.length + 1,
     });
@@ -908,6 +921,7 @@
         addVoiceTurn('me', {
           src: options.voice.src,
           seconds: options.voice.seconds,
+          bytes: options.voice.bytes,
           text: message,
         });
         recordTurn('me', message);
@@ -1281,7 +1295,7 @@
           : null;
         state.chunks = [];
         releaseStream();
-        then(blob ? URL.createObjectURL(blob) : null);
+        then(blob ? { src: URL.createObjectURL(blob), bytes: blob.size } : null);
       };
       try {
         state.recorder.stop();
@@ -1334,20 +1348,20 @@
     }
 
     if (!keep) {
-      state.collect(function (src) {
-        if (src) URL.revokeObjectURL(src);
+      state.collect(function (clip) {
+        if (clip && clip.src) URL.revokeObjectURL(clip.src);
       });
       return;
     }
 
-    state.collect(function (src) {
+    state.collect(function (clip) {
       if (!text) {
-        if (src) URL.revokeObjectURL(src);
+        if (clip && clip.src) URL.revokeObjectURL(clip.src);
         showNotice('I did not catch that. Try again, or type your question.');
         return;
       }
       send(text, {
-        voice: { src: src, seconds: seconds },
+        voice: { src: clip ? clip.src : null, bytes: clip ? clip.bytes : 0, seconds: seconds },
         wantAudio: true,
         spokenReply: true,
       });
