@@ -171,6 +171,22 @@ function accountResponse(signedIn, accept) {
   };
 }
 
+/* The mis-paste that put the widget on every page of the store: the PAGE
+   snippet pasted into the site-wide Head Code. The parser hoists it out of
+   <head> to the start of <body>, above the header - which is what visitors
+   saw. Reproduced here so the guard against it is actually tested. */
+function misplacedInHeadCode(signedIn) {
+  return (
+    '<!doctype html><html><head><meta charset="utf-8"><title>ST</title>' +
+    '<style>body{margin:0}header{height:64px;background:#16232e}</style>' +
+    PAGE +
+    '</head><body>' +
+    chrome(signedIn) +
+    '<p>homepage content</p>' +
+    '</body></html>'
+  );
+}
+
 function serve() {
   return http.createServer((req, res) => {
     const url = new URL(req.url, ORIGIN);
@@ -193,6 +209,11 @@ function serve() {
     if (p === '/sign_in') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       return res.end('<!doctype html><title>Sign in</title><h1>Sign in</h1>');
+    }
+
+    if (p === '/misplaced') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      return res.end(misplacedInHeadCode(signedIn));
     }
 
     if (p === '/join') {
@@ -450,6 +471,27 @@ function serve() {
     'no email leaks when logged out',
     id && !id.email && !id.uscreenId,
     JSON.stringify(id)
+  );
+  await page.close();
+
+  /* ---- pasted into the wrong box --------------------------------------- */
+  console.log('\npage snippet: pasted into the site-wide Head Code by mistake');
+  page = await open('/misplaced', true);
+  const wrong = await page.evaluate(() => ({
+    boxes: document.querySelectorAll('.kris-ai-embed').length,
+    iframes: document.querySelectorAll('iframe[src*="ondigitalocean"]').length,
+  }));
+  check(
+    'the widget removes itself rather than showing on every page',
+    wrong.boxes === 0 && wrong.iframes === 0,
+    JSON.stringify(wrong)
+  );
+  check(
+    '...and says why, naming the right box',
+    consoleLines.some(
+      (l) => l.indexOf('[st-kris]') > -1 && l.indexOf('Custom HTML') > -1
+    ),
+    consoleLines.filter((l) => l.indexOf('[st-kris]') > -1).slice(-1).join('') || '(nothing)'
   );
   await page.close();
 

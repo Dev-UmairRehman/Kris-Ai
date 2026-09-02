@@ -5,7 +5,14 @@
      Marketing > Website > Landing Pages > your "Kris AI Memory" page >
      add a Custom HTML block > paste this whole file into it > Publish.
 
-     VERSION 6.  HOW TO TELL WHAT IS ACTUALLY LIVE
+     THIS FILE GOES IN THE PAGE'S CUSTOM HTML BLOCK, NEVER IN THE HEAD CODE.
+     Pasted into Settings > Snippets > Head Code it renders on EVERY page of the
+     store, above the header - which is exactly what happened once. It now
+     detects that and removes itself rather than showing visitors a stray
+     widget, and says so in the console. The Head Code takes uscreen/head-code.html
+     and nothing else.
+
+     VERSION 7.  HOW TO TELL WHAT IS ACTUALLY LIVE
      On the published page, open the console. The first [st-kris] line names the
      version, e.g.  [st-kris] page snippet v6.  If it says anything else, or
      nothing, the paste did not take and the fixes in this file are not running -
@@ -86,7 +93,7 @@
   /* Bumped whenever this file changes, and logged on load. Three rounds were
      spent debugging behaviour that was simply not on the page yet, so the page
      now says which version it is running. */
-  var SNIPPET_VERSION = 6;
+  var SNIPPET_VERSION = 7;
   console.log('[st-kris] page snippet v' + SNIPPET_VERSION);
 
   /* Low enough to still fit on a 1366x768 screen once the store's nav, the
@@ -99,8 +106,46 @@
      ResizeObserver watches. */
   var fitting = false;
 
+  /* ---- am I even in the right place? ------------------------------------
+
+     Pasted into the site-wide Head Code instead of the page's Custom HTML
+     block, this markup is hoisted to the very start of <body> and renders on
+     every page of the store, above the header. That is not something visitors
+     should ever see, so it is checked rather than trusted.
+
+     The test is the store's own header: on the intended page the widget sits
+     after it, and when hoisted out of <head> it sits before it. Slug-independent,
+     so renaming the page cannot trip it.
+
+     Fails OPEN - with no header to compare against, the widget stays. Being
+     wrong here would hide it on the page where it belongs, which is worse than
+     the thing being guarded against.
+     -------------------------------------------------------------------- */
+  var misplaced = false;
+
+  function checkPlacement() {
+    var box = document.querySelector('.kris-ai-embed');
+    var header = document.querySelector('header');
+    if (!box || !header) return false;
+
+    var headerFollowsBox =
+      box.compareDocumentPosition(header) & Node.DOCUMENT_POSITION_FOLLOWING;
+    if (!headerFollowsBox) return false;
+
+    misplaced = true;
+    box.parentNode.removeChild(box);
+    console.error(
+      '[st-kris] This snippet is in the wrong box. It is rendering above the ' +
+        'site header, which means it was pasted into Settings > Snippets > Head ' +
+        'Code. It belongs in the Kris AI Memory page > Custom HTML block. The ' +
+        'Head Code takes head-code.html only. The widget has been removed from ' +
+        'this page so visitors do not see it.'
+    );
+    return true;
+  }
+
   function fit() {
-    if (fitting) return;
+    if (fitting || misplaced) return;
     var box = document.querySelector('.kris-ai-embed');
     if (!box) return;
 
@@ -173,9 +218,18 @@
   document.addEventListener('turbo:before-render', hideWhileLeaving);
   window.addEventListener('pagehide', hideWhileLeaving);
 
+  /* The header has to be parsed before placement can be judged, so the check
+     waits for the DOM even though fit() runs immediately. */
+  function boot() {
+    if (checkPlacement()) return;
+    fit();
+  }
+
   fit();
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', fit);
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
   }
   window.addEventListener('load', fit);
   window.addEventListener('resize', fit);
