@@ -387,17 +387,40 @@ Verified by `npm run test:call`, with the payload confirmed server-side:
 
 #### The greeting
 
-There is no way to make BuddyPro speak arbitrary text. Measured: with `x_buddy_systemPrompt`
-set to `replace` and a text-to-speech instruction, it repeats **the audio's transcript**
-verbatim - not a supplied text part. So an exact-wording greeting has to be a recording.
+Three routes, in order:
 
-The call plays `public/assets/greeting.mp3` when present, and reads the same words with the
-device voice when it is not. Either way the paragraph is added to the thread as text, so the
-words are never missing.
+1. **`public/assets/greeting.mp3`** - played verbatim. Exact words, exact voice. To make it,
+   send the introduction paragraph to the Kris bot in Telegram and save the voice message it
+   replies with.
+2. **BuddyPro greets** - a short sample of the live line is sent with a `call-greeting`
+   instruction, which returns a greeting **with audio in Kris's real voice**, though in her own
+   words. Measured: *"Hey, welcome! I'm Kris Safarova, founder of StrategyTraining and
+   FIRMSconsulting…"* with 158KB of mp3.
+3. **The device voice** reads the paragraph, if both of the above fail.
 
-**To get the greeting in Kris's real voice:** send the introduction paragraph to the Kris bot
-in Telegram, save the voice message it replies with, and drop it in as
-`public/assets/greeting.mp3`. One-time, and no code change.
+Why it cannot simply be spoken from text: BuddyPro's TTS only fires when a request carries
+audio, and it will not repeat a supplied text part. Measured - with the system prompt replaced
+and told to repeat verbatim, it repeats **the audio's transcript** instead.
+
+The greeting is a *quiet* turn: if it fails it removes its own placeholder rather than printing
+"That did not go through" as though Kris had said it.
+
+#### Nothing survives hanging up
+
+A call reply is rendered as **text** in the thread, never as a voice note. It used to be a
+voice note that auto-played, and that player was independent of the call - so hanging up
+mid-sentence left it talking, and the history showed a voice message from a call. The audio is
+now owned solely by the call and stopped by `endCall()`.
+
+The standing welcome is also no longer added when a call starts, which was printing the
+paragraph twice.
+
+Asserted by `npm run test:call`:
+
+```
+error bubbles: 0 | welcome copies: 1 | voice notes in thread: 0
+after hangup : {"playing":0,"inCall":false,"voiceNotes":0}
+```
 
 ### Voice: what BuddyPro actually does, measured
 

@@ -357,6 +357,10 @@ app.post('/api/chat', async (req, res) => {
     wantAudio
   );
 
+  /* The browser may ask for the call-opening turn, but it does not get to
+     supply the prompt - only to name a known intent. */
+  const intent = req.body?.intent === 'call-greeting' ? 'call-greeting' : null;
+
   const slot = ratelimit.claim(session.sub);
   if (!slot.allowed) {
     res.setHeader('Retry-After', String(slot.retryAfter));
@@ -379,6 +383,7 @@ app.post('/api/chat', async (req, res) => {
         wantAudio,
         audioInput: audio,
         audioFormat,
+        intent,
       });
     } catch (audioErr) {
       const worthRetrying =

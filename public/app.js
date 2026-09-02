@@ -948,12 +948,17 @@
       message: message,
       audio: options.audio || undefined,
       audioFormat: options.audio ? options.audioFormat || 'wav' : undefined,
+      intent: options.intent || undefined,
       wantAudio: options.wantAudio === true,
     })
       .then(function (res) {
         if (!res.ok) {
           if (res.status === 401) {
             showGate((res.data && res.data.reason) || 'no_session');
+            return null;
+          }
+          if (options.quiet) {
+            pending.turn.remove();
             return null;
           }
           pending.turn.classList.add('turn--error');
@@ -986,6 +991,10 @@
         return { content: content, audio: replyAudio };
       })
       .catch(function () {
+        if (options.quiet) {
+          pending.turn.remove();
+          return null;
+        }
         pending.turn.classList.add('turn--error');
         pending.setText('Connection lost. Try again in a moment.');
         return null;
@@ -1624,7 +1633,9 @@
         app.classList.remove('call-connecting');
         app.classList.add('call-live');
         callLive = true;
-        enterThread();
+        /* welcome:false - the call opens with its own greeting, and adding the
+           standing welcome here printed the paragraph twice. */
+        enterThread({ welcome: false });
         /* Calls are listed separately from chats, with the phone icon. */
         startConversation(
           'call',
@@ -1670,33 +1681,139 @@
      -------------------------------------------------------------------- */
 
   function playGreeting() {
-    addTurn('kris', WELCOME, { store: false });
-
     setCallStatus('Talking', 'speaking');
 
-    var greeting = new Audio('/static/assets/greeting.mp3');
+    /* First choice: a recording of the exact paragraph in Kris's own voice.
+       Drop one in at public/assets/greeting.mp3 and it is used verbatim - send
+       the paragraph to the Kris bot in Telegram and save the voice reply.
+       Second choice: ask BuddyPro to greet, which is her real voice but her own
+       words. Last resort: the device voice reads the paragraph. */
+    tryGreetingFile()
+      .then(function (played) {
+        if (played || !callLive) return;
+        greetViaBuddyPro();
+      })
+      .catch(function () {
+        if (callLive) greetViaBuddyPro();
+      });
+  }
 
-    function thenListen() {
-      callAudio = null;
-      if (!callLive) return;
-      setCallStatus('Listening', 'listening');
-      startListening();
-    }
+  /** Resolves true when a recorded greeting existed and started playing. */
+  function tryGreetingFile() {
+    return new Promise(function (resolve) {
+      var file = new Audio('/static/assets/greeting.mp3');
+      var settled = false;
 
-    greeting.addEventListener('ended', thenListen);
-    greeting.addEventListener('error', function () {
-      /* No recording available - read it with the device voice. */
-      callAudio = null;
-      if (callLive) speak(WELCOME);
-    });
+      function fail() {
+        if (settled) return;
+        settled = true;
+        resolve(false);
+      }
 
-    callAudio = greeting;
-    greeting.play().catch(function () {
-      callAudio = null;
-      if (callLive) speak(WELCOME);
+      file.addEventListener('error', fail);
+      file.addEventListener('canplay', function () {
+        if (settled) return;
+        settled = true;
+        addTurn('kris', WELCOME, { store: false });
+        callAudio = file;
+        file.addEventListener('ended', function () {
+          callAudio = null;
+          if (!callLive) return;
+          setCallStatus('Listening', 'listening');
+          startListening();
+        });
+        file.play().then(
+          function () {
+            resolve(true);
+          },
+          function () {
+            callAudio = null;
+            resolve(false);
+          }
+        );
+      });
+
+      /* Do not hang the call waiting for a file that is not there. */
+      setTimeout(fail, 2500);
     });
   }
 
+  function greetViaBuddyPro() {
+
+    /* BuddyPro only speaks when a request carries audio, so the opening is a
+       short sample of the line with an instruction to greet. That is the only
+       way the greeting is in Kris's real voice rather than the device voice. */
+    sampleAudio(1800)
+      .then(function (base64) {
+        if (!callLive) return null;
+        if (!base64) return null;
+        return send('', {
+          intent: 'call-greeting',
+          audio: base64,
+          audioFormat: 'wav',
+          wantAudio: true,
+          silentUser: true,
+          quiet: true,
+          onReply: function (reply) {
+            if (!callLive) return;
+            if (reply && (reply.audio || reply.content)) playReply(reply);
+          },
+        });
+      })
+      .then(function (result) {
+        /* Nothing usable came back - read the standing welcome instead, so the
+           call never opens in silence. */
+        if (!callLive) return;
+        if (!result || (!result.audio && !result.content)) {
+          addTurn('kris', WELCOME, { store: false });
+          speak(WELCOME);
+        }
+      })
+      .catch(function () {
+        if (!callLive) return;
+        addTurn('kris', WELCOME, { store: false });
+        speak(WELCOME);
+      });
+  }
+
+  /** A short clip from the live call stream, as base64 WAV. */
+  function sampleAudio(ms) {
+    if (!callStream || !window.MediaRecorder) return Promise.resolve(null);
+
+    return new Promise(function (resolve) {
+      var chunks = [];
+      var rec;
+      try {
+        rec = new MediaRecorder(callStream);
+      } catch (e) {
+        resolve(null);
+        return;
+      }
+      rec.ondataavailable = function (e) {
+        if (e.data && e.data.size) chunks.push(e.data);
+      };
+      rec.onstop = function () {
+        if (!chunks.length) {
+          resolve(null);
+          return;
+        }
+        toWavBase64(new Blob(chunks, { type: rec.mimeType || 'audio/webm' })).then(
+          resolve,
+          function () {
+            resolve(null);
+          }
+        );
+      };
+      rec.start();
+      setTimeout(function () {
+        try {
+          rec.stop();
+        } catch (e) {
+          resolve(null);
+        }
+      }, ms || 1200);
+    });
+  }
 
   /* ---- the call turn ----------------------------------------------------
      A call turn is deliberately the SAME round trip as a voice note: record,
@@ -1887,11 +2004,14 @@
     toWavBase64(blob)
       .then(function (base64) {
         if (!callLive) return;
+        /* spokenReply is deliberately off. During a call the audio is played by
+           the call itself; rendering a voice note in the thread as well left a
+           second, independent player running after the member hung up - and a
+           call transcript reads better as text anyway. */
         send('', {
           audio: base64,
           audioFormat: 'wav',
           wantAudio: true,
-          spokenReply: true,
           silentUser: true,
           onReply: playReply,
         });
