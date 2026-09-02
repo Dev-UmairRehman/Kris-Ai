@@ -91,6 +91,7 @@ app.get('/healthz', (req, res) => {
     uscreenConfigured: !!(config.uscreen.apiBase && config.uscreen.apiKey),
     voiceEnabled: config.voiceEnabled,
     responseLanguage: config.responseLanguage,
+    buddyproMock: config.buddypro.mock,
   });
 });
 

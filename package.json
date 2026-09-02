@@ -18,7 +18,8 @@
     "test:embed": "node scripts/test-embed.js",
     "probe:language": "node scripts/probe-language.js",
     "test:speech": "node scripts/test-speech.js",
-    "test:call": "node scripts/test-call.js"
+    "test:call": "node scripts/test-call.js",
+    "make:greeting": "node scripts/make-greeting.js"
   },
   "dependencies": {
     "express": "^4.21.2"

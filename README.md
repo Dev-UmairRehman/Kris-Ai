@@ -129,6 +129,24 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 `lib/config.js` validates everything at boot and refuses to start on a misconfiguration
 rather than running in a degraded state.
 
+### Testing without spending credits
+
+Every real BuddyPro request costs credits, so **run the suites against the mock**:
+
+```bash
+BUDDYPRO_MOCK=true npm start      # in one terminal
+npm run smoke && npm run shots && npm run shots:extra
+npm run test:speech && npm run test:call && npm run test:embed
+```
+
+The mock answers locally - no network, no credits - and is shaped like a real reply, blank-line
+splits included, so the UI is exercised properly. `/healthz` reports `buddyproMock: true` so it
+is never a surprise, and `lib/config.js` refuses it in production.
+
+To exercise the real thing deliberately, start without the flag and add `LIVE=1` to the smoke
+run. `npm run make:greeting` spends one request per attempt and defaults to two;
+`--attempts N` raises it.
+
 ### Tests
 
 ```bash

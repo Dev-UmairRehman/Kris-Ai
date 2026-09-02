@@ -1698,16 +1698,30 @@
       });
   }
 
+  /* Telegram saves voice messages as .ogg, so accept whatever was dropped in
+     rather than demanding one filename. */
+  var GREETING_FILES = [
+    '/static/assets/greeting.mp3',
+    '/static/assets/greeting.ogg',
+    '/static/assets/greeting.oga',
+    '/static/assets/greeting.m4a',
+    '/static/assets/greeting.wav',
+  ];
+
   /** Resolves true when a recorded greeting existed and started playing. */
-  function tryGreetingFile() {
+  function tryGreetingFile(index) {
+    var which = index || 0;
+    if (which >= GREETING_FILES.length) return Promise.resolve(false);
+
     return new Promise(function (resolve) {
-      var file = new Audio('/static/assets/greeting.mp3');
+      var file = new Audio(GREETING_FILES[which]);
       var settled = false;
 
       function fail() {
         if (settled) return;
         settled = true;
-        resolve(false);
+        /* Not this one - try the next extension. */
+        tryGreetingFile(which + 1).then(resolve);
       }
 
       file.addEventListener('error', fail);

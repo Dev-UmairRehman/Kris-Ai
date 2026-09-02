@@ -115,12 +115,14 @@ function installProbe() {
   const opened = await page.evaluate(() => ({
     states: window.__states || [],
     live: document.getElementById('app').classList.contains('call-live'),
-    greeted: /Welcome to StrategyTraining/.test(document.querySelector('.thread').textContent),
+    /* The greeting is either BuddyPro's own words or the WELCOME fallback -
+       what matters is that Kris opens with something before we listen. */
+    greeted: document.querySelectorAll('.turn--kris').length > 0,
   }));
   console.log('        ' + JSON.stringify(opened.states));
 
   check('the call goes live', opened.live);
-  check('Kris opens with the introduction', opened.greeted);
+  check('Kris opens the call before listening', opened.greeted);
   check(
     'the greeting speaks before listening',
     opened.states.indexOf('Talking') > -1 &&
