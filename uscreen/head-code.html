@@ -1,6 +1,6 @@
 <!-- ==========================================================================
      StrategyTraining - Kris AI Memory identity bridge
-     WHERE THIS GOES
+     WHERE THIS GOES  (step 1 of 2 - do this one FIRST)
      Settings > Snippets > Head Code
      (or Website > Advanced > Customizations > Head Code)
 
@@ -12,13 +12,29 @@
      WHAT THIS DOES
      The Kris AI widget runs on its own domain inside an iframe, so it cannot
      read the Uscreen session cookie. This snippet tells the widget which
-     member is signed in. The widget forwards that claim to its own server,
-     which verifies it against the Uscreen API before trusting it - so a forged
-     value here does not grant access.
+     member is signed in, using the store's own signal: Uscreen renders a
+     /sign_in link only when nobody is logged in. The widget forwards that to
+     its own server, which will not open a session without it.
+
+     HOW STRONG IS THIS
+     Strong enough to stop every ordinary visitor, and it is what makes the
+     public landing page safe. It is not cryptographic: this claim is made in
+     the browser, so someone already on strategytraining.com who opens the dev
+     console could assert it by hand. Two things bound the damage - the CSP
+     frame-ancestors rule means the widget will not load anywhere except
+     strategytraining.com, and per-session and global rate limits cap what any
+     one of them can spend.
+
+     To make it cryptographic, get the Uscreen Publisher API key (UscreenPlus or
+     Custom plan) and set MEMBER_GATE_MODE=strict - the server then verifies
+     each email against Uscreen directly and a forged claim is refused.
 
      PROTOCOL
        widget -> parent :  { type: 'kris-ai:ready' }
-       parent -> widget :  { type: 'st-kris:identity', email, uscreenId }
+       parent -> widget :  { type: 'st-kris:identity', signedIn, email, uscreenId }
+
+     signedIn is the field that grants access. email/uscreenId only decide which
+     memory thread the member gets, and are blank when signedIn is false.
 
      Both sides post to an explicit origin, never '*'.
 
@@ -30,7 +46,8 @@
      IF THE EMAIL CANNOT BE FOUND
      Access still works (login state is enough); only per-member memory is
      affected, since members would share a per-browser thread instead.
-     Open the browser console on /delphi and look for the [st-kris] line: it
+     Open the browser console on your Kris AI Memory page and look for the
+     [st-kris] line: it
      names the source that worked, or reports that none did. Send me that line
      and I will pin the lookup to the one that works on your store.
      ========================================================================== -->
