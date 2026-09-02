@@ -1,56 +1,263 @@
 <!-- ==========================================================================
-     StrategyTraining - Kris AI Memory identity bridge
-     WHERE THIS GOES  (step 1 of 2 - do this one FIRST)
+     StrategyTraining - Head Code
      Settings > Snippets > Head Code
-     (or Website > Advanced > Customizations > Head Code)
 
-     APPEND it to whatever is already in that box. Do NOT replace the contents -
-     the gift card and sub-nav snippets already there must stay.
+     PASTE THIS WHOLE FILE, REPLACING THE ENTIRE CONTENTS OF THE BOX.
+     It already contains everything that was in there before.
 
-     The deployed origin is already filled in below. Nothing to replace.
+     Contains FIVE separate items. KEEP ALL FIVE.
+       1. Gift card "Custom Amount" hider     - pre-existing (Artchen, Feb 28)
+       2. Kris page marker + link marker      - added Aug 2026, generalised Sep 2026
+       3. Sub-nav hider + nav tab highlight   - added Sep 2026
+       4. Kris link routing (join vs chat)    - added Sep 2026
+       5. Kris AI Memory identity bridge      - added Sep 2026  <-- NEW
 
-     WHAT THIS DOES
-     The Kris AI widget runs on its own domain inside an iframe, so it cannot
-     read the Uscreen session cookie. This snippet tells the widget which
-     member is signed in, using the store's own signal: Uscreen renders a
-     /sign_in link only when nobody is logged in. The widget forwards that to
-     its own server, which will not open a session without it.
+     TWO DIFFERENT PAGES, DO NOT CONFUSE THEM
+       /delphi            "Kris AI"         - the existing page, powered by Delphi
+       /kris-ai-memory    "Kris AI Memory"  - the new page, powered by BuddyPro
+
+     Blocks 2-4 style and route BOTH pages. Block 5 serves only Kris AI Memory.
+
+     IF YOUR NEW PAGE USES A DIFFERENT SLUG, change it in ONE place:
+     PAGES.memory in block 2. Nothing else refers to the slug - the CSS keys on
+     classes this script adds, not on hrefs.
+     ========================================================================== -->
+
+<!-- 1 ---------------------------------------------------------------------
+     Hide Custom Amount from GC page - Artchen Feb 28th
+     DO NOT REMOVE - this was here before and is still needed.
+     ---------------------------------------------------------------------- -->
+<style>
+  #gift_card_form_element > div.border-b.border-gray-300.dark\:border-gray-700.pb-8.mb-8.mt-8 > div > div.storefront-radio-buttons-group.mb-6 > ds-radio-group > ul > li:nth-child(2) > button{
+    display: none !important;
+  }
+</style>
+
+<!-- 2 ---------------------------------------------------------------------
+     Page marker and link marker. This is the only block that knows the slugs.
+
+     Sets on <html>:
+       .st-kris          on either Kris page  (drives the sub-nav hider)
+       .st-delphi        on /delphi only      (kept in case anything else uses it)
+       .st-kris-memory   on the new page only
+
+     Adds to every nav link pointing at a Kris page:
+       .st-kris-link     always
+       .is-current       when it points at the page you are on
+
+     Marking the links with a class means block 3's CSS never has to repeat a
+     slug, so changing PAGES.memory below is the only edit ever needed.
+
+     It runs in <head>, so the <html> class is set before the sub-nav is parsed
+     and there is no flash. Links get marked once the DOM exists, and again on
+     every Turbo navigation - Uscreen is a Hotwire app and swaps pages without
+     a full reload.
+     ---------------------------------------------------------------------- -->
+<script>
+(function () {
+  /* ---- the only place a slug is written -------------------------------- */
+  var PAGES = {
+    delphi: '/delphi',            // existing "Kris AI" page (Delphi)
+    memory: '/kris-ai-memory',    // new "Kris AI Memory" page (BuddyPro)
+  };
+
+  /* Shared with blocks 4 and 5 so nothing is declared twice. */
+  window.ST_KRIS = {
+    pages: PAGES,
+    widgetOrigin: 'https://kris-ai-memory-baefm.ondigitalocean.app',
+    path: function () {
+      return location.pathname.replace(/\/+$/, '') || '/';
+    },
+    /* Which Kris page a URL points at, or '' for anything else. Compares the
+       pathname, so it works whether the nav stores a relative href or an
+       absolute one - the existing nav item stores the absolute URL. */
+    pageOf: function (url) {
+      var p;
+      try {
+        p = new URL(url, location.href).pathname.replace(/\/+$/, '') || '/';
+      } catch (e) {
+        return '';
+      }
+      if (p === PAGES.delphi) return 'delphi';
+      if (p === PAGES.memory) return 'memory';
+      return '';
+    },
+  };
+
+  function markPage() {
+    try {
+      var which = window.ST_KRIS.pageOf(location.href);
+      var root = document.documentElement;
+      root.classList.toggle('st-kris', which !== '');
+      root.classList.toggle('st-delphi', which === 'delphi');
+      root.classList.toggle('st-kris-memory', which === 'memory');
+    } catch (e) {}
+  }
+
+  function markLinks() {
+    try {
+      var here = window.ST_KRIS.pageOf(location.href);
+      var links = document.querySelectorAll('a[href]');
+      for (var i = 0; i < links.length; i++) {
+        var which = window.ST_KRIS.pageOf(links[i].getAttribute('href'));
+        if (!which) continue;
+        links[i].classList.add('st-kris-link');
+        links[i].classList.toggle('is-current', which === here);
+      }
+    } catch (e) {}
+  }
+
+  function run() {
+    markPage();
+    markLinks();
+  }
+
+  markPage();  /* before the sub-nav is parsed - no flash */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run);
+  } else {
+    run();
+  }
+  document.addEventListener('turbo:load', run);
+  document.addEventListener('turbo:render', run);
+})();
+</script>
+
+<!-- 3 ---------------------------------------------------------------------
+     Sub-nav hider and nav tab highlight. CSS only - no slugs in here.
+
+     SUB-NAV: hides the catalog bar (Browse / Favorites / Playlists / Watch
+     history) on both Kris pages. The bar is the div immediately after
+     </header>:
+       <div class="w-full border-b border-ds-default bg-ds-main overflow-x-auto z-[20]">
+
+     HIGHLIGHT: the nav item is stored as an absolute URL, so Uscreen's own
+     active-state logic never matches it against the current path and the tab
+     never lights up. This applies the active look manually, using the
+     .is-current class block 2 adds. Works for the top nav and the burger menu.
+
+     An inset box-shadow is used instead of border-bottom so nothing shifts.
+     ---------------------------------------------------------------------- -->
+<style>
+  html.st-kris div.w-full.border-b.bg-ds-main.overflow-x-auto {
+    display: none !important;
+  }
+
+  a.st-kris-link.is-current {
+    color: var(--primary, #2bc0e3) !important;
+    box-shadow: inset 0 -3px 0 0 var(--primary, #2bc0e3) !important;
+    text-decoration: none !important;
+  }
+</style>
+
+<!-- 4 ---------------------------------------------------------------------
+     Kris link routing. Applies to BOTH Kris pages.
+
+       logged out               -> /join   (intercepted at click, instant)
+       logged in, no sub        -> /join   (Uscreen bounces them, we catch it)
+       logged in, subscriber    -> the page (untouched)
+
+     Uscreen renders a /sign_in link only for logged-out visitors, so that is
+     the logged-out test. For a logged-in non-subscriber there is no client
+     signal, so we set a short-lived flag on click: if they end up anywhere
+     other than a Kris page within 12s, Uscreen rejected them and we send them
+     to /join rather than dumping them on the homepage.
+
+     Note for /kris-ai-memory: it is a landing page, so it is PUBLIC and Uscreen
+     will not bounce anyone from it. The click interception above is what keeps
+     logged-out visitors out, and the widget itself refuses to open without a
+     signed-in claim from block 5. A logged-in visitor without a subscription
+     will reach the widget and be able to use it - that is what you asked for
+     ("logged in or subscribed"). Telling a free account from a paying one needs
+     MEMBER_GATE_MODE=strict and the Uscreen Publisher API key.
+     ---------------------------------------------------------------------- -->
+<script>
+(function () {
+  var KEY = 'st_kai_click';
+  var WINDOW_MS = 12000;
+
+  function loggedOut() {
+    return !!document.querySelector('a[href="/sign_in"], a[href$="/sign_in"]');
+  }
+
+  document.addEventListener('click', function (e) {
+    try {
+      var a = e.target && e.target.closest ? e.target.closest('a') : null;
+      if (!a) return;
+      /* Ask block 2 whether this link is a Kris link - one source of truth. */
+      if (!window.ST_KRIS || !window.ST_KRIS.pageOf(a.getAttribute('href'))) return;
+
+      if (loggedOut()) {          // no point sending them to a page that rejects them
+        e.preventDefault();
+        location.href = '/join';
+        return;
+      }
+      sessionStorage.setItem(KEY, String(Date.now()));   // backstop for non-subscribers
+    } catch (err) {}
+  }, true);
+
+  function check() {
+    try {
+      var t = sessionStorage.getItem(KEY);
+      if (!t) return;
+      /* Landed on either Kris page = they got in. */
+      if (window.ST_KRIS && window.ST_KRIS.pageOf(location.href)) {
+        sessionStorage.removeItem(KEY);
+        return;
+      }
+
+      sessionStorage.removeItem(KEY);
+      var path = window.ST_KRIS ? window.ST_KRIS.path() : location.pathname;
+      if (Date.now() - parseInt(t, 10) < WINDOW_MS && path !== '/join') {
+        location.replace('/join');
+      }
+    } catch (err) {}
+  }
+
+  check();
+  document.addEventListener('turbo:load', check);
+})();
+</script>
+
+<!-- 5 ---------------------------------------------------------------------
+     Kris AI Memory identity bridge.  THIS BLOCK IS NOT OPTIONAL.
+
+     Kris AI Memory (BuddyPro) runs on its own domain inside an iframe, so it
+     cannot read the Uscreen session cookie. This tells it whether anyone is
+     signed in, using the store's own signal - Uscreen renders a /sign_in link
+     only when logged out. The widget forwards that to its own server, which
+     will not open a session without it.
+
+     Without this block every visitor sees the "please sign in" screen, member
+     or not. That is the safe way round: /kris-ai-memory is a landing page and
+     therefore public, so being framed by strategytraining.com proves nothing.
 
      HOW STRONG IS THIS
-     Strong enough to stop every ordinary visitor, and it is what makes the
-     public landing page safe. It is not cryptographic: this claim is made in
-     the browser, so someone already on strategytraining.com who opens the dev
-     console could assert it by hand. Two things bound the damage - the CSP
-     frame-ancestors rule means the widget will not load anywhere except
-     strategytraining.com, and per-session and global rate limits cap what any
-     one of them can spend.
-
-     To make it cryptographic, get the Uscreen Publisher API key (UscreenPlus or
-     Custom plan) and set MEMBER_GATE_MODE=strict - the server then verifies
-     each email against Uscreen directly and a forged claim is refused.
+     Strong enough to stop every ordinary visitor. Not cryptographic: the claim
+     is made in the browser, so someone already on strategytraining.com with the
+     dev console open could assert it by hand. The widget's CSP frame-ancestors
+     rule stops it loading anywhere but strategytraining.com, and per-session and
+     global rate limits cap what any one of them could spend. For real
+     verification set MEMBER_GATE_MODE=strict on the app and supply the Uscreen
+     Publisher API key (UscreenPlus or Custom plan).
 
      PROTOCOL
        widget -> parent :  { type: 'kris-ai:ready' }
        parent -> widget :  { type: 'st-kris:identity', signedIn, email, uscreenId }
 
-     signedIn is the field that grants access. email/uscreenId only decide which
-     memory thread the member gets, and are blank when signedIn is false.
+     signedIn grants access. email/uscreenId only decide which memory thread the
+     member gets, and are blank when signedIn is false. Both sides post to an
+     explicit origin, never '*'.
 
-     Both sides post to an explicit origin, never '*'.
-
-     THIS SNIPPET IS NOT OPTIONAL
-     The widget refuses to open until this tells it someone is signed in. Without
-     it, every visitor sees the "please sign in" screen - which is the safe way
-     round, because a Uscreen landing page is public.
+     This block does not touch /delphi and has no effect on the Delphi page.
 
      IF THE EMAIL CANNOT BE FOUND
      Access still works (login state is enough); only per-member memory is
-     affected, since members would share a per-browser thread instead.
-     Open the browser console on your Kris AI Memory page and look for the
-     [st-kris] line: it
-     names the source that worked, or reports that none did. Send me that line
-     and I will pin the lookup to the one that works on your store.
-     ========================================================================== -->
+     affected, since members would share a per-browser thread. Open the console
+     on the Kris AI Memory page and look for the [st-kris] line - it names the
+     source that worked, or reports that none did. Send that line to your
+     developer and the lookup gets pinned to it.
+     ---------------------------------------------------------------------- -->
 <script>
 (function () {
   'use strict';
