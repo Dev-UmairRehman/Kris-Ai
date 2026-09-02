@@ -199,10 +199,18 @@
     return [];
   }
 
-  function startConversation(kind) {
+  function startConversation(kind, title) {
     currentConvId = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     var list = readConversations();
-    list.push({ id: currentConvId, kind: kind || 'chat', title: '', at: Date.now(), turns: [] });
+    /* A call carries no typed question, so it is named up front - otherwise it
+       would have no title and never appear in history. */
+    list.push({
+      id: currentConvId,
+      kind: kind || 'chat',
+      title: title || '',
+      at: Date.now(),
+      turns: [],
+    });
     writeStore(CONV_KEY, list.slice(-CONV_MAX));
     return currentConvId;
   }
@@ -1255,10 +1263,18 @@
 
   var recording = null;
 
-  function stopRecordingUi() {
+  /* Takes the state explicitly. Reading the module-level `recording` here was a
+     bug: finishRecording() nulls it before calling this, so the interval was
+     never cleared and every recording leaked a ticker. Several leaked tickers
+     then wrote to the same timer element from their own start times, which is
+     why the clock showed the age of the page and jumped between values. */
+  function stopRecordingUi(state) {
     form.classList.remove('is-recording');
-    if (recording && recording.ticker) clearInterval(recording.ticker);
-    if (recording && recording.raf) cancelAnimationFrame(recording.raf);
+    if (!state) return;
+    if (state.ticker) clearInterval(state.ticker);
+    if (state.raf) cancelAnimationFrame(state.raf);
+    state.ticker = null;
+    state.raf = null;
   }
 
   function beginRecording() {
@@ -1278,6 +1294,13 @@
 
     form.classList.add('is-recording');
     recTime.textContent = '0:00';
+    /* Belt and braces: clear anything a previous turn might have left running. */
+    if (window.__krisRecTickers) {
+      window.__krisRecTickers.forEach(function (id) {
+        clearInterval(id);
+      });
+    }
+    window.__krisRecTickers = [];
     hideNotice();
 
     /* Level trace. */
@@ -1290,8 +1313,14 @@
     }
 
     state.ticker = setInterval(function () {
+      /* Only the live recording may write the clock. */
+      if (recording !== state) {
+        clearInterval(state.ticker);
+        return;
+      }
       recTime.textContent = formatSeconds((Date.now() - state.startedAt) / 1000);
     }, 250);
+    window.__krisRecTickers.push(state.ticker);
 
     if (navigator.mediaDevices && window.MediaRecorder) {
       navigator.mediaDevices
@@ -1409,8 +1438,9 @@
         finishRecording(true);
       },
       onError: function (err) {
+        var dead = recording;
         recording = null;
-        stopRecordingUi();
+        stopRecordingUi(dead);
         releaseStream();
         showNotice(
           err === 'not-allowed' || err === 'service-not-allowed'
@@ -1426,7 +1456,7 @@
     var state = recording;
     if (!state) return;
     recording = null;
-    stopRecordingUi();
+    stopRecordingUi(state);
 
     var seconds = (Date.now() - state.startedAt) / 1000;
     var text = (state.text || '').trim();
@@ -1510,6 +1540,11 @@
   var wantListening = false;
   /* Kris's own audio for the current call turn. */
   var callAudio = null;
+  /* One microphone stream for the whole call. Re-acquiring it per turn caused
+     the second getUserMedia to fail and the call to report "Microphone
+     blocked"; it also churns the permission chip on every turn. */
+  var callStream = null;
+  var callCtx = null;
 
   function formatClock(total) {
     var m = Math.floor(total / 60);
@@ -1580,9 +1615,7 @@
        button press, then release the stream - SpeechRecognition opens its own. */
     var ask = navigator.mediaDevices
       ? navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
-          stream.getTracks().forEach(function (t) {
-            t.stop();
-          });
+          callStream = stream;
         })
       : Promise.resolve();
 
@@ -1593,7 +1626,11 @@
         callLive = true;
         enterThread();
         /* Calls are listed separately from chats, with the phone icon. */
-        startConversation('call');
+        startConversation(
+          'call',
+          'Voice call - ' +
+            new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+        );
 
         /* Kris opens the call, then we listen - going straight to Listening
            left the member with nothing to answer. */
@@ -1613,42 +1650,29 @@
 
         /* playGreeting() opens the call and hands over to listening. */
       })
-      .catch(function () {
+      .catch(function (err) {
+        console.error('[kris] beginCall failed:', err && (err.name + ': ' + err.message), err && err.stack);
         app.classList.remove('call-connecting');
         setCallStatus('Microphone blocked', null);
       });
   }
 
-  /* ---- the call turn ----------------------------------------------------
-     A call turn is the same round trip as a voice note, which is the whole
-     point: the recording is sent, so BuddyPro answers with its own TTS in the
-     owner's cloned voice. Speaking the answer with the browser voice - which is
-     what this used to do - can never sound like Kris.
-
-     The states a member sees, each with its own colour:
-       Listening  they are talking, we are recording and transcribing
-       Thinking   sent, waiting on the answer
-       Talking    Kris is speaking
-     -------------------------------------------------------------------- */
-
   /* ---- the opening ------------------------------------------------------
-     A pre-recorded greeting in Kris's real voice is used when one is present
-     at /static/assets/greeting.mp3. There is no way to make BuddyPro speak
+     A pre-recorded greeting in Kris's real voice is used when one is present at
+     /static/assets/greeting.mp3. There is no way to make BuddyPro speak
      arbitrary text - measured: with the system prompt replaced it repeats the
-     AUDIO's transcript, not a supplied text part - so an exact-wording greeting
-     has to be a file. Without it, the device voice reads the same words so the
-     call still opens properly.
+     AUDIO's transcript, not a supplied text part - so exact wording has to be a
+     file. Without it the device voice reads the same words, and the paragraph is
+     added to the thread either way so it is never missing.
 
-     To record the real one: send this paragraph to the Kris bot in Telegram,
-     save the voice message it returns, and drop it in as greeting.mp3.
+     To record the real one: send the paragraph to the Kris bot in Telegram, save
+     the voice message it returns, and drop it in as greeting.mp3.
      -------------------------------------------------------------------- */
 
   function playGreeting() {
-    /* Show it in the thread either way, so the words are always there. */
     addTurn('kris', WELCOME, { store: false });
 
     setCallStatus('Talking', 'speaking');
-    stopListening();
 
     var greeting = new Audio('/static/assets/greeting.mp3');
 
@@ -1673,73 +1697,53 @@
     });
   }
 
-  /** Capture audio alongside recognition, so the turn can be sent as audio. */
-  function startCapture() {
-    var recorder = null;
-    var chunks = [];
-    var stream = null;
-    var stopped = false;
 
-    var ready =
-      navigator.mediaDevices && window.MediaRecorder
-        ? navigator.mediaDevices
-            .getUserMedia({ audio: true })
-            .then(function (s) {
-              if (stopped) {
-                s.getTracks().forEach(function (t) {
-                  t.stop();
-                });
-                return;
-              }
-              stream = s;
-              recorder = new MediaRecorder(s);
-              recorder.ondataavailable = function (e) {
-                if (e.data && e.data.size) chunks.push(e.data);
-              };
-              recorder.start();
-            })
-            .catch(function () {
-              /* no capture - the turn still goes as text */
-            })
-        : Promise.resolve();
+  /* ---- the call turn ----------------------------------------------------
+     A call turn is deliberately the SAME round trip as a voice note: record,
+     send the audio, play the audio that comes back. That is the only way the
+     voice matches Telegram, because BuddyPro's TTS only fires when the request
+     carries audio.
 
-    function release() {
-      if (stream) {
-        stream.getTracks().forEach(function (t) {
-          t.stop();
-        });
-        stream = null;
-      }
+     The browser recogniser is NOT used here. It was, and it caused the very
+     problem being fixed: two microphone streams at once (MediaRecorder plus
+     SpeechRecognition), and a short turn could end before the recorder's
+     getUserMedia resolved - sending text instead of audio, which silently
+     produced the device voice instead of Kris's. BuddyPro transcribes the audio
+     itself, so the recogniser was never needed for a call.
+
+     Endpointing is done on the waveform: speech is detected by RMS above a
+     floor, and the turn ends after a pause. One stream, no race.
+     -------------------------------------------------------------------- */
+
+  var CALL_SILENCE_MS = 1400; // pause that ends a turn
+  var CALL_MIN_SPEECH_MS = 350; // ignore coughs and clicks
+  var CALL_MAX_TURN_MS = 60000;
+  var SPEECH_FLOOR = 0.02; // RMS above this counts as speech
+
+  var turn = null;
+
+  function stopTurn() {
+    if (!turn) return;
+    var dead = turn;
+    turn = null;
+
+    if (dead.raf) cancelAnimationFrame(dead.raf);
+    if (dead.maxTimer) clearTimeout(dead.maxTimer);
+    try {
+      if (dead.source) dead.source.disconnect();
+    } catch (e) {
+      /* already gone */
     }
-
-    return {
-      stop: function () {
-        stopped = true;
-        return ready.then(function () {
-          return new Promise(function (resolve) {
-            if (!recorder || recorder.state !== 'recording') {
-              release();
-              resolve(null);
-              return;
-            }
-            recorder.onstop = function () {
-              var blob = chunks.length
-                ? new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
-                : null;
-              chunks = [];
-              release();
-              resolve(blob);
-            };
-            try {
-              recorder.stop();
-            } catch (e) {
-              release();
-              resolve(null);
-            }
-          });
-        });
-      },
-    };
+    if (dead.audioCtx && dead.audioCtx.state !== 'closed') {
+      dead.audioCtx.close().catch(function () {});
+    }
+    try {
+      if (dead.recorder && dead.recorder.state === 'recording') dead.recorder.stop();
+    } catch (e) {
+      /* already stopping */
+    }
+    /* The stream belongs to the call, not the turn - leave it running. */
+    return dead;
   }
 
   function startListening() {
@@ -1747,9 +1751,8 @@
 
     wantListening = true;
 
-    /* A request may still be in flight - from the composer, or the turn before.
-       Wait for it rather than giving up, which used to leave the call stuck
-       with the microphone never opening. */
+    /* A request may still be in flight. Wait for it rather than giving up,
+       which used to leave the call with the microphone never opening. */
     if (busy) {
       setTimeout(function () {
         if (callLive && wantListening && !muted) startListening();
@@ -1757,101 +1760,162 @@
       return;
     }
 
+    if (turn) return; // already listening
+
     setCallStatus('Listening', 'listening');
 
-    var capture = startCapture();
-
-    function relisten(delay) {
-      recognition = null;
-      capture.stop();
-      if (callLive && wantListening && !muted) setTimeout(startListening, delay || 250);
+    if (!window.MediaRecorder || !callStream) {
+      setCallStatus('This browser cannot record', null);
+      return;
     }
 
-    recognition = listenOnce({
-      lang: currentLanguage(),
+    var state = {
+      recorder: null,
+      chunks: [],
+      stream: null,
+      audioCtx: null,
+      analyser: null,
+      source: null,
+      raf: null,
+      maxTimer: null,
+      spokeAt: 0,
+      lastVoiceAt: 0,
+      settled: false,
+    };
+    turn = state;
 
-      onResult: function (question) {
-        recognition = null;
-        if (!callLive) {
-          capture.stop();
-          return;
+    Promise.resolve(callStream)
+      .then(function (stream) {
+        if (turn !== state) return;
+        state.stream = stream;
+
+        state.recorder = new MediaRecorder(stream);
+        state.recorder.ondataavailable = function (e) {
+          if (e.data && e.data.size) state.chunks.push(e.data);
+        };
+        state.recorder.onstop = function () {
+          var blob = state.chunks.length
+            ? new Blob(state.chunks, { type: state.recorder.mimeType || 'audio/webm' })
+            : null;
+          state.chunks = [];
+          if (state.settled) submitTurn(blob);
+        };
+        state.recorder.start();
+
+        /* Endpointing from the waveform. */
+        var Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return; // no VAD: the max timer still ends the turn
+
+        if (!callCtx || callCtx.state === 'closed') callCtx = new Ctx();
+        state.audioCtx = null; // owned by the call, not the turn
+        state.source = callCtx.createMediaStreamSource(stream);
+        state.analyser = callCtx.createAnalyser();
+        state.analyser.fftSize = 512;
+        state.source.connect(state.analyser);
+
+        var buffer = new Uint8Array(state.analyser.fftSize);
+
+        function watch() {
+          if (turn !== state || state.settled) return;
+
+          state.analyser.getByteTimeDomainData(buffer);
+          var sum = 0;
+          for (var i = 0; i < buffer.length; i++) {
+            var d = (buffer[i] - 128) / 128;
+            sum += d * d;
+          }
+          var rms = Math.sqrt(sum / buffer.length);
+          var now = Date.now();
+
+          if (rms > SPEECH_FLOOR) {
+            if (!state.spokeAt) state.spokeAt = now;
+            state.lastVoiceAt = now;
+          } else if (
+            state.spokeAt &&
+            state.lastVoiceAt &&
+            now - state.lastVoiceAt > CALL_SILENCE_MS &&
+            state.lastVoiceAt - state.spokeAt > CALL_MIN_SPEECH_MS
+          ) {
+            /* They spoke, then stopped. End the turn. */
+            endTurn();
+            return;
+          }
+
+          state.raf = requestAnimationFrame(watch);
         }
-        /* Straight to Thinking - the member should never wonder whether it
-           heard them. */
-        setCallStatus('Thinking', 'thinking');
-        capture.stop().then(function (blob) {
-          askOnCall(question, blob);
-        });
-      },
+        state.raf = requestAnimationFrame(watch);
+      })
+      .catch(function (err) {
+        console.error('[kris] call turn could not start:', err && (err.name + ': ' + err.message));
+        turn = null;
+        setCallStatus('Microphone blocked', null);
+        wantListening = false;
+        endCall();
+      });
 
-      /* A quiet stretch is normal in a call - go round again rather than
-         dropping it. */
-      onEmpty: function () {
-        relisten(250);
-      },
+    state.maxTimer = setTimeout(function () {
+      if (turn === state && state.spokeAt) endTurn();
+    }, CALL_MAX_TURN_MS);
 
-      onError: function (err) {
-        if (err === 'not-allowed' || err === 'service-not-allowed') {
-          recognition = null;
-          capture.stop();
-          setCallStatus('Microphone blocked', null);
-          wantListening = false;
-          endCall();
-          return;
-        }
-        relisten(400);
-      },
-    });
+    function endTurn() {
+      if (!turn || turn.settled) return;
+      turn.settled = true;
+      setCallStatus('Thinking', 'thinking');
+      /* stopTurn() triggers recorder.onstop, which calls submitTurn. */
+      stopTurn();
+    }
   }
 
   function stopListening() {
     wantListening = false;
-    if (recognition) {
-      try {
-        recognition.abort();
-      } catch (e) {
-        /* already stopped */
-      }
-      recognition = null;
-    }
+    var dead = turn;
+    if (dead) dead.settled = false; // discard, do not submit
+    stopTurn();
   }
 
-  /**
-   * One question, sent as audio so the answer comes back in Kris's own voice.
-   * @param {string} question the transcript, used for history and as fallback
-   * @param {?Blob}  blob     the recording itself
-   */
-  function askOnCall(question, blob) {
-    setCallStatus('Thinking', 'thinking');
+  /** Send the recording. No transcript: BuddyPro transcribes it, and sending
+      audio is what makes it answer in its own voice. */
+  function submitTurn(blob) {
+    if (!callLive) return;
 
-    var options = {
-      wantAudio: true,
-      spokenReply: true,
-      onReply: playReply,
-    };
-
-    if (!blob) {
-      send(question || '', options);
+    if (!blob || blob.size < 1200) {
+      setCallStatus('Listening', 'listening');
+      startListening();
       return;
     }
 
     toWavBase64(blob)
       .then(function (base64) {
-        send(question || '', {
-          wantAudio: true,
-          spokenReply: true,
+        if (!callLive) return;
+        send('', {
           audio: base64,
           audioFormat: 'wav',
+          wantAudio: true,
+          spokenReply: true,
+          silentUser: true,
           onReply: playReply,
         });
       })
       .catch(function () {
-        send(question || '', options);
+        if (!callLive) return;
+        setCallStatus('Listening', 'listening');
+        startListening();
       });
   }
 
-  /** Play Kris's own audio when it came back; otherwise fall back to the
-      device voice so the call never goes silent. */
+  /** Stop whatever Kris is currently saying. */
+  function stopReplyAudio() {
+    if (!callAudio) return;
+    try {
+      callAudio.pause();
+    } catch (e) {
+      /* ignore */
+    }
+    callAudio = null;
+  }
+
+  /** Play Kris's own audio. The device voice is only a last resort, and says so
+      in the status, so a wrong-sounding turn is never silent about why. */
   function playReply(reply) {
     if (!callLive) return;
 
@@ -1870,7 +1934,6 @@
     }
 
     setCallStatus('Talking', 'speaking');
-    stopListening();
 
     if (callAudio) {
       try {
@@ -1891,7 +1954,6 @@
 
     callAudio.addEventListener('ended', done);
     callAudio.addEventListener('error', function () {
-      /* Could not play Kris's audio - say it with the device voice instead. */
       callAudio = null;
       if (callLive) speak(content);
     });
@@ -1901,6 +1963,8 @@
       if (callLive) speak(content);
     });
   }
+
+
 
 
 
@@ -1988,6 +2052,20 @@
 
     stopListening();
     stopReplyAudio();
+
+    /* The stream and context belong to the call, so they are released here and
+       nowhere else. */
+    if (callStream) {
+      callStream.getTracks().forEach(function (t) {
+        t.stop();
+      });
+      callStream = null;
+    }
+    if (callCtx && callCtx.state !== 'closed') {
+      callCtx.close().catch(function () {});
+    }
+    callCtx = null;
+
     if (synth) {
       try {
         synth.cancel();

@@ -1325,7 +1325,8 @@ button {
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   color: var(--text);
-  min-width: 34px;
+  min-width: 44px;
+  text-align: left;
 }
 
 .rec__wave {

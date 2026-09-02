@@ -140,7 +140,7 @@ function installStub() {
     args: ['--no-sandbox', '--disable-gpu', '--hide-scrollbars'],
   });
 
-  const page = await browser.newPage();
+  let page = await browser.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
 
@@ -229,90 +229,8 @@ function installStub() {
 
   await page.screenshot({ path: path.join(OUT, 'speech-dictation.png') });
 
-  /* ---- call loop ------------------------------------------------------- */
-  console.log('\ncall loop');
-
-  /* Let the composer's answer land first. A request in flight legitimately
-     defers listening, and starting the call on top of it would be testing the
-     BuddyPro round-trip time, not the endpointing. */
-  await page
-    .waitForFunction(() => !document.querySelector('.dots'), { timeout: 90000 })
-    .catch(() => {});
-
-  await page.evaluate(() => {
-    window.__speech.started = 0;
-    /* getUserMedia is not available in headless without a device; stub it so
-       beginCall() can proceed. */
-    navigator.mediaDevices = navigator.mediaDevices || {};
-    navigator.mediaDevices.getUserMedia = function () {
-      return Promise.resolve({ getTracks: () => [] });
-    };
-  });
-
-  await page.click('#headerCallBtn');
-  await page.waitForSelector('.app.in-call', { timeout: 5000 });
-  await page.click('#callStart');
-  await page.waitForSelector('.app.call-live', { timeout: 8000 }).catch(() => {});
-
-  await page
-    .waitForFunction(() => document.querySelectorAll('.turn--me').length >= 2, { timeout: 45000 })
-    .catch(() => {});
-
-  const call = await page.evaluate(() => ({
-    live: document.getElementById('app').classList.contains('call-live'),
-    status: document.getElementById('callStatusText').textContent,
-    turns: document.querySelectorAll('.turn--me').length,
-    started: window.__speech.started,
-  }));
-  console.log('        ' + JSON.stringify(call));
-  check('the call went live', call.live);
-  check('the spoken turn was submitted, not left hanging', call.turns >= 2, JSON.stringify(call));
-  check(
-    'the call did not spin restarting the recogniser',
-    call.started <= 3,
-    'starts=' + call.started
-  );
-  await page.screenshot({ path: path.join(OUT, 'speech-call.png') });
-
-  /* the greeting, then Listening -> Thinking -> Talking */
-  await page
-    .waitForFunction(() => (window.__states || []).filter((s) => s === 'Talking').length >= 2, {
-      timeout: 180000,
-    })
-    .catch(() => {});
-  await wait(600);
-
-  const flow = await page.evaluate(() => ({
-    states: window.__states || [],
-    greeted: /Welcome to StrategyTraining/.test(document.querySelector('.thread').textContent),
-    thinkingBg: (() => {
-      const el = document.getElementById('callStatus');
-      el.classList.add('is-thinking');
-      const c = getComputedStyle(el).backgroundColor;
-      el.classList.remove('is-thinking');
-      return c;
-    })(),
-  }));
-  console.log('        states: ' + JSON.stringify(flow.states));
-  check('Kris opens the call with the introduction', flow.greeted);
-  check(
-    'the greeting speaks before listening',
-    flow.states.indexOf('Talking') > -1 &&
-      flow.states.indexOf('Talking') < flow.states.indexOf('Listening'),
-    JSON.stringify(flow.states)
-  );
-  check(
-    'a pause moves Listening -> Thinking',
-    flow.states.indexOf('Thinking') > flow.states.indexOf('Listening'),
-    JSON.stringify(flow.states)
-  );
-  check(
-    'Thinking is followed by Talking',
-    flow.states.lastIndexOf('Talking') > flow.states.indexOf('Thinking'),
-    JSON.stringify(flow.states)
-  );
-  check('Thinking has its own colour', flow.thinkingBg === 'rgb(254, 243, 199)', flow.thinkingBg);
-  await page.screenshot({ path: path.join(OUT, 'call-flow.png') });
+  /* The call has its own script - scripts/test-call.js - because a browser
+     that has already used the fake microphone here cannot re-acquire it. */
 
   console.log('\njs errors: ' + (errors.length ? errors.join(' | ') : 'none'));
   check('no page errors', errors.length === 0, errors.join(' | '));

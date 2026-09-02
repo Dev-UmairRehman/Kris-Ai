@@ -17,7 +17,8 @@
     "probe:audio": "node scripts/probe-audio.js",
     "test:embed": "node scripts/test-embed.js",
     "probe:language": "node scripts/probe-language.js",
-    "test:speech": "node scripts/test-speech.js"
+    "test:speech": "node scripts/test-speech.js",
+    "test:call": "node scripts/test-call.js"
   },
   "dependencies": {
     "express": "^4.21.2"

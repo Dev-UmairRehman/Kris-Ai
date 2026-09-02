@@ -350,6 +350,13 @@ app.post('/api/chat', async (req, res) => {
     return res.status(413).json({ error: 'That message is too long.' });
   }
 
+  console.log(
+    '[chat] in: audio=%s bytes, text=%d chars, wantAudio=%s',
+    audio ? audio.length : 0,
+    message.length,
+    wantAudio
+  );
+
   const slot = ratelimit.claim(session.sub);
   if (!slot.allowed) {
     res.setHeader('Retry-After', String(slot.retryAfter));
@@ -387,6 +394,8 @@ app.post('/api/chat', async (req, res) => {
       });
       answer.audioFellBack = true;
     }
+
+    console.log('[chat] out: audio=%s', answer.audio ? 'YES' : 'no');
 
     res.json({
       content: answer.content,

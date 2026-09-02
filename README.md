@@ -365,9 +365,25 @@ Connecting -> Talking (greeting) -> Listening -> Thinking -> Talking -> Listenin
 - **Thinking** (amber) sent, waiting on the answer
 - **Talking** (cyan, with a level meter) Kris is speaking
 
-A call turn is now **the same round trip as a voice note** - the recording is sent, so the
-answer comes back as BuddyPro's own TTS in the cloned voice. Previously the call spoke every
-answer through `speechSynthesis`, which could never sound like Kris no matter what.
+A call turn is **the same round trip as a voice note**: record, send the audio, play the audio
+that comes back. That is the only way the voice matches Telegram, because BuddyPro's TTS only
+fires when the request carries audio.
+
+The browser recogniser is **not** used in a call. It was, and it caused exactly the problem it
+was meant to serve: two microphone streams at once (MediaRecorder plus SpeechRecognition), and
+a short turn could finish before the recorder's `getUserMedia` resolved - sending text instead
+of audio, which silently produced the device voice. BuddyPro transcribes the audio itself, so
+the recogniser was never needed here.
+
+Endpointing is done on the waveform instead: speech is RMS above a floor, and a turn ends after
+a 1.4s pause (60s cap). One microphone stream is acquired per **call**, not per turn - acquiring
+it per turn made the second acquisition fail and reported "Microphone blocked".
+
+Verified by `npm run test:call`, with the payload confirmed server-side:
+
+```
+[chat] in: audio=2560060 bytes, text=0 chars, wantAudio=true
+```
 
 #### The greeting
 
