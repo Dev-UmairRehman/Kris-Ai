@@ -43,6 +43,11 @@
      a member on a slow connection saw the sign-in screen. A late answer is
      also retried, see listenForLateIdentity. */
   var IDENTITY_WAIT_MS = 4000;
+
+  /* Kris's recorded voice is mastered loud, and at full volume in a call it is
+     startling. The greeting file and the per-turn audio share one figure so the
+     call does not change loudness halfway through. */
+  var CALL_VOLUME = 0.55;
   var HISTORY_KEY = 'kris_ai_history_v1';
   var BUDGET_KEY = 'kris_ai_call_seconds_v1';
   var HISTORY_MAX = 100;
@@ -76,10 +81,15 @@
   var callBtn = document.getElementById('callBtn');
   var headerCallBtn = document.getElementById('headerCallBtn');
 
-  var suggestList = document.getElementById('suggestList');
-  var suggestDock = document.getElementById('suggestDock');
+  var suggestPanel = document.getElementById('suggestPanel');
   var suggestToggle = document.getElementById('suggestToggle');
   var suggestDockList = document.getElementById('suggestDockList');
+  var callOver = document.getElementById('callOver');
+  var callEndedIco = document.getElementById('callEndedIco');
+  var callTranscriptBtn = document.getElementById('callTranscriptBtn');
+  var callShareBtn = document.getElementById('callShareBtn');
+  var callToChat = document.getElementById('callToChat');
+  var callAgain = document.getElementById('callAgain');
 
   var historyBtn = document.getElementById('historyBtn');
   var historyPanel = document.getElementById('history');
@@ -350,9 +360,16 @@
     thread.textContent = '';
     enterThread({ welcome: false });
     conv.turns.forEach(function (entry) {
-      addTurn(entry.role === 'me' ? 'me' : 'kris', entry.text, { silent: true });
+      /* store:false matters - addTurn records what it renders, so without it
+         re-opening a conversation appended its own turns to itself and the
+         history entry doubled in length every time it was viewed. */
+      addTurn(entry.role === 'me' ? 'me' : 'kris', entry.text, {
+        silent: true,
+        store: false,
+      });
     });
     currentConvId = conv.id;
+    syncSuggestPanel();
     scrollToEnd();
   }
 
@@ -378,8 +395,7 @@
     currentConvId = null;
 
     intro.hidden = false;
-    suggestDock.classList.remove('is-open');
-    suggestToggle.setAttribute('aria-expanded', 'false');
+    suggestPanel.hidden = true;
 
     input.value = '';
     armSend();
@@ -599,22 +615,33 @@
     btn.innerHTML = SPARK_SVG + '<span></span>';
     btn.querySelector('span').textContent = question;
     btn.addEventListener('click', function () {
-      suggestDock.classList.remove('is-open');
-      suggestToggle.setAttribute('aria-expanded', 'false');
+      suggestPanel.hidden = true;
       send(question);
     });
     return btn;
   }
 
   SUGGESTIONS.forEach(function (question) {
-    suggestList.appendChild(buildChip(question));
     suggestDockList.appendChild(buildChip(question));
   });
 
+  /* Open on the reference, and collapsible from its own header. */
+  suggestPanel.classList.add('is-open');
+
   suggestToggle.addEventListener('click', function () {
-    var open = suggestDock.classList.toggle('is-open');
+    var open = suggestPanel.classList.toggle('is-open');
     suggestToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
   });
+
+  /* Shown until the member has asked something, then gone for the rest of the
+     conversation - the reference has no floating pill hovering over the thread.
+
+     Keyed on the member having spoken rather than on the thread being empty,
+     because opening the chat greets them first, so it is never truly empty. */
+  function syncSuggestPanel() {
+    var memberSpoke = !!thread.querySelector('.turn--me');
+    suggestPanel.hidden = !inThread || memberSpoke;
+  }
 
   /* ---- markdown ---------------------------------------------------------
      A small, deliberately limited renderer built with DOM nodes rather than
@@ -725,6 +752,7 @@
     if (options.welcome !== false) {
       addTurn('kris', WELCOME, { silent: true, store: false });
     }
+    syncSuggestPanel();
   }
 
   /**
@@ -761,6 +789,7 @@
 
     paint(text);
     thread.appendChild(turn);
+    syncSuggestPanel();
 
     if (options.store !== false && text) recordTurn(role, text);
     if (!options.silent) scrollToEnd();
@@ -960,6 +989,7 @@
 
     turn.appendChild(bubble);
     thread.appendChild(turn);
+    syncSuggestPanel();
     scrollToEnd();
     return { turn: turn, bubble: bubble, play: bubble.__play };
   }
@@ -994,7 +1024,9 @@
     if (!message && !options.audio) return Promise.resolve(null);
 
     hideNotice();
-    enterThread();
+    /* A call turn is not part of the chat, so it neither opens the thread nor
+       writes to the conversation being stored. */
+    if (!options.offThread) enterThread();
 
     if (!options.silentUser) {
       if (options.voice) {
@@ -1011,10 +1043,13 @@
         addTurn('me', message);
       }
     }
-    input.value = '';
-    armSend();
+    if (!options.offThread) {
+      input.value = '';
+      armSend();
+    }
 
-    var pending = addTurn('kris', null, { store: false });
+    /* No placeholder bubble for a call turn - there is no thread to put it in. */
+    var pending = options.offThread ? null : addTurn('kris', null, { store: false });
     setBusy(true);
 
     return api('/api/chat', {
@@ -1030,6 +1065,7 @@
             showGate((res.data && res.data.reason) || 'no_session');
             return null;
           }
+          if (!pending) return null;
           if (options.quiet) {
             pending.turn.remove();
             return null;
@@ -1043,6 +1079,13 @@
 
         var content = (res.data && res.data.content) || '';
         var replyAudio = (res.data && res.data.audio) || null;
+
+        if (options.offThread) {
+          /* Kept for the transcript, not for the chat. */
+          if (content) callLog.push({ role: 'kris', text: content });
+          return { content: content, audio: replyAudio };
+        }
+
         recordTurn('kris', content);
 
         /* A spoken question deserves a spoken answer. BuddyPro's own voice is
@@ -1064,6 +1107,7 @@
         return { content: content, audio: replyAudio };
       })
       .catch(function () {
+        if (!pending) return null;
         if (options.quiet) {
           pending.turn.remove();
           return null;
@@ -1074,8 +1118,10 @@
       })
       .then(function (reply) {
         setBusy(false);
-        scrollToEnd();
-        syncScrollDown();
+        if (!options.offThread) {
+          scrollToEnd();
+          syncScrollDown();
+        }
         if (!inCall) input.focus({ preventScroll: true });
         if (options.onReply) options.onReply(reply);
         return reply;
@@ -1627,6 +1673,12 @@
 
   var inCall = false;
   var callLive = false;
+
+  /* A call is its own conversation. Its turns collect here instead of being
+     pushed into the chat thread - splicing a call into whatever the member was
+     typing about made both harder to read. "View Transcript" turns this into
+     its own entry in history. */
+  var callLog = [];
   var muted = false;
   var recognition = null;
   var callTimer = null;
@@ -1664,13 +1716,24 @@
     callStatus.classList.toggle('is-listening', mode === 'listening');
     callStatus.classList.toggle('is-thinking', mode === 'thinking');
     callBars.hidden = mode !== 'speaking';
-    callDots.hidden = mode === 'speaking';
+    /* Nothing is in progress once the call is over, so neither indicator runs. */
+    callDots.hidden = mode === 'speaking' || mode === 'ended';
+  }
+
+  /** Which of the three call screens is showing: idle, live, or over. */
+  function setCallScreen(state) {
+    app.classList.toggle('call-ended', state === 'over');
+    callOver.hidden = state !== 'over';
+    callEndedIco.hidden = state !== 'over';
+    callStart.hidden = state !== 'idle';
   }
 
   function openCallView() {
     inCall = true;
     app.classList.add('in-call');
     app.classList.remove('call-connecting', 'call-live');
+    callLog = [];
+    setCallScreen('idle');
     paintBudget();
 
 
@@ -1688,8 +1751,8 @@
   headerCallBtn.addEventListener('click', openCallView);
   callBack.addEventListener('click', closeCallView);
   callEnd.addEventListener('click', function () {
+    /* Stays on the call screen so the transcript is reachable. */
     endCall();
-    closeCallView();
   });
 
 
@@ -1704,6 +1767,7 @@
 
   function beginCall() {
     app.classList.add('call-connecting');
+    setCallScreen('live');
     setCallStatus('Connecting', null);
 
     /* Ask for the microphone up front so the permission prompt is tied to the
@@ -1719,15 +1783,11 @@
         app.classList.remove('call-connecting');
         app.classList.add('call-live');
         callLive = true;
-        /* welcome:false - the call opens with its own greeting, and adding the
-           standing welcome here printed the paragraph twice. */
-        enterThread({ welcome: false });
-        /* Calls are listed separately from chats, with the phone icon. */
-        startConversation(
-          'call',
-          'Voice call - ' +
-            new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
-        );
+        /* The call neither opens the chat thread nor claims a conversation. It
+           used to do both, which is how a call ended up spliced into whatever
+           chat was open, and left an empty "Voice call" stub in history for
+           every call that was never transcribed. View Transcript is what
+           creates the conversation now, once there is something to put in it. */
 
         /* Kris opens the call, then we listen - going straight to Listening
            left the member with nothing to answer. */
@@ -1801,6 +1861,7 @@
 
     return new Promise(function (resolve) {
       var file = new Audio(GREETING_FILES[which]);
+      file.volume = CALL_VOLUME;
       var settled = false;
 
       function fail() {
@@ -1814,7 +1875,7 @@
       file.addEventListener('canplay', function () {
         if (settled) return;
         settled = true;
-        addTurn('kris', WELCOME, { store: false });
+        callLog.push({ role: 'kris', text: WELCOME });
         callAudio = file;
         file.addEventListener('ended', function () {
           callAudio = null;
@@ -1854,6 +1915,7 @@
           wantAudio: true,
           silentUser: true,
           quiet: true,
+          offThread: true,
           onReply: function (reply) {
             if (!callLive) return;
             if (reply && (reply.audio || reply.content)) playReply(reply);
@@ -1865,13 +1927,13 @@
            call never opens in silence. */
         if (!callLive) return;
         if (!result || (!result.audio && !result.content)) {
-          addTurn('kris', WELCOME, { store: false });
+          callLog.push({ role: 'kris', text: WELCOME });
           speak(WELCOME);
         }
       })
       .catch(function () {
         if (!callLive) return;
-        addTurn('kris', WELCOME, { store: false });
+        callLog.push({ role: 'kris', text: WELCOME });
         speak(WELCOME);
       });
   }
@@ -2015,7 +2077,9 @@
             ? new Blob(state.chunks, { type: state.recorder.mimeType || 'audio/webm' })
             : null;
           state.chunks = [];
-          if (state.settled) submitTurn(blob);
+          if (state.settled) {
+            submitTurn(blob, Math.round((state.lastVoiceAt - state.spokeAt) / 1000));
+          }
         };
         state.recorder.start();
 
@@ -2092,7 +2156,7 @@
 
   /** Send the recording. No transcript: BuddyPro transcribes it, and sending
       audio is what makes it answer in its own voice. */
-  function submitTurn(blob) {
+  function submitTurn(blob, spokenSeconds) {
     if (!callLive) return;
 
     if (!blob || blob.size < 1200) {
@@ -2108,11 +2172,20 @@
            the call itself; rendering a voice note in the thread as well left a
            second, independent player running after the member hung up - and a
            call transcript reads better as text anyway. */
+        /* The member's own words are not available as text: BuddyPro
+           transcribes the audio upstream and returns only its answer, so the
+           transcript records that they spoke and for how long. */
+        callLog.push({
+          role: 'me',
+          text: 'Spoke for ' + formatClock(Math.max(1, spokenSeconds || 0)),
+        });
+
         send('', {
           audio: base64,
           audioFormat: 'wav',
           wantAudio: true,
           silentUser: true,
+          offThread: true,
           onReply: playReply,
         });
       })
@@ -2164,6 +2237,7 @@
     }
 
     callAudio = new Audio(audio);
+    callAudio.volume = CALL_VOLUME;
 
     function done() {
       callAudio = null;
@@ -2309,9 +2383,90 @@
 
     muted = false;
     callMic.classList.remove('is-muted');
-    setCallStatus('Connecting', null);
     paintBudget();
+
+    /* Stay on the call screen and show what the reference shows: the call is
+       over, here is the transcript, here is how to go back. */
+    if (inCall) {
+      setCallScreen(callLog.length ? 'over' : 'idle');
+      if (callLog.length) setCallStatus('Call Ended', 'ended');
+      else setCallStatus('Connecting', null);
+    } else {
+      setCallScreen('idle');
+      setCallStatus('Connecting', null);
+    }
   }
+
+  /** The call as plain text, newest last. */
+  function transcriptText() {
+    return callLog
+      .map(function (entry) {
+        return (entry.role === 'me' ? 'You: ' : 'Kris: ') + entry.text;
+      })
+      .join('\n\n');
+  }
+
+  /* The transcript becomes its OWN conversation. It is deliberately not
+     appended to whatever chat was open - a call is a separate thing, and the
+     member asked for it to stay that way. */
+  callTranscriptBtn.addEventListener('click', function () {
+    if (!callLog.length) return;
+
+    var turns = callLog.map(function (entry) {
+      return { role: entry.role, text: entry.text, at: Date.now() };
+    });
+
+    var stamp = new Date();
+    var id = startConversation(
+      'call',
+      'Call - ' +
+        stamp.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) +
+        ' ' +
+        stamp.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+    );
+
+    var list = readConversations();
+    for (var i = list.length - 1; i >= 0; i--) {
+      if (list[i].id === id) {
+        list[i].turns = turns;
+        break;
+      }
+    }
+    writeStore(CONV_KEY, list.slice(-CONV_MAX));
+
+    closeCallView();
+    restoreConversation(id);
+  });
+
+  callShareBtn.addEventListener('click', function () {
+    var text = transcriptText();
+    if (!text) return;
+
+    function fallback() {
+      showNotice('Could not copy the transcript. Open it with View Transcript instead.');
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        showNotice('Call transcript copied.');
+      }, fallback);
+    } else {
+      fallback();
+    }
+  });
+
+  callToChat.addEventListener('click', function () {
+    closeCallView();
+  });
+
+  callAgain.addEventListener('click', function () {
+    if (remainingSeconds() <= 0) {
+      setCallStatus('No call minutes left', null);
+      return;
+    }
+    callLog = [];
+    beginCall();
+  });
 
   callMic.addEventListener('click', function () {
     if (!callLive) return;

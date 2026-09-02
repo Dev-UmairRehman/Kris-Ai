@@ -20,7 +20,8 @@
     "test:speech": "node scripts/test-speech.js",
     "test:call": "node scripts/test-call.js",
     "make:greeting": "node scripts/make-greeting.js",
-    "test:headcode": "node scripts/test-headcode.js"
+    "test:headcode": "node scripts/test-headcode.js",
+    "shots:ui": "node scripts/shots-ui.js"
   },
   "dependencies": {
     "express": "^4.21.2"

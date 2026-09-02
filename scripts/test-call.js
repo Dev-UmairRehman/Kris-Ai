@@ -14,6 +14,13 @@
    voice detector correctly reads as unbroken speech, so a turn here ends on the
    60s cap rather than on a pause.
 
+   /api/chat is answered locally: a call spends a BuddyPro request per turn, and
+   what is under test here is the call's own behaviour, not the upstream.
+
+   It also checks the two things that make a call separate from the chat:
+   nothing it says lands in the chat thread, and View Transcript opens the call
+   as its own conversation rather than appending it to whatever was there.
+
    Usage: node scripts/test-call.js [baseUrl]
    --------------------------------------------------------------------------- */
 
@@ -95,6 +102,27 @@ function installProbe() {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
 
+  /* Answer chat locally - no BuddyPro request, no credits. No audio in the
+     reply, so the call falls back to the stubbed speechSynthesis, which the
+     probe counts. */
+  let chatCalls = 0;
+  await page.setRequestInterception(true);
+  page.on('request', (r) => {
+    if (r.url().endsWith('/api/chat')) {
+      chatCalls++;
+      return r.respond({
+        status: 200,
+        contentType: 'application/json; charset=utf-8',
+        body: JSON.stringify({
+          content: 'Start with where you want to compete, then be honest about the gap.',
+          audio: null,
+          audioFellBack: true,
+        }),
+      });
+    }
+    r.continue();
+  });
+
   await page.evaluateOnNewDocument(installProbe);
   await page.setViewport({ width: 900, height: 860 });
   await page.goto(BASE + '/', { waitUntil: 'networkidle2', timeout: 30000 });
@@ -115,19 +143,23 @@ function installProbe() {
   const opened = await page.evaluate(() => ({
     states: window.__states || [],
     live: document.getElementById('app').classList.contains('call-live'),
-    /* The greeting is either BuddyPro's own words or the WELCOME fallback -
-       what matters is that Kris opens with something before we listen. */
-    greeted: document.querySelectorAll('.turn--kris').length > 0,
+    /* The call must leave the chat alone. The greeting used to be added as a
+       chat turn, which is how a call ended up spliced into the thread. */
+    chatTurns: document.querySelectorAll('#thread .turn').length,
   }));
   console.log('        ' + JSON.stringify(opened.states));
 
   check('the call goes live', opened.live);
-  check('Kris opens the call before listening', opened.greeted);
   check(
     'the greeting speaks before listening',
     opened.states.indexOf('Talking') > -1 &&
       opened.states.indexOf('Talking') < opened.states.indexOf('Listening'),
     JSON.stringify(opened.states)
+  );
+  check(
+    'nothing from the call is in the chat thread',
+    opened.chatTurns === 0,
+    'chat turns=' + opened.chatTurns
   );
 
   console.log('\ncall: a turn (tone reads as continuous speech, so the 60s cap ends it)');
@@ -157,13 +189,105 @@ function installProbe() {
 
   await page.screenshot({ path: path.join(OUT, 'call-flow.png') });
 
+  /* ---- hanging up ------------------------------------------------------ */
+  console.log('\nhanging up');
+  await page.click('#callEnd');
+  await page.waitForFunction(
+    () => document.getElementById('app').classList.contains('call-ended'),
+    { timeout: 8000 }
+  ).catch(() => {});
+
+  /* How many turns the call actually collected, so the stored transcript can
+     be compared against it rather than guessed at. */
+  const collected = await page.evaluate(() => {
+    let convs = [];
+    try {
+      convs = JSON.parse(localStorage.getItem('kris_ai_conversations_v1') || '[]');
+    } catch (e) {}
+    return { conversationsSoFar: convs.length, kinds: convs.map((c) => c.kind) };
+  });
+  console.log('        conversations in history before the transcript: ' + JSON.stringify(collected));
+
+  const over = await page.evaluate(() => ({
+    ended: document.getElementById('app').classList.contains('call-ended'),
+    stillInCall: document.getElementById('app').classList.contains('in-call'),
+    overShown: !document.getElementById('callOver').hidden,
+    status: document.getElementById('callStatusText').textContent.trim(),
+    chatTurns: document.querySelectorAll('#thread .turn').length,
+  }));
+
+  check('it lands on the finished-call screen', over.ended && over.overShown, JSON.stringify(over));
+  check('...without leaving the call view', over.stillInCall);
+  check('the status reads Call Ended', over.status === 'Call Ended', over.status);
+  check(
+    'the call still has not touched the chat',
+    over.chatTurns === 0,
+    'chat turns=' + over.chatTurns
+  );
+  await page.screenshot({ path: path.join(OUT, 'call-ended.png') });
+
+  /* ---- the transcript is its own conversation -------------------------- */
+  console.log('\nView Transcript');
+  await page.click('#callTranscriptBtn');
+  await page.waitForFunction(
+    () =>
+      !document.getElementById('app').classList.contains('in-call') &&
+      document.querySelectorAll('#thread .turn').length > 0,
+    { timeout: 8000 }
+  ).catch(() => {});
+
+  const transcript = await page.evaluate(() => {
+    let convs = [];
+    try {
+      convs = JSON.parse(localStorage.getItem('kris_ai_conversations_v1') || '[]');
+    } catch (e) {
+      /* blocked storage */
+    }
+    const calls = convs.filter((c) => c.kind === 'call');
+    return {
+      leftCallView: !document.getElementById('app').classList.contains('in-call'),
+      turnsOnScreen: document.querySelectorAll('#thread .turn').length,
+      callConversations: calls.length,
+      titles: calls.map((c) => c.title),
+      turnsStored: calls.length ? calls[calls.length - 1].turns.length : 0,
+      roles: calls.length ? calls[calls.length - 1].turns.map((t) => t.role) : [],
+    };
+  });
+
+  console.log(
+    '        stored=' + transcript.turnsStored + ' onScreen=' + transcript.turnsOnScreen
+  );
+  check('it returns to the chat view', transcript.leftCallView);
+  check(
+    'every stored turn is rendered',
+    transcript.turnsOnScreen === transcript.turnsStored,
+    'stored=' + transcript.turnsStored + ' onScreen=' + transcript.turnsOnScreen
+  );
+  check('the transcript is on screen', transcript.turnsOnScreen > 0, JSON.stringify(transcript));
+  check(
+    'it is stored as its OWN call conversation',
+    transcript.callConversations === 1,
+    JSON.stringify(transcript)
+  );
+  check(
+    '...titled as a call',
+    /^Call - /.test(transcript.titles[0] || ''),
+    JSON.stringify(transcript.titles)
+  );
+  check(
+    '...carrying both sides of it',
+    transcript.roles.indexOf('kris') > -1 && transcript.roles.indexOf('me') > -1,
+    JSON.stringify(transcript.roles)
+  );
+  await page.screenshot({ path: path.join(OUT, 'call-transcript.png') });
+
+  console.log('\n        chat requests made: ' + chatCalls + ' (all answered locally)');
+
   console.log('\njs errors: ' + (errors.length ? errors.join(' | ') : 'none'));
   check('no page errors', errors.length === 0, errors.join(' | '));
 
   await browser.close();
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
-  console.log('NOTE: check the server log for "[chat] in: audio=<n> bytes, text=0 chars" -');
-  console.log('      a call turn must send audio and no transcript.');
   process.exit(fail ? 1 : 0);
 })().catch((e) => {
   console.error(e);

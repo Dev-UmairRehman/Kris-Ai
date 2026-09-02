@@ -330,21 +330,6 @@ button {
 
 /* --- suggested questions ------------------------------------------------ */
 
-.suggest {
-  margin-top: clamp(30px, 5vh, 52px);
-}
-.suggest__title {
-  font-size: 19px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-}
-.suggest__list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 18px;
-}
-
 .chip {
   display: flex;
   align-items: flex-start;
@@ -375,44 +360,58 @@ button {
   color: var(--accent);
 }
 
-/* Collapsible version that sits above the composer during a conversation. */
-.suggestdock {
-  display: none;
-  padding-bottom: 10px;
+/* Suggested questions, as a card above the composer while the conversation is
+   empty. It is a panel rather than a floating pill because the pill hovered
+   over the thread and read as a stray control. JS hides it once there is a turn
+   on screen, so it never competes with the conversation. */
+.suggestpanel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 6px;
+  margin-bottom: 10px;
 }
-.app.in-thread .suggestdock {
-  display: block;
-}
-.suggestdock__toggle {
+.suggestpanel__head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 0 auto;
-  font-size: 13.5px;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 14.5px;
+  font-weight: 500;
   color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--pill);
-  padding: 7px 15px;
-  transition: border-color 0.15s ease;
+  background: none;
+  border: 0;
+  text-align: left;
 }
-.suggestdock__toggle:hover {
-  border-color: var(--line-strong);
-}
-.suggestdock__toggle svg {
+.suggestpanel__head svg {
+  flex: 0 0 auto;
+  color: var(--subtle);
   transition: transform 0.18s ease;
 }
-.suggestdock.is-open .suggestdock__toggle svg {
-  transform: rotate(180deg);
+/* Chevron down when open, so it reads as "collapse me". */
+.suggestpanel:not(.is-open) .suggestpanel__head svg {
+  transform: rotate(-90deg);
 }
-.suggestdock__list {
+.suggestpanel__list {
   display: none;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
+  /* Three across on the reference. 160px is the widest minimum that still
+     fits three inside the composer column. */
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  padding: 0 6px 6px;
 }
-.suggestdock.is-open .suggestdock__list {
-  display: flex;
+.suggestpanel.is-open .suggestpanel__list {
+  display: grid;
+}
+/* In the panel the chips are cards side by side rather than full-width rows. */
+.suggestpanel .chip {
+  flex-direction: column;
+  gap: 10px;
+  border-radius: 16px;
+  padding: 14px 15px;
+  font-size: 13.5px;
 }
 
 /* --- thread ------------------------------------------------------------- */
@@ -743,6 +742,7 @@ button {
   font-variant-numeric: tabular-nums;
   box-shadow: 0 1px 6px -2px rgba(16, 42, 58, 0.12);
 }
+.app.call-ended .callview__meter,
 .app.call-live .callview__meter {
   display: flex;
 }
@@ -868,8 +868,13 @@ button {
   color: var(--text);
 }
 .app.call-connecting .callstatus,
-.app.call-live .callstatus {
+.app.call-live .callstatus,
+.app.call-ended .callstatus {
   display: inline-flex;
+}
+.callstatus__ico {
+  display: inline-flex;
+  color: var(--subtle);
 }
 .callstatus.is-speaking {
   background: var(--accent-soft);
@@ -925,6 +930,80 @@ button {
 .app.call-connecting .callctl,
 .app.call-live .callctl {
   display: flex;
+}
+/* Mic and hang-up have nothing to do once the call is over. */
+.app.call-ended .callctl {
+  display: none;
+}
+
+/* --- after the call ----------------------------------------------------- */
+
+.callover {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(20px, 4vh, 38px);
+  margin-top: clamp(18px, 3.4vh, 30px);
+  flex: 0 0 auto;
+}
+.callover__links {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.calllink {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: none;
+  border: 0;
+  padding: 4px 2px;
+  font-size: 14px;
+  color: var(--text);
+  transition: color 0.15s ease;
+}
+.calllink svg {
+  color: var(--subtle);
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+.calllink:hover {
+  color: var(--accent-deep);
+}
+.calllink:hover svg {
+  color: var(--accent);
+  transform: translateX(2px);
+}
+
+.callover__btns {
+  display: flex;
+  gap: clamp(28px, 6vw, 54px);
+}
+.callround {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+}
+.callround button {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: #16232e;
+  color: #ffffff;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+.callround button:hover {
+  background: #0f1a23;
+  transform: translateY(-1px);
+}
+.callround em {
+  font-style: normal;
+  font-size: 13.5px;
+  color: var(--text);
 }
 
 .callctl button {
