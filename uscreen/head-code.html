@@ -160,8 +160,10 @@
        logged in, subscriber    -> the page (untouched)
 
      HOW IT KNOWS: it asks Uscreen once per page - GET /account, same-origin, so
-     the session cookie rides along. 401 means signed out, 200 means signed in.
-     Measured on this store.
+     the session cookie rides along, and with NO Accept header. Measured on this
+     store: 401 signed out, 200 signed in. Asking for JSON instead returns 406
+     when signed in, because that route only renders HTML - so 406 counts as
+     signed in too, since reaching it means the auth check passed.
 
      It does NOT read the DOM for a sign-in link. That test is unreliable here:
      the store keeps an <a href="/sign_in"> in a menu even when someone is
@@ -197,13 +199,17 @@
 
   function probeAccount() {
     try {
-      fetch('/account', {
-        credentials: 'same-origin',
-        headers: { Accept: 'application/json' },
-      })
+      /* No Accept header on purpose - see HOW IT KNOWS above. */
+      fetch('/account', { credentials: 'same-origin' })
         .then(function (res) {
-          if (res.status === 401 || res.status === 403) signedIn = false;
-          else if (res.ok) signedIn = true;
+          var path = '';
+          try {
+            path = new URL(res.url, location.href).pathname;
+          } catch (e) {}
+
+          if (/\/(sign_in|login|join)\b/.test(path)) signedIn = false;
+          else if (res.status === 401 || res.status === 403) signedIn = false;
+          else if (res.ok || res.status === 406) signedIn = true;
         })
         .catch(function () {
           /* leave it null - clicks stay untouched */

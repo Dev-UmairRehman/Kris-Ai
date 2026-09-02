@@ -122,16 +122,42 @@ function landing(signedIn) {
   );
 }
 
-/* Uscreen's own answer, as measured on the live store: 401 with a JSON body for
-   a visitor, 200 for a member. The member's email comes back with it, which is
-   what names their memory thread. */
+/* Uscreen's own answer, reproduced exactly as measured on the live store -
+   including the trap in it:
+
+     signed out, no Accept header   -> 401, JSON body
+     signed out, Accept: text/html  -> 302 to the sign-in page
+     signed in,  no Accept header   -> 200, the account page (HTML, has the email)
+     signed in,  Accept: json       -> 406, the route only renders HTML
+
+   The auth layer answers before format negotiation, so asking for JSON looks
+   correct signed out and fails signed in. A snippet that sends
+   Accept: application/json passes the logged-out case here and fails the
+   logged-in one, which is the whole point of modelling it. */
 const MEMBER_EMAIL = 'member@strategytraining.com';
 
-function accountResponse(signedIn) {
-  if (!signedIn) return { status: 401, body: '[]' };
+function accountResponse(signedIn, accept) {
+  const wants = String(accept || '*/*');
+  const wantsJsonOnly = wants.indexOf('application/json') > -1 && wants.indexOf('*/*') === -1;
+  const wantsHtml = wants.indexOf('text/html') > -1;
+
+  if (!signedIn) {
+    if (wantsHtml) {
+      return { status: 302, location: '/sign_in', contentType: 'text/html', body: '' };
+    }
+    return { status: 401, contentType: 'application/json; charset=utf-8', body: '[]' };
+  }
+
+  if (wantsJsonOnly) {
+    return { status: 406, contentType: 'application/json; charset=utf-8', body: '' };
+  }
+
   return {
     status: 200,
-    body: JSON.stringify({ user: { id: 4242, email: MEMBER_EMAIL } }),
+    contentType: 'text/html; charset=utf-8',
+    body:
+      '<!doctype html><title>Account</title>' +
+      '<form><input type="email" name="email" value="' + MEMBER_EMAIL + '"></form>',
   };
 }
 
@@ -147,9 +173,16 @@ function serve() {
       url.searchParams.get('signedIn') === '1' || /(^|;\s*)fake_member=1/.test(cookie);
 
     if (p === '/account') {
-      const a = accountResponse(signedIn);
-      res.writeHead(a.status, { 'Content-Type': 'application/json; charset=utf-8' });
+      const a = accountResponse(signedIn, req.headers.accept);
+      const h = { 'Content-Type': a.contentType };
+      if (a.location) h.Location = a.location;
+      res.writeHead(a.status, h);
       return res.end(a.body);
+    }
+
+    if (p === '/sign_in') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      return res.end('<!doctype html><title>Sign in</title><h1>Sign in</h1>');
     }
 
     if (p === '/join') {
@@ -193,6 +226,11 @@ function serve() {
       console.error(name + ' does not ask Uscreen /account for login state.');
       process.exit(1);
     }
+    if (/application\/json/.test(src)) {
+      console.error(name + " asks /account for JSON. That route only renders HTML");
+      console.error('once past the auth check, so a signed-in member gets a 406.');
+      process.exit(1);
+    }
   }
 
   const server = serve();
@@ -231,11 +269,19 @@ function serve() {
         const u = new URL(r.url());
         const rp = u.pathname.replace(/\/+$/, '') || '/';
         if (rp === '/account') {
-          const a = accountResponse(signedIn);
+          const a = accountResponse(signedIn, (r.headers() || {}).accept);
           return r.respond({
             status: a.status,
-            contentType: 'application/json; charset=utf-8',
+            contentType: a.contentType,
+            headers: a.location ? { Location: a.location } : undefined,
             body: a.body,
+          });
+        }
+        if (rp === '/sign_in') {
+          return r.respond({
+            status: 200,
+            contentType: 'text/html; charset=utf-8',
+            body: '<!doctype html><title>Sign in</title><h1>Sign in</h1>',
           });
         }
         return r.respond({
@@ -304,7 +350,9 @@ function serve() {
     id && id.email === MEMBER_EMAIL,
     JSON.stringify(id)
   );
-  check('and the Uscreen id too', id && String(id.uscreenId) === '4242', JSON.stringify(id));
+  /* The account page has no member id in it, only the email - that is enough to
+     key a memory thread, and the server hashes it either way. */
+  check('no id is invented when the store does not give one', id && !id.uscreenId, JSON.stringify(id));
   await page.close();
 
   console.log('\npage snippet: the same page, logged out');

@@ -76,7 +76,17 @@
 
      HOW IT KNOWS
      It asks Uscreen: GET /account, same-origin, so the session cookie rides
-     along. Measured on this store - 401 for a visitor, 200 for a member.
+     along. Measured on this store:
+
+       signed out, no Accept header    ->  401   (the auth layer answers first)
+       signed out, Accept: text/html   ->  302   to the sign-in page
+       signed in,  no Accept header    ->  200   the account page
+       signed in,  Accept: json        ->  406   the route only renders HTML
+
+     So it sends NO Accept header. Asking for JSON was an earlier mistake: it
+     returns 401 signed out, which looks right, but 406 signed in - which read
+     as "cannot tell" and showed members the sign-in screen. 406 is now also
+     treated as signed in, since reaching it means the auth check passed.
 
      What it deliberately does NOT do is read the DOM for a sign-in link. That
      was the first attempt and it was wrong: this store keeps an
@@ -127,53 +137,51 @@
 
   /* ---- ask Uscreen who this is ----------------------------------------- */
 
-  /* Walk a parsed JSON body for the first email-looking string, so this does
-     not depend on the shape Uscreen happens to return. */
-  function emailFromJson(text) {
-    var body;
+  /* The account page carries the member's email. Prefer the form field that
+     holds it over a bare match, so a support address in the footer cannot win. */
+  function emailFrom(text) {
+    var field = text.match(/<input[^>]*(?:name|id)="[^"]*email[^"]*"[^>]*>/i);
+    if (field) {
+      var value = field[0].match(/value="([^"]*)"/i);
+      if (value && EMAIL_RE.test(value[1])) return value[1];
+    }
+    var loose = text.match(EMAIL_RE);
+    return loose ? loose[0] : '';
+  }
+
+  /* Where the redirect chain ended up, so a bounce to the sign-in page reads as
+     signed out even when it answers 200. */
+  function landedOn(res) {
     try {
-      body = JSON.parse(text);
+      return new URL(res.url, location.href).pathname;
     } catch (e) {
-      /* Not JSON - fall back to scanning the raw response. */
-      var loose = text.match(EMAIL_RE);
-      return loose ? { email: loose[0], uscreenId: '' } : null;
+      return '';
     }
-
-    var seen = [];
-    var stack = [body];
-    while (stack.length) {
-      var node = stack.pop();
-      if (!node || typeof node !== 'object') continue;
-      if (seen.indexOf(node) > -1) continue;   /* cycles */
-      seen.push(node);
-
-      if (typeof node.email === 'string' && EMAIL_RE.test(node.email)) {
-        return { email: node.email, uscreenId: node.id || node.uuid || '' };
-      }
-      for (var key in node) {
-        if (Object.prototype.hasOwnProperty.call(node, key)) stack.push(node[key]);
-      }
-    }
-    return null;
   }
 
   function probeAccount() {
-    return fetch('/account', {
-      credentials: 'same-origin',
-      headers: { Accept: 'application/json' },
-    })
+    /* No Accept header on purpose - see HOW IT KNOWS above. */
+    return fetch('/account', { credentials: 'same-origin' })
       .then(function (res) {
+        var path = landedOn(res);
+        if (/\/(sign_in|login|join)\b/.test(path)) {
+          return { signedIn: false, via: '/account -> ' + path };
+        }
         if (res.status === 401 || res.status === 403) {
           return { signedIn: false, via: '/account ' + res.status };
+        }
+        /* 406 means the auth check PASSED and only the format was refused, so
+           whoever this is, they are signed in. */
+        if (res.status === 406) {
+          return { signedIn: true, email: '', uscreenId: '', via: '/account 406' };
         }
         if (!res.ok) return null;   /* no opinion - caller fails closed */
 
         return res.text().then(function (text) {
-          var found = emailFromJson(text) || {};
           return {
             signedIn: true,
-            email: found.email || '',
-            uscreenId: found.uscreenId || '',
+            email: emailFrom(text),
+            uscreenId: '',
             via: '/account 200',
           };
         });
