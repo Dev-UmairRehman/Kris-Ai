@@ -138,6 +138,7 @@ npm run shots             # screenshots at 4 viewports + overflow detection
 npm run shots:extra       # chat, call and history views, with assertions
 npm run test:embed        # THE important one - see below
 npm run probe:audio       # re-check whether BuddyPro audio has been enabled
+npm run probe:language    # what actually forces BuddyPro into one language
 ```
 
 `npm run test:embed` is the end-to-end integration test. It stands up a fake Uscreen
@@ -349,6 +350,48 @@ Two honest limitations, surfaced in the UI itself rather than buried here:
 
 The minutes budget (100, counting down, banked across reloads in `localStorage`) is cosmetic
 parity with the reference. Real quota enforcement belongs server-side; not built.
+
+### Language: why replies came back in mixed languages
+
+BuddyPro detects language **per message** and adapts to whatever the profile last used. Its
+docs say the first interaction follows *"the language the user has set in their Telegram
+app"* - and an API caller has no Telegram app, so it guesses. Worse, the adaptation is
+sticky: once a conversation slips into another language, it keeps replying in that language.
+A profile **drifts**.
+
+Measured on the shared dev profile (`npm run probe:language`):
+
+```
+plain question                        ROMANISED HINDI/URDU (33 markers)
+  "Yeh ek acha sawaal hai - aur pehli baar aapne kuch aisa poocha..."
+
++ "Please speak English with me"      ENGLISH
+  "Glad you said that, let's do this in English..."
+```
+
+Two things that do **not** fix it, both tested:
+
+- `x_buddy_systemPrompt` - accepted with HTTP 200 and **ignored**. The profile still opened
+  with its "rules of engagement" preamble even when the prompt explicitly forbade one.
+- A directive appended *after* the question - no better than none.
+
+What does work is the remedy their own docs name: an explicit request, read before the
+question. So `lib/buddypro.js` prefixes every message with
+
+> Please speak {language} with me. Reply only in {language}, and never mix languages.
+
+The member never sees it; only their own text is rendered. `RESPONSE_LANGUAGE` sets the
+default (English), and the call view's language selector overrides it per conversation -
+the same selector also drives the speech recogniser and the speech synthesiser, so all three
+stay in step.
+
+The language field from the browser is checked against an **allowlist** of six locales and
+never interpolated as free text, so it cannot be used to smuggle instructions into the
+prompt.
+
+Note this drift is per profile. Each member has their own, so one member's conversation
+cannot pull another member's into the wrong language. During local development everyone
+shares the `dev-local` profile, which is why testing drifts it quickly.
 
 ### Chat view
 
