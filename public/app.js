@@ -82,6 +82,7 @@
   var historyBody = document.getElementById('historyBody');
   var historyClose = document.getElementById('historyClose');
   var historyClear = document.getElementById('historyClear');
+  var historyNew = document.getElementById('historyNew');
 
   var callView = document.getElementById('callView');
   var callStart = document.getElementById('callStart');
@@ -359,6 +360,33 @@
     historyPanel.classList.remove('is-open');
     historyPanel.hidden = true;
   }
+
+  /* Start a fresh conversation. The old one stays in history; this just clears
+     the view and lets the next message open a new thread - so BuddyPro's memory
+     of the member is untouched, only the visible conversation resets. */
+  function startNewChat() {
+    if (inCall) closeCallView();
+
+    thread.textContent = '';
+    inThread = false;
+    app.classList.remove('in-thread');
+    currentConvId = null;
+
+    intro.hidden = false;
+    suggestDock.classList.remove('is-open');
+    suggestToggle.setAttribute('aria-expanded', 'false');
+
+    input.value = '';
+    armSend();
+    hideNotice();
+    scroll.scrollTop = 0;
+    input.focus({ preventScroll: true });
+  }
+
+  historyNew.addEventListener('click', function () {
+    startNewChat();
+    closeHistory();
+  });
 
   historyBtn.addEventListener('click', openHistory);
   historyClose.addEventListener('click', closeHistory);

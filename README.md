@@ -553,6 +553,11 @@ moment BuddyPro returns audio again. Re-check any time with `npm run probe:audio
 
 ### Chat history
 
+**New chat** sits at the top of the drawer. It clears the view and lets the next message open a
+fresh conversation - the previous one stays in the list, and BuddyPro's memory of the member is
+untouched, so only the visible thread resets.
+
+
 Conversations, not loose questions - grouped under **Today / Yesterday / August 30** headings,
 each row a single truncated title with an icon showing whether it was a chat or a call.
 Clicking one replays it. Stored per browser in `localStorage` (BuddyPro exposes no endpoint to

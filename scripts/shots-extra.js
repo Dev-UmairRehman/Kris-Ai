@@ -236,11 +236,47 @@ async function ready(page) {
   check('the answer splits into bubbles', rendered.bubbles >= 2, String(rendered.bubbles));
   await page.screenshot({ path: path.join(OUT, 'markdown.png') });
 
+  /* ---- new chat -------------------------------------------------------- */
+  console.log('');
+  console.log('new chat');
+
+  await page.click('#historyBtn');
+  await wait(250);
+  const newBtn = await page.evaluate(() => {
+    const el = document.getElementById('historyNew');
+    return { present: !!el, label: el ? el.textContent.trim() : '' };
+  });
+  check('the drawer offers New chat', newBtn.present && /New chat/.test(newBtn.label), newBtn.label);
+
+  const kept = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('kris_ai_conversations_v1') || '[]').length
+  );
+
+  await page.click('#historyNew');
+  await wait(400);
+  const fresh = await page.evaluate(() => ({
+    turns: document.querySelectorAll('.turn').length,
+    inThread: document.getElementById('app').classList.contains('in-thread'),
+    introVisible: getComputedStyle(document.getElementById('intro')).display !== 'none',
+    drawerOpen: document.getElementById('history').classList.contains('is-open'),
+    stored: JSON.parse(localStorage.getItem('kris_ai_conversations_v1') || '[]').length,
+  }));
+  console.log('        ' + JSON.stringify(fresh));
+
+  check('New chat clears the thread', fresh.turns === 0 && !fresh.inThread);
+  check('New chat returns to the landing', fresh.introVisible);
+  check('New chat closes the drawer', !fresh.drawerOpen);
+  check(
+    'New chat keeps the earlier conversation in history',
+    fresh.stored === kept,
+    'before=' + kept + ' after=' + fresh.stored
+  );
+
   /* ---- call view ------------------------------------------------------- */
   console.log('\ncall view');
-  /* A conversation is open, so the landing Call pill is hidden by design - the
-     header phone icon is the way in from here, same as the reference. */
-  await page.click('#headerCallBtn');
+  /* New chat returned us to the landing, where the Call pill is the way in -
+     the header phone icon only exists once a conversation is open. */
+  await page.click('#callBtn');
   await page.waitForSelector('.app.in-call', { timeout: 5000 });
   const callIdle = await page.evaluate(() => {
     const style = (s) => getComputedStyle(document.querySelector(s));
