@@ -280,43 +280,58 @@ embedded one. (An earlier pass in this build followed the public page and was re
 
 `--font-sans` in `public/styles.css` is Poppins, matching the storefront.
 
-### This BuddyPro instance is text-only
+### What BuddyPro actually supports here
 
-Measured, not assumed. `npm run probe:audio` reproduces it:
+Measured with `npm run probe:audio` and repeated runs, not assumed:
+
+| | Result |
+| --- | --- |
+| Text | Works |
+| **Spoken replies, owner's default profile** | **Works** - 3/3, 20-23 KB mp3 returned |
+| **Spoken replies, isolated `user` profile** | **Does not work** - 0/3, no `audio` object |
+| Audio input (any format, rate, shape) | `500 Error processing the message` |
+| Image input (`data:` URL) | 200, but "Can't see the image" |
+| Image input (`https` URL) | `400 invalid_media_data` |
+
+Two consequences worth understanding.
+
+**Voice.** BuddyPro's TTS is real - it is the voice the Telegram bot uses - but it only comes
+back on the **owner's default profile**. Every member shares that profile, so using it would
+put every member into one conversation with one shared memory. That is not a trade worth
+making, so the app keeps per-member isolation, asks for the spoken reply anyway, and falls
+back to the device voice when none arrives. **Ask BuddyPro to enable TTS for API-created
+(`user`) profiles** - the moment they do, Kris's real voice appears with no code change.
+
+**Speech input.** Transcribed in the browser and sent as text, because the upload direction is
+rejected outright.
+
+### Language and the opening preamble - fixed
+
+The bare profile drifts between languages (it answered a English question in romanised
+Hindi/Urdu during testing) and opens every conversation with a "rules of engagement"
+introduction. Both are fixed server-side with an Owner-API prompt override, sent on every
+request:
 
 ```
-text                       HTTP 200  OK
-audio (wav 16k/44.1k,      HTTP 500  Error processing the message
-  mp3 label, +type:base64)
-audio + text part          HTTP 200  "the audio didn't come through on my end
-                                      - there's no file attached"
-modalities:[text,audio]    HTTP 200  no `audio` object in the response
-image via data: URL        HTTP 200  "Can't see the image, it didn't come through"
-image via https URL        HTTP 400  invalid_media_data: Failed to download media
+baseline            "I'm going to go through a very quick introduction, and then we
+                     will start. Our general rules of engagement..."
+with the override   "That's the right question, and the answer is simpler than it
+                     feels right now. Start with your objective..."
 ```
 
-So **audio input, audio output and image input are all non-functional** on this
-instance. Text works perfectly. Every format, sample rate and payload shape behaves the same,
-and the audio-plus-text case proves the model receives no file — this is upstream, not a
-payload-shape problem.
+`BUDDYPRO_SYSTEM_PROMPT` holds the text (`x_buddy_systemPrompt` + `systemPromptMode: add`).
+It is Owner-API only, so it is skipped automatically for an end-user key. Set it to an empty
+value to send no override.
 
-**Worth raising with BuddyPro:** ask them to enable audio and vision for this instance, or
-confirm whether the Owner API (`bapi_B2B_`) supports them at all. The docs advertise both.
+### Call — working
 
-Consequences in the UI:
-
-- No paperclip/attachment control, because images cannot be read.
-- `/api/chat` refuses any audio payload with `503 voice_disabled`, so no upstream call is wasted.
-- The call is built a different way — see below.
-
-### Call — working, via the browser
-
-Delphi's call is realtime voice with a minutes budget. BuddyPro cannot do that at all. Rather
-than ship a dead button, the call is assembled in the browser:
+Delphi's call is realtime voice with a minutes budget. BuddyPro has no realtime channel, so
+the call is assembled here:
 
 1. **`SpeechRecognition`** transcribes what the member says.
 2. The **text** goes to BuddyPro, which works fine.
-3. **`speechSynthesis`** speaks the answer back.
+3. The answer is spoken back with **BuddyPro's own voice** when it is returned, and with
+   `speechSynthesis` otherwise (see the profile caveat above).
 4. Recognition is suspended while Kris talks, otherwise the synthesised voice is transcribed
    straight back into the next question.
 
@@ -326,8 +341,8 @@ call, and a language selector (six languages, wired to both recognition and synt
 
 Two honest limitations, surfaced in the UI itself rather than buried here:
 
-- **The voice is the device's, not Kris's.** A cloned voice needs a TTS provider such as
-  ElevenLabs; say the word and it slots in behind the same call UI.
+- **The voice is currently the device's**, only because BuddyPro withholds TTS on isolated
+  profiles. The wiring for the real voice is already in place and takes over automatically.
 - **Calls need Chrome or Edge.** `SpeechRecognition` is unavailable in Firefox, and the
   button says so instead of failing. Note also that Chrome's implementation sends audio to
   Google for transcription — worth a line in the privacy policy.

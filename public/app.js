@@ -628,7 +628,11 @@
     var pending = addTurn('kris', null, { store: false });
     setBusy(true);
 
-    return api('/api/chat', { message: message })
+    return api('/api/chat', {
+      message: message,
+      language: currentLanguage(),
+      wantAudio: options.wantAudio === true,
+    })
       .then(function (res) {
         if (!res.ok) {
           if (res.status === 401) {
@@ -645,20 +649,20 @@
         var content = (res.data && res.data.content) || '';
         pending.setText(content);
         recordTurn('kris', content);
-        return content;
+        return { content: content, audio: (res.data && res.data.audio) || null };
       })
       .catch(function () {
         pending.turn.classList.add('turn--error');
         pending.setText('Connection lost. Try again in a moment.');
         return null;
       })
-      .then(function (content) {
+      .then(function (reply) {
         setBusy(false);
         scrollToEnd();
         syncScrollDown();
         if (!inCall) input.focus({ preventScroll: true });
-        if (options.onReply) options.onReply(content);
-        return content;
+        if (options.onReply) options.onReply(reply);
+        return reply;
       });
   }
 
@@ -666,6 +670,12 @@
     event.preventDefault();
     send(input.value);
   });
+
+  /* One language setting drives all three: BuddyPro's reply language, the
+     speech recogniser, and the speech synthesiser. */
+  function currentLanguage() {
+    return (callLang && callLang.value) || 'en-US';
+  }
 
   function armSend() {
     sendBtn.classList.toggle('is-armed', input.value.trim().length > 0);
@@ -706,7 +716,7 @@
     }
 
     dictation = new SpeechRecognitionCtor();
-    dictation.lang = callLang.value || 'en-US';
+    dictation.lang = currentLanguage();
     dictation.interimResults = true;
     dictation.continuous = false;
 
@@ -800,7 +810,7 @@
   });
 
   callLang.addEventListener('change', function () {
-    if (recognition) recognition.lang = callLang.value;
+    if (recognition) recognition.lang = currentLanguage();
   });
 
   callStart.addEventListener('click', function () {
@@ -860,7 +870,7 @@
     setCallStatus('Listening', 'listening');
 
     recognition = new SpeechRecognitionCtor();
-    recognition.lang = callLang.value || 'en-US';
+    recognition.lang = currentLanguage();
     recognition.interimResults = true;
     recognition.continuous = false;
 
@@ -921,19 +931,71 @@
     setCallStatus('Thinking', null);
 
     send(question, {
-      onReply: function (content) {
+      wantAudio: true,
+      onReply: function (reply) {
         if (!callLive) return;
-        if (!content) {
+        if (!reply || !reply.content) {
           setCallStatus('Listening', 'listening');
           startListening();
           return;
         }
-        speak(content);
+        /* BuddyPro returns its own voice - the same one the Telegram bot uses.
+           speechSynthesis is only a fallback if that audio is missing. */
+        if (reply.audio) playReply(reply.audio, reply.content);
+        else speak(reply.content);
       },
     });
   }
 
+  var replyAudio = null;
+
+  function stopReplyAudio() {
+    if (!replyAudio) return;
+    try {
+      replyAudio.pause();
+      replyAudio.src = '';
+    } catch (e) {
+      /* already torn down */
+    }
+    replyAudio = null;
+  }
+
+  function playReply(dataUrl, fallbackText) {
+    stopReplyAudio();
+    stopListening();
+    setCallStatus('Talking', 'speaking');
+
+    replyAudio = new Audio(dataUrl);
+
+    function resume() {
+      replyAudio = null;
+      if (!callLive) return;
+      setCallStatus('Listening', 'listening');
+      startListening();
+    }
+
+    replyAudio.onended = resume;
+    replyAudio.onerror = resume;
+
+    var started = replyAudio.play();
+    if (started && typeof started.catch === 'function') {
+      started.catch(function () {
+        /* Autoplay was refused. The call began with a click so this is rare -
+           fall back to the device voice rather than stalling silently. */
+        stopReplyAudio();
+        speak(fallbackText || '');
+      });
+    }
+  }
+
   function speak(text) {
+    if (!text) {
+      if (callLive) {
+        setCallStatus('Listening', 'listening');
+        startListening();
+      }
+      return;
+    }
     if (!synth) {
       setCallStatus('Listening', 'listening');
       startListening();
@@ -952,7 +1014,7 @@
     }
 
     var utterance = new SpeechSynthesisUtterance(stripForSpeech(text));
-    utterance.lang = callLang.value || 'en-US';
+    utterance.lang = currentLanguage();
     utterance.rate = 1.02;
 
     var voices = synth.getVoices() || [];
@@ -996,6 +1058,7 @@
     app.classList.remove('call-live', 'call-connecting');
 
     stopListening();
+    stopReplyAudio();
     if (synth) {
       try {
         synth.cancel();
@@ -1031,6 +1094,7 @@
 
     if (muted) {
       stopListening();
+      stopReplyAudio();
       setCallStatus('Muted', null);
     } else {
       setCallStatus('Listening', 'listening');

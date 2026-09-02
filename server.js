@@ -90,6 +90,7 @@ app.get('/healthz', (req, res) => {
     buddyproSurface: config.buddypro.surface,
     uscreenConfigured: !!(config.uscreen.apiBase && config.uscreen.apiKey),
     voiceEnabled: config.voiceEnabled,
+    responseLanguage: config.responseLanguage,
   });
 });
 
@@ -302,6 +303,21 @@ app.post('/api/chat', async (req, res) => {
   }
 
   const message = typeof req.body?.message === 'string' ? req.body.message : '';
+
+  /* Only these may reach the prompt - an allowlist, never free text, so the
+     language field cannot be used to inject instructions of its own. */
+  const LANGUAGES = {
+    'en-US': 'English',
+    'en-GB': 'English',
+    'nl-NL': 'Dutch',
+    'de-DE': 'German',
+    'fr-FR': 'French',
+    'es-ES': 'Spanish',
+  };
+  const language =
+    typeof req.body?.language === 'string' && LANGUAGES[req.body.language]
+      ? LANGUAGES[req.body.language]
+      : config.responseLanguage;
   const audio = typeof req.body?.audio === 'string' ? req.body.audio : null;
   const wantAudio = req.body?.wantAudio === true;
 
@@ -311,11 +327,12 @@ app.post('/api/chat', async (req, res) => {
   const requestedFormat =
     typeof req.body?.audioFormat === 'string' ? req.body.audioFormat.toLowerCase() : 'wav';
 
+  /* Audio INPUT only. Spoken replies (wantAudio) always work - BuddyPro's TTS
+     is functional; it is the upload direction that this instance rejects. */
   if (audio && !config.voiceEnabled) {
     return res.status(503).json({
-      error:
-        'Voice is not enabled for Kris AI Memory yet. Please type your question - Kris will answer.',
-      reason: 'voice_disabled',
+      error: 'Sending audio is not supported yet. Your question is sent as text instead.',
+      reason: 'audio_upload_disabled',
     });
   }
 
@@ -342,6 +359,7 @@ app.post('/api/chat', async (req, res) => {
   try {
     const answer = await buddypro.ask({
       text: message,
+      language,
       profileId: session.sub,
       wantAudio,
       audioInput: audio,
