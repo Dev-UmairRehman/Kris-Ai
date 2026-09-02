@@ -153,6 +153,7 @@ app.post('/api/session', async (req, res) => {
 
   const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
   const uscreenId = req.body?.uscreenId != null ? String(req.body.uscreenId).trim() : '';
+  const signedIn = req.body?.signedIn === true;
 
   const deny = (reason, status = 403) => {
     auth.clearSessionCookie(res);
@@ -172,10 +173,17 @@ app.post('/api/session', async (req, res) => {
     return res.json({ ok: true, verifiedBy: 'open', token, handoff: auth.mintHandoff(profileId) });
   }
 
-  /* --- frame: being inside the members-only /delphi page is the proof. ----- */
+  /* --- frame: the store page vouches for the visitor. --------------------- */
   if (config.gateMode === 'frame') {
     if (!auth.isFramedByStore(req) && !auth.isTrustedRequestOrigin(req)) {
       return deny('not_framed_by_store');
+    }
+
+    /* A Uscreen landing page is public, so the frame alone proves nothing. The
+       head-code snippet reports whether anyone is signed in, and without a yes
+       there is no session. Fails closed by design. */
+    if (config.requireStoreIdentity && !signedIn) {
+      return deny('no_identity_from_store', 401);
     }
     /* With no verified identity there is nothing stable to key memory on, so
        each browser gets its own durable pseudonymous thread. */

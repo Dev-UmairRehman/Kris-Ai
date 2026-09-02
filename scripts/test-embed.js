@@ -58,7 +58,14 @@ const PARENT_HTML = `<!doctype html>
     window.__events.push(event.data);
     if (event.data && event.data.type === 'kris-ai:ready') {
       event.source.postMessage(
-        { type: 'st-kris:identity', email: 'member@strategytraining.com', uscreenId: '4242' },
+        /* signedIn is what the gate actually turns on - a Uscreen landing page
+           is public, so the frame alone is not enough. */
+        {
+          type: 'st-kris:identity',
+          signedIn: true,
+          email: 'member@strategytraining.com',
+          uscreenId: '4242',
+        },
         WIDGET_ORIGIN
       );
     }
@@ -144,6 +151,17 @@ const PARENT_HTML = `<!doctype html>
   }
 
   await page.screenshot({ path: path.join(OUT, 'embed-in-storefront.png') });
+
+  /* A logged-out visitor on the same public page must be refused. */
+  const loggedOut = await page.evaluate(async (widget) => {
+    const res = await fetch(widget + '/api/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ signedIn: false }),
+    });
+    return res.status;
+  }, WIDGET);
+  check('a logged-out visitor is refused', loggedOut === 401, 'status=' + loggedOut);
 
   /* A real question, through the iframe, cross-origin, bearer-authenticated. */
   console.log('\n  asking a question through the embed (live BuddyPro)…');

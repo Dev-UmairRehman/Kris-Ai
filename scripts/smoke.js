@@ -131,9 +131,21 @@ async function main() {
 
   /* ---- session + chat -------------------------------------------------- */
   console.log('\nsession');
+  /* A logged-out visitor must be refused even from the right origin - a Uscreen
+     landing page is public, so the frame alone is not proof. */
+  const loggedOut = await call('/api/session', {
+    method: 'POST',
+    body: { signedIn: false },
+  });
+  check(
+    'a logged-out visitor is refused',
+    gateMode === 'open' || loggedOut.status === 401,
+    'got ' + loggedOut.status
+  );
+
   const session = await call('/api/session', {
     method: 'POST',
-    body: { email: 'smoke-test@example.com' },
+    body: { signedIn: true, email: 'smoke-test@example.com' },
   });
 
   if (gateMode === 'strict') {

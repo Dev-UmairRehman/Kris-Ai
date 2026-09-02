@@ -497,6 +497,7 @@
         var data = event.data;
         if (!data || data.type !== 'st-kris:identity') return;
         done({
+          signedIn: data.signedIn === true,
           email: typeof data.email === 'string' ? data.email : '',
           uscreenId: data.uscreenId != null ? String(data.uscreenId) : '',
         });

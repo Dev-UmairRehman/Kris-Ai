@@ -122,6 +122,12 @@ services:
         scope: RUN_TIME
         value: frame
 
+      # A Uscreen landing page is public, so the iframe alone proves nothing:
+      # the head-code snippet must confirm a signed-in visitor. Fails closed.
+      - key: REQUIRE_STORE_IDENTITY
+        scope: RUN_TIME
+        value: "true"
+
       # --- voice and language ---
       # Audio upload. BuddyPro's audio is intermittent; the server retries as
       # text when it fails, so a bad turn degrades instead of erroring.

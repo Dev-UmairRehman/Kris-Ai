@@ -22,8 +22,14 @@
 
      Both sides post to an explicit origin, never '*'.
 
+     THIS SNIPPET IS NOT OPTIONAL
+     The widget refuses to open until this tells it someone is signed in. Without
+     it, every visitor sees the "please sign in" screen - which is the safe way
+     round, because a Uscreen landing page is public.
+
      IF THE EMAIL CANNOT BE FOUND
-     The widget falls back to whatever the server's MEMBER_GATE_MODE allows.
+     Access still works (login state is enough); only per-member memory is
+     affected, since members would share a per-browser thread instead.
      Open the browser console on /delphi and look for the [st-kris] line: it
      names the source that worked, or reports that none did. Send me that line
      and I will pin the lookup to the one that works on your store.
@@ -36,6 +42,27 @@
   var WIDGET_ORIGIN = 'https://kris-ai-memory-baefm.ondigitalocean.app';
 
   var cached = null;
+
+  /* Is anyone signed in? Uscreen renders a link to /sign_in in the header ONLY
+     for logged-out visitors, which is the same signal the public Kris AI
+     gateway page already uses on this store. Absence of that link means signed
+     in.
+
+     This matters because a Uscreen landing page is PUBLIC. The widget refuses
+     to open unless this says someone is signed in, so putting it on a public
+     page does not hand it to the world. */
+  function isSignedIn() {
+    var signInLink = document.querySelector(
+      'a[href="/sign_in"], a[href$="/sign_in"], a[href*="/sign_in?"]'
+    );
+    if (signInLink) return false;
+
+    /* Corroboration, where the storefront offers it. */
+    var signedOutHints = document.querySelector('a[href="/login"], a[href$="/login"]');
+    if (signedOutHints) return false;
+
+    return true;
+  }
 
   /* ---- find the signed-in member ---------------------------------------- */
 
@@ -176,13 +203,17 @@
 
     var frame = event.source;
 
+    var signedIn = isSignedIn();
+
     resolveIdentity().then(function (identity) {
       try {
         frame.postMessage(
           {
             type: 'st-kris:identity',
-            email: (identity && identity.email) || '',
-            uscreenId: (identity && identity.uscreenId) || '',
+            /* The widget will not open without this. */
+            signedIn: signedIn,
+            email: (signedIn && identity && identity.email) || '',
+            uscreenId: (signedIn && identity && identity.uscreenId) || '',
           },
           WIDGET_ORIGIN
         );
