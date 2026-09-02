@@ -139,6 +139,7 @@ npm run shots:extra       # chat, call and history views, with assertions
 npm run test:embed        # THE important one - see below
 npm run probe:audio       # re-check whether BuddyPro audio has been enabled
 npm run probe:language    # what actually forces BuddyPro into one language
+npm run test:speech       # speech endpointing, with a stubbed recogniser
 ```
 
 `npm run test:embed` is the end-to-end integration test. It stands up a fake Uscreen
@@ -350,6 +351,37 @@ Two honest limitations, surfaced in the UI itself rather than buried here:
 
 The minutes budget (100, counting down, banked across reloads in `localStorage`) is cosmetic
 parity with the reference. Real quota enforcement belongs server-side; not built.
+
+### Speech endpointing: why it listened forever
+
+Chrome's `SpeechRecognition` does not reliably tell you when someone has stopped talking.
+With `continuous = false` it often keeps the session open long after the speaker finishes, and
+it may never mark a result `isFinal`. The first implementation waited for a final result and
+for `onend`, so it sat on **Listening** indefinitely and threw away perfectly good interim
+text. The composer microphone looked dead for the same reason.
+
+The fix inverts who decides:
+
+- `continuous = true`, so Chrome never ends the turn on its own
+- a **silence timer** (1.5s since the last result) ends it instead
+- **interim text counts** - if Chrome never finalises, what it heard is still used
+- a 30s hard cap, so a stuck recogniser cannot run forever
+- tapping the microphone again ends the turn immediately
+
+A second bug surfaced while testing this: `startListening()` returned early when a request was
+in flight and never retried, so starting a call while the composer was still waiting left it
+stuck with the microphone closed. It now waits for the turn to finish instead of giving up.
+
+`npm run test:speech` proves both. It stubs `SpeechRecognition` to behave exactly like the
+failing case - interim results only, never final, `onend` never fired - and asserts the turn
+still completes:
+
+```
+the turn ends on silence instead of hanging   PASS
+the interim text is what got sent             PASS   "what should I focus on"
+the spoken turn was submitted, not hanging    PASS
+the call did not spin restarting the recogniser  PASS
+```
 
 ### Language: why replies came back in mixed languages
 

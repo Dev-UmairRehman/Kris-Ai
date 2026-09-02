@@ -703,6 +703,126 @@
     micBtn.disabled = true;
   }
 
+  /* How long a pause counts as "they have finished speaking", and the hard cap
+     on one utterance. */
+  var SILENCE_MS = 1500;
+  var MAX_UTTERANCE_MS = 30000;
+
+  /**
+   * One spoken turn, with endpointing we control.
+   *
+   * Chrome's own endpointing is unreliable: with continuous=false it often keeps
+   * the session open long after the speaker stops, and it may never mark a
+   * result `isFinal`. Waiting for `onend` therefore hangs on "Listening" and
+   * discards perfectly good interim text - which is exactly what happened.
+   *
+   * So: continuous=true (Chrome never decides), a silence timer decides, and
+   * interim text counts. Returns a handle with stop() and abort().
+   */
+  function listenOnce(options) {
+    var rec = new SpeechRecognitionCtor();
+    rec.lang = options.lang || currentLanguage();
+    rec.interimResults = true;
+    rec.continuous = true;
+
+    var finalText = '';
+    var interimText = '';
+    var settled = false;
+    var silenceTimer = null;
+    var maxTimer = null;
+
+    function transcript() {
+      return (finalText + ' ' + interimText).replace(/\s+/g, ' ').trim();
+    }
+
+    function clearTimers() {
+      if (silenceTimer) clearTimeout(silenceTimer);
+      if (maxTimer) clearTimeout(maxTimer);
+      silenceTimer = null;
+      maxTimer = null;
+    }
+
+    function settle(handler, value) {
+      if (settled) return;
+      settled = true;
+      clearTimers();
+      try {
+        rec.stop();
+      } catch (e) {
+        /* already stopping */
+      }
+      if (handler) handler(value);
+    }
+
+    function armSilence() {
+      if (silenceTimer) clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(function () {
+        /* Only end the turn if something was actually said. Silence with no
+           speech yet just means they have not started. */
+        if (transcript()) settle(options.onResult, transcript());
+      }, options.silenceMs || SILENCE_MS);
+    }
+
+    rec.onresult = function (event) {
+      interimText = '';
+      for (var i = event.resultIndex; i < event.results.length; i++) {
+        var result = event.results[i];
+        if (result.isFinal) finalText += result[0].transcript + ' ';
+        else interimText += result[0].transcript;
+      }
+      if (options.onInterim) options.onInterim(transcript());
+      armSilence();
+    };
+
+    rec.onerror = function (event) {
+      /* 'no-speech' and 'aborted' are routine - a quiet moment, or our own
+         abort() - and must not tear the call down. */
+      if (event.error === 'no-speech' || event.error === 'aborted') return;
+      if (settled) return;
+      settled = true;
+      clearTimers();
+      if (options.onError) options.onError(event.error);
+    };
+
+    rec.onend = function () {
+      if (settled) return;
+      settled = true;
+      clearTimers();
+      var text = transcript();
+      if (text && options.onResult) options.onResult(text);
+      else if (!text && options.onEmpty) options.onEmpty();
+    };
+
+    maxTimer = setTimeout(function () {
+      if (transcript()) settle(options.onResult, transcript());
+      else settle(options.onEmpty, null);
+    }, options.maxMs || MAX_UTTERANCE_MS);
+
+    try {
+      rec.start();
+    } catch (e) {
+      /* start() throws if one is already running */
+    }
+
+    return {
+      /* Finish now and use whatever has been heard. */
+      stop: function () {
+        settle(options.onResult, transcript());
+      },
+      /* Throw the turn away. */
+      abort: function () {
+        if (settled) return;
+        settled = true;
+        clearTimers();
+        try {
+          rec.abort();
+        } catch (e) {
+          /* already stopped */
+        }
+      },
+    };
+  }
+
   var dictation = null;
 
   micBtn.addEventListener('click', function () {
@@ -710,42 +830,47 @@
       showNotice('Voice input needs Chrome or Edge. Type your question instead.');
       return;
     }
+
+    /* Second tap = "I am done", rather than waiting for the pause. */
     if (dictation) {
       dictation.stop();
       return;
     }
 
-    dictation = new SpeechRecognitionCtor();
-    dictation.lang = currentLanguage();
-    dictation.interimResults = true;
-    dictation.continuous = false;
-
     micBtn.classList.add('is-armed');
-    showNotice('Listening… speak your question.');
+    showNotice('Listening… pause when you have finished, or tap the microphone again.');
 
-    dictation.onresult = function (event) {
-      var text = '';
-      for (var i = event.resultIndex; i < event.results.length; i++) {
-        text += event.results[i][0].transcript;
-      }
-      input.value = text.trim();
-      armSend();
-    };
-    dictation.onerror = function (event) {
-      showNotice(
-        event.error === 'not-allowed'
-          ? 'Microphone permission was declined.'
-          : 'Could not hear anything. Try again, or type your question.'
-      );
-    };
-    dictation.onend = function () {
+    function done() {
       dictation = null;
       micBtn.classList.remove('is-armed');
-      hideNotice();
-      if (input.value.trim()) send(input.value);
-    };
+    }
 
-    dictation.start();
+    dictation = listenOnce({
+      lang: currentLanguage(),
+      onInterim: function (text) {
+        input.value = text;
+        armSend();
+      },
+      onResult: function (text) {
+        done();
+        hideNotice();
+        input.value = text;
+        armSend();
+        if (text) send(text);
+      },
+      onEmpty: function () {
+        done();
+        showNotice('I did not catch that. Try again, or type your question.');
+      },
+      onError: function (err) {
+        done();
+        showNotice(
+          err === 'not-allowed' || err === 'service-not-allowed'
+            ? 'Microphone permission was declined.'
+            : 'Could not hear anything. Try again, or type your question.'
+        );
+      },
+    });
   });
 
   /* ---- call ------------------------------------------------------------- */
@@ -810,7 +935,13 @@
   });
 
   callLang.addEventListener('change', function () {
-    if (recognition) recognition.lang = currentLanguage();
+    /* The language is fixed when a recogniser starts, so restart the turn to
+       pick up the new one. */
+    if (callLive && recognition && !muted) {
+      stopListening();
+      wantListening = true;
+      startListening();
+    }
   });
 
   callStart.addEventListener('click', function () {
@@ -864,55 +995,59 @@
   }
 
   function startListening() {
-    if (!callLive || muted || busy) return;
+    if (!callLive || muted) return;
 
     wantListening = true;
+
+    /* A request may still be in flight - from the composer, or the turn before.
+       Wait for it rather than giving up, which used to leave the call stuck on
+       its opening status with the microphone never opening. */
+    if (busy) {
+      setTimeout(function () {
+        if (callLive && wantListening && !muted) startListening();
+      }, 300);
+      return;
+    }
+
     setCallStatus('Listening', 'listening');
 
-    recognition = new SpeechRecognitionCtor();
-    recognition.lang = currentLanguage();
-    recognition.interimResults = true;
-    recognition.continuous = false;
-
-    var finalText = '';
-
-    recognition.onresult = function (event) {
-      var interim = '';
-      for (var i = event.resultIndex; i < event.results.length; i++) {
-        var result = event.results[i];
-        if (result.isFinal) finalText += result[0].transcript;
-        else interim += result[0].transcript;
-      }
-    };
-
-    recognition.onerror = function (event) {
-      /* 'no-speech' just means a quiet moment; keep the call alive. */
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        setCallStatus('Microphone blocked', null);
-        wantListening = false;
-        endCall();
-      }
-    };
-
-    recognition.onend = function () {
+    function relisten(delay) {
       recognition = null;
-      if (!callLive) return;
-
-      var question = finalText.trim();
-      if (!question) {
-        /* Nothing said - listen again rather than dropping the call. */
-        if (wantListening && !muted) setTimeout(startListening, 250);
-        return;
-      }
-
-      askOnCall(question);
-    };
-
-    try {
-      recognition.start();
-    } catch (e) {
-      /* start() throws if called while already running - ignore. */
+      if (callLive && wantListening && !muted) setTimeout(startListening, delay || 250);
     }
+
+    recognition = listenOnce({
+      lang: currentLanguage(),
+
+      /* The moment speech is detected, say so - otherwise a slow answer looks
+         like the call has frozen on "Listening". */
+      onInterim: function (text) {
+        if (text) setCallStatus('Listening', 'listening');
+      },
+
+      onResult: function (question) {
+        recognition = null;
+        if (!callLive) return;
+        askOnCall(question);
+      },
+
+      /* A quiet stretch is normal in a call - go round again rather than
+         dropping it. */
+      onEmpty: function () {
+        relisten(250);
+      },
+
+      onError: function (err) {
+        if (err === 'not-allowed' || err === 'service-not-allowed') {
+          recognition = null;
+          setCallStatus('Microphone blocked', null);
+          wantListening = false;
+          endCall();
+          return;
+        }
+        relisten(400);
+      },
+    });
   }
 
   function stopListening() {
