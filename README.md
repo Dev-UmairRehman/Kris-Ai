@@ -174,6 +174,53 @@ made and caught during this build.
 
 ---
 
+## Pre-deploy audit
+
+Run before going live, and re-run after any change to the gate or the config.
+
+**Secrets.** No key appears in any tracked file, in the whole git history, or in anything served
+to the browser. `.env` is untracked. The page's bootstrap JSON carries only URLs and flags:
+
+```
+{"apiBase":"","joinUrl":...,"signInUrl":...,"storeOrigin":...,
+ "allowedParentOrigins":[...],"devPreview":false,"voiceEnabled":true}
+```
+
+**Member isolation - measured, not assumed.** Two profiles, a planted secret:
+
+```
+A: "my private access code is BLUEBIRD-42"   -> stored
+B: "what is my private access code?"         -> "I don't know it."   (no leak)
+A: "what is my private access code?"         -> "BLUEBIRD-42"        (remembered)
+```
+
+Each member's BuddyPro `user` is `st_` + HMAC-SHA256 of their id salted with `MEMBER_ID_SALT`,
+so BuddyPro never receives a name or an email, and the id cannot be reversed.
+
+**The gate**, in the production setting:
+
+```
+stranger, GET /                     302 -> strategytraining.com/join
+stranger, GET /embed                302 -> strategytraining.com/join
+member inside the ST iframe         200
+POST /api/chat with no session      401
+POST /api/session from evil.com     403
+```
+
+**Production refuses to start unsafely:** `MEMBER_GATE_MODE=open` and `BUDDYPRO_MOCK=true` are
+both rejected by `lib/config.js` when `NODE_ENV=production`.
+
+### Two things that are not bugs but are your decision
+
+1. **The Owner API can read every conversation.** BuddyPro's own docs say the Owner surface
+   should not host profiles for real people, because whoever controls the instance can read all
+   history. Isolation between members is proven above; isolation *from the operator* is not
+   possible on this surface. Worth a line in the privacy policy.
+2. **`frame` mode trusts the iframe.** With the Uscreen head-code bridge supplying an email,
+   each member still gets their own profile - but that email is unverified, so a determined
+   person could forge it. `strict` mode verifies it against Uscreen and needs the publisher API
+   key. Uscreen already hides the page from non-subscribers, so the practical exposure is small.
+
 ## Deploying to DigitalOcean
 
 Nothing has been created on DigitalOcean yet. `.do/app.yaml` is a prepared spec, not an
