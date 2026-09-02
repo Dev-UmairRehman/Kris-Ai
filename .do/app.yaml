@@ -134,11 +134,6 @@ services:
         scope: RUN_TIME
         value: English
 
-      # Never true in production - lib/config.js refuses to start if it is.
-      - key: BUDDYPRO_MOCK
-        scope: RUN_TIME
-        value: "false"
-
       # --- rate limiting ---
       - key: RATE_GLOBAL_PER_MIN
         scope: RUN_TIME

@@ -126,14 +126,8 @@
         <div class="suggestdock__list" id="suggestDockList"></div>
       </div>
 
-      <!-- Anything picked here is previewed above the field before sending. -->
-      <div class="attachments" id="attachments" hidden></div>
-
       <form class="field" id="form" autocomplete="off">
-        <input type="file" id="attachInput" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden>
-        <button class="iconbtn field__attach" id="attachBtn" type="button" title="Attach a picture" aria-label="Attach a picture">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.3l-8.5 8.4a5 5 0 01-7-7l8.4-8.4a3.3 3.3 0 014.7 4.7l-8.4 8.4a1.7 1.7 0 01-2.4-2.4l7.8-7.7"/></svg>
-        </button>
+        <svg class="field__spark" width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.5 5.2L19 9l-5.5 1.8L12 16l-1.5-5.2L5 9l5.5-1.8z"/><path d="M18.4 14.2l.7 2.4 2.4.7-2.4.7-.7 2.4-.7-2.4-2.4-.7 2.4-.7z"/></svg>
         <input id="input" type="text" placeholder="Ask Kristina Safarova a question" aria-label="Ask Kristina Safarova a question">
         <button class="iconbtn" id="micBtn" type="button" title="Speak your question" aria-label="Speak your question">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 2a3 3 0 013 3v6a3 3 0 01-6 0V5a3 3 0 013-3z"/><path d="M19 11a7 7 0 01-14 0M12 18v4"/></svg>

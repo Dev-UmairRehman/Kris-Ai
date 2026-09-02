@@ -101,9 +101,6 @@
   var recSend = document.getElementById('recSend');
   var recCancel = document.getElementById('recCancel');
 
-  var attachBtn = document.getElementById('attachBtn');
-  var attachInput = document.getElementById('attachInput');
-  var attachments = document.getElementById('attachments');
 
   var isEmbed = app.getAttribute('data-mode') === 'embed';
   var busy = false;
@@ -950,13 +947,8 @@
     var message = (text || '').trim();
     if (busy) return Promise.resolve(null);
 
-    /* Pictures picked in the composer ride along with a typed message. A voice
-       turn carries audio instead, and never attachments. */
-    var shots = options.audio ? [] : pending_attachments.slice();
-
-    /* A voice message can carry audio with no usable transcript, and a picture
-       can be sent with no words at all. */
-    if (!message && !options.audio && !shots.length) return Promise.resolve(null);
+    /* A voice message can carry audio even with no usable transcript. */
+    if (!message && !options.audio) return Promise.resolve(null);
 
     hideNotice();
     enterThread();
@@ -973,24 +965,8 @@
         });
         recordTurn('me', message);
       } else {
-        var mine = addTurn('me', message || 'Have a look at this.');
-        if (shots.length) {
-          var strip = document.createElement('div');
-          strip.className = 'bubble__shots';
-          shots.forEach(function (item) {
-            var img = document.createElement('img');
-            img.src = item.url;
-            img.alt = item.name || '';
-            strip.appendChild(img);
-          });
-          mine.turn.querySelector('.bubble').appendChild(strip);
-        }
+        addTurn('me', message);
       }
-    }
-
-    if (shots.length) {
-      pending_attachments = [];
-      paintAttachments();
     }
     input.value = '';
     armSend();
@@ -1003,11 +979,6 @@
       audio: options.audio || undefined,
       audioFormat: options.audio ? options.audioFormat || 'wav' : undefined,
       intent: options.intent || undefined,
-      images: shots.length
-        ? shots.map(function (item) {
-            return item.url;
-          })
-        : undefined,
       wantAudio: options.wantAudio === true,
     })
       .then(function (res) {
@@ -1081,8 +1052,7 @@
   }
 
   function armSend() {
-    var ready = input.value.trim().length > 0 || pending_attachments.length > 0;
-    sendBtn.classList.toggle('is-armed', ready);
+    sendBtn.classList.toggle('is-armed', input.value.trim().length > 0);
   }
   input.addEventListener('input', armSend);
 
@@ -1090,148 +1060,6 @@
     enterThread();
     input.focus();
     scrollToEnd();
-  });
-
-  /* ---- attachments ------------------------------------------------------
-     BuddyPro's API takes images (up to five) and audio, and nothing else - no
-     documents, no PDFs. Images are verified working on this instance: a real
-     photo came back described correctly. They travel as data URLs, because a
-     remote URL is refused upstream with invalid_media_data.
-     -------------------------------------------------------------------- */
-
-  var MAX_ATTACHMENTS = 5;
-  var MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024; // before downscaling
-  var pending_attachments = [];
-
-  function paintAttachments() {
-    attachments.textContent = '';
-    attachments.hidden = pending_attachments.length === 0;
-
-    pending_attachments.forEach(function (item, index) {
-      var wrap = document.createElement('div');
-      wrap.className = 'attachment';
-
-      var img = document.createElement('img');
-      img.src = item.url;
-      img.alt = item.name || 'Attachment';
-      wrap.appendChild(img);
-
-      var remove = document.createElement('button');
-      remove.type = 'button';
-      remove.className = 'attachment__remove';
-      remove.setAttribute('aria-label', 'Remove ' + (item.name || 'attachment'));
-      remove.innerHTML =
-        '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
-        'stroke-width="3" stroke-linecap="round" aria-hidden="true">' +
-        '<path d="M6 6l12 12M18 6L6 18"/></svg>';
-      remove.addEventListener('click', function () {
-        pending_attachments.splice(index, 1);
-        paintAttachments();
-        armSend();
-      });
-      wrap.appendChild(remove);
-
-      attachments.appendChild(wrap);
-    });
-  }
-
-  var MAX_EDGE = 1600; // plenty for anything Kris needs to look at
-
-  function readAsDataUrl(file) {
-    return new Promise(function (resolve, reject) {
-      var reader = new FileReader();
-      reader.onload = function () {
-        resolve(String(reader.result));
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-
-  /* Resize before sending. Five untouched phone photos are roughly 20MB of
-     base64, which exceeds the request body limit and would fail with an opaque
-     413; downscaled they are a few hundred KB each. GIFs are left alone so
-     animation survives. */
-  function shrink(file) {
-    if (file.type === 'image/gif') return readAsDataUrl(file);
-
-    return readAsDataUrl(file).then(function (dataUrl) {
-      return new Promise(function (resolve) {
-        var img = new Image();
-        img.onload = function () {
-          var scale = Math.min(1, MAX_EDGE / Math.max(img.width, img.height));
-          if (scale === 1 && dataUrl.length < 1.2 * 1024 * 1024) return resolve(dataUrl);
-
-          var canvas = document.createElement('canvas');
-          canvas.width = Math.round(img.width * scale);
-          canvas.height = Math.round(img.height * scale);
-          var ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          try {
-            resolve(canvas.toDataURL('image/jpeg', 0.85));
-          } catch (e) {
-            resolve(dataUrl);
-          }
-        };
-        img.onerror = function () {
-          resolve(dataUrl);
-        };
-        img.src = dataUrl;
-      });
-    });
-  }
-
-  attachBtn.addEventListener('click', function () {
-    attachInput.click();
-  });
-
-  attachInput.addEventListener('change', function () {
-    var files = Array.prototype.slice.call(attachInput.files || []);
-    /* Reset immediately so picking the same file twice still fires a change. */
-    attachInput.value = '';
-    if (!files.length) return;
-
-    var room = MAX_ATTACHMENTS - pending_attachments.length;
-    if (room <= 0) {
-      showNotice('Up to ' + MAX_ATTACHMENTS + ' pictures per message.');
-      return;
-    }
-
-    var rejected = [];
-    var accepted = [];
-
-    files.forEach(function (file) {
-      if (accepted.length >= room) {
-        rejected.push(file.name + ' (over ' + MAX_ATTACHMENTS + ')');
-        return;
-      }
-      if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type)) {
-        /* Be specific: BuddyPro takes pictures, not documents. */
-        rejected.push(file.name + ' (only JPEG, PNG, WebP and GIF)');
-        return;
-      }
-      if (file.size > MAX_ATTACHMENT_BYTES) {
-        rejected.push(file.name + ' (over 8 MB)');
-        return;
-      }
-      accepted.push(file);
-    });
-
-    if (rejected.length) showNotice('Not attached: ' + rejected.join('; ') + '.');
-    else hideNotice();
-
-    Promise.all(accepted.map(shrink))
-      .then(function (urls) {
-        urls.forEach(function (url, i) {
-          pending_attachments.push({ url: url, name: accepted[i].name });
-        });
-        paintAttachments();
-        armSend();
-        input.focus({ preventScroll: true });
-      })
-      .catch(function () {
-        showNotice('Those pictures could not be read.');
-      });
   });
 
   /* ---- speech engine ----------------------------------------------------

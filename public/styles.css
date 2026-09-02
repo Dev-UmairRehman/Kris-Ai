@@ -615,64 +615,12 @@ button {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px hsl(191 76% 55% / 0.14);
 }
-.field__attach {
+.field__spark {
+  flex: 0 0 auto;
   color: var(--subtle);
 }
-.field.is-recording > .field__attach {
+.field.is-recording > .field__spark {
   display: none;
-}
-
-/* --- attachments ---------------------------------------------------------- */
-
-.attachments {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 0 4px 10px;
-}
-.attachment {
-  position: relative;
-  width: 64px;
-  height: 64px;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  background: var(--surface-2);
-}
-.attachment img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.attachment__remove {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  display: grid;
-  place-items: center;
-  width: 19px;
-  height: 19px;
-  border-radius: 50%;
-  background: rgba(17, 24, 32, 0.72);
-  color: #fff;
-}
-.attachment__remove:hover {
-  background: rgba(17, 24, 32, 0.9);
-}
-
-/* Pictures the member sent, inside their own bubble. */
-.bubble__shots {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.bubble__shots img {
-  width: 118px;
-  height: 118px;
-  object-fit: cover;
-  border-radius: 10px;
-  display: block;
 }
 
 .field input {

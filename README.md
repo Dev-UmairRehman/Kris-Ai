@@ -129,29 +129,14 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 `lib/config.js` validates everything at boot and refuses to start on a misconfiguration
 rather than running in a degraded state.
 
-### Testing without spending credits
-
-Every real BuddyPro request costs credits, so **run the suites against the mock**:
-
-```bash
-BUDDYPRO_MOCK=true npm start      # in one terminal
-npm run smoke && npm run shots && npm run shots:extra
-npm run test:speech && npm run test:call && npm run test:embed
-```
-
-The mock answers locally - no network, no credits - and is shaped like a real reply, blank-line
-splits included, so the UI is exercised properly. `/healthz` reports `buddyproMock: true` so it
-is never a surprise, and `lib/config.js` refuses it in production.
-
-To exercise the real thing deliberately, start without the flag and add `LIVE=1` to the smoke
-run. `npm run make:greeting` spends one request per attempt and defaults to two;
-`--attempts N` raises it.
-
 ### Tests
 
+Every suite talks to the real BuddyPro, and **each request costs credits**, so run them
+deliberately rather than on a loop.
+
 ```bash
-npm run smoke             # gate + security headers, no BuddyPro spend
-LIVE=1 npm run smoke      # also spends one real BuddyPro call
+npm run smoke             # gate + security headers only, no BuddyPro spend
+LIVE=1 npm run smoke      # adds one real BuddyPro call
 npm run shots             # screenshots at 4 viewports + overflow detection
 npm run shots:extra       # chat, call and history views, with assertions
 npm run test:embed        # THE important one - see below
@@ -207,8 +192,8 @@ POST /api/chat with no session      401
 POST /api/session from evil.com     403
 ```
 
-**Production refuses to start unsafely:** `MEMBER_GATE_MODE=open` and `BUDDYPRO_MOCK=true` are
-both rejected by `lib/config.js` when `NODE_ENV=production`.
+**Production refuses to start unsafely:** `MEMBER_GATE_MODE=open` is rejected by
+`lib/config.js` when `NODE_ENV=production`.
 
 ### Two things that are not bugs but are your decision
 
@@ -597,22 +582,6 @@ different voice from Telegram.
 The app requests `modalities:['text','audio']` on every voice turn regardless and falls back to
 the device voice when none arrives, so **Kris's real voice appears with no code change** the
 moment BuddyPro returns audio again. Re-check any time with `npm run probe:audio`.
-
-### Attachments
-
-The paperclip takes **pictures** - JPEG, PNG, WebP and GIF, up to five per message and 3 MB
-each - previewed above the composer before sending, removable individually, and shown inside
-the member's own bubble afterwards. They travel as data URLs, because a remote URL is refused
-upstream with `invalid_media_data`.
-
-Verified working on this instance: a real photo came back described correctly ("a woman with
-dark hair in a sage green dress sitting relaxed on a couch"). An earlier test that appeared to
-show images failing had sent a 1x1 pixel PNG - the same mistake as testing audio with a
-synthetic tone.
-
-**Documents are not supported**, and that is BuddyPro's API rather than a choice here: it
-documents `image_url` and `input_audio`, and nothing else. Anything that is not one of the four
-image types is rejected in the composer with a reason, rather than silently dropped.
 
 ### Chat history
 

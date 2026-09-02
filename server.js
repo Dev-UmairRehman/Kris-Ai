@@ -62,9 +62,8 @@ app.use((req, res, next) => {
   next();
 });
 
-/* Audio and pictures arrive base64. The picture caps below are set to stay
-   inside this, so an over-large request gets a clear error rather than a bare
-   413 from body-parser. */
+/* Voice messages arrive as base64 audio, so the body limit has to be generous.
+   A 60s turn is roughly 2.5MB. */
 app.use(express.json({ limit: '12mb' }));
 
 /* Static assets only. The HTML never lives under /public, so there is no
@@ -94,7 +93,6 @@ app.get('/healthz', (req, res) => {
     uscreenConfigured: !!(config.uscreen.apiBase && config.uscreen.apiKey),
     voiceEnabled: config.voiceEnabled,
     responseLanguage: config.responseLanguage,
-    buddyproMock: config.buddypro.mock,
   });
 });
 
@@ -324,37 +322,6 @@ app.post('/api/chat', async (req, res) => {
       : config.responseLanguage;
   const audio = typeof req.body?.audio === 'string' ? req.body.audio : null;
 
-  /* Attachments. BuddyPro documents images (max 5) and audio, nothing else, and
-     images are verified working on this instance. Data URLs only - a remote URL
-     is refused upstream with invalid_media_data - and the shape is checked here
-     rather than trusted. */
-  const IMAGE_URL = new RegExp("^data:image/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$");
-  const MAX_IMAGES = 5;
-  const MAX_IMAGE_CHARS = 2 * 1024 * 1024; // ~1.5MB of picture each
-  const MAX_IMAGE_TOTAL = 9 * 1024 * 1024; // stay inside the body limit
-
-  let images = [];
-  if (Array.isArray(req.body?.images)) {
-    images = req.body.images
-      .filter((u) => typeof u === 'string' && IMAGE_URL.test(u) && u.length <= MAX_IMAGE_CHARS)
-      .slice(0, MAX_IMAGES);
-
-    /* Say why, rather than letting body-parser answer with a bare 413. */
-    const total = images.reduce((n, u) => n + u.length, 0);
-    if (total > MAX_IMAGE_TOTAL) {
-      return res.status(413).json({
-        error: 'Those pictures are too large together. Send fewer, or smaller ones.',
-      });
-    }
-
-    if (images.length !== req.body.images.length) {
-      console.warn(
-        '[chat] dropped %d attachment(s): not a supported image, or too large',
-        req.body.images.length - images.length
-      );
-    }
-  }
-
   const wantAudio = req.body?.wantAudio === true;
 
   /* BuddyPro accepts exactly these input formats. Anything else is rejected
@@ -379,7 +346,7 @@ app.post('/api/chat', async (req, res) => {
   }
   const audioFormat = requestedFormat;
 
-  if (!message.trim() && !audio && !images.length) {
+  if (!message.trim() && !audio) {
     return res.status(400).json({ error: 'Empty message.' });
   }
   if (message.length > buddypro.MAX_TEXT_CHARS) {
@@ -387,9 +354,8 @@ app.post('/api/chat', async (req, res) => {
   }
 
   console.log(
-    '[chat] in: audio=%s bytes, images=%d, text=%d chars, wantAudio=%s',
+    '[chat] in: audio=%s bytes, text=%d chars, wantAudio=%s',
     audio ? audio.length : 0,
-    images.length,
     message.length,
     wantAudio
   );
@@ -420,7 +386,6 @@ app.post('/api/chat', async (req, res) => {
         wantAudio,
         audioInput: audio,
         audioFormat,
-        images,
         intent,
       });
     } catch (audioErr) {
