@@ -101,6 +101,10 @@
   var recSend = document.getElementById('recSend');
   var recCancel = document.getElementById('recCancel');
 
+  var attachBtn = document.getElementById('attachBtn');
+  var attachInput = document.getElementById('attachInput');
+  var attachments = document.getElementById('attachments');
+
   var isEmbed = app.getAttribute('data-mode') === 'embed';
   var busy = false;
   var inThread = false;
@@ -945,8 +949,14 @@
     var options = opts || {};
     var message = (text || '').trim();
     if (busy) return Promise.resolve(null);
-    /* A voice message can carry audio even with no usable transcript. */
-    if (!message && !options.audio) return Promise.resolve(null);
+
+    /* Pictures picked in the composer ride along with a typed message. A voice
+       turn carries audio instead, and never attachments. */
+    var shots = options.audio ? [] : pending_attachments.slice();
+
+    /* A voice message can carry audio with no usable transcript, and a picture
+       can be sent with no words at all. */
+    if (!message && !options.audio && !shots.length) return Promise.resolve(null);
 
     hideNotice();
     enterThread();
@@ -963,8 +973,24 @@
         });
         recordTurn('me', message);
       } else {
-        addTurn('me', message);
+        var mine = addTurn('me', message || 'Have a look at this.');
+        if (shots.length) {
+          var strip = document.createElement('div');
+          strip.className = 'bubble__shots';
+          shots.forEach(function (item) {
+            var img = document.createElement('img');
+            img.src = item.url;
+            img.alt = item.name || '';
+            strip.appendChild(img);
+          });
+          mine.turn.querySelector('.bubble').appendChild(strip);
+        }
       }
+    }
+
+    if (shots.length) {
+      pending_attachments = [];
+      paintAttachments();
     }
     input.value = '';
     armSend();
@@ -977,6 +1003,11 @@
       audio: options.audio || undefined,
       audioFormat: options.audio ? options.audioFormat || 'wav' : undefined,
       intent: options.intent || undefined,
+      images: shots.length
+        ? shots.map(function (item) {
+            return item.url;
+          })
+        : undefined,
       wantAudio: options.wantAudio === true,
     })
       .then(function (res) {
@@ -1050,7 +1081,8 @@
   }
 
   function armSend() {
-    sendBtn.classList.toggle('is-armed', input.value.trim().length > 0);
+    var ready = input.value.trim().length > 0 || pending_attachments.length > 0;
+    sendBtn.classList.toggle('is-armed', ready);
   }
   input.addEventListener('input', armSend);
 
@@ -1058,6 +1090,113 @@
     enterThread();
     input.focus();
     scrollToEnd();
+  });
+
+  /* ---- attachments ------------------------------------------------------
+     BuddyPro's API takes images (up to five) and audio, and nothing else - no
+     documents, no PDFs. Images are verified working on this instance: a real
+     photo came back described correctly. They travel as data URLs, because a
+     remote URL is refused upstream with invalid_media_data.
+     -------------------------------------------------------------------- */
+
+  var MAX_ATTACHMENTS = 5;
+  var MAX_ATTACHMENT_BYTES = 3 * 1024 * 1024;
+  var pending_attachments = [];
+
+  function paintAttachments() {
+    attachments.textContent = '';
+    attachments.hidden = pending_attachments.length === 0;
+
+    pending_attachments.forEach(function (item, index) {
+      var wrap = document.createElement('div');
+      wrap.className = 'attachment';
+
+      var img = document.createElement('img');
+      img.src = item.url;
+      img.alt = item.name || 'Attachment';
+      wrap.appendChild(img);
+
+      var remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'attachment__remove';
+      remove.setAttribute('aria-label', 'Remove ' + (item.name || 'attachment'));
+      remove.innerHTML =
+        '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+        'stroke-width="3" stroke-linecap="round" aria-hidden="true">' +
+        '<path d="M6 6l12 12M18 6L6 18"/></svg>';
+      remove.addEventListener('click', function () {
+        pending_attachments.splice(index, 1);
+        paintAttachments();
+        armSend();
+      });
+      wrap.appendChild(remove);
+
+      attachments.appendChild(wrap);
+    });
+  }
+
+  function readAsDataUrl(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        resolve(String(reader.result));
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  attachBtn.addEventListener('click', function () {
+    attachInput.click();
+  });
+
+  attachInput.addEventListener('change', function () {
+    var files = Array.prototype.slice.call(attachInput.files || []);
+    /* Reset immediately so picking the same file twice still fires a change. */
+    attachInput.value = '';
+    if (!files.length) return;
+
+    var room = MAX_ATTACHMENTS - pending_attachments.length;
+    if (room <= 0) {
+      showNotice('Up to ' + MAX_ATTACHMENTS + ' pictures per message.');
+      return;
+    }
+
+    var rejected = [];
+    var accepted = [];
+
+    files.forEach(function (file) {
+      if (accepted.length >= room) {
+        rejected.push(file.name + ' (over ' + MAX_ATTACHMENTS + ')');
+        return;
+      }
+      if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type)) {
+        /* Be specific: BuddyPro takes pictures, not documents. */
+        rejected.push(file.name + ' (only JPEG, PNG, WebP and GIF)');
+        return;
+      }
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        rejected.push(file.name + ' (over 3 MB)');
+        return;
+      }
+      accepted.push(file);
+    });
+
+    if (rejected.length) showNotice('Not attached: ' + rejected.join('; ') + '.');
+    else hideNotice();
+
+    Promise.all(accepted.map(readAsDataUrl))
+      .then(function (urls) {
+        urls.forEach(function (url, i) {
+          pending_attachments.push({ url: url, name: accepted[i].name });
+        });
+        paintAttachments();
+        armSend();
+        input.focus({ preventScroll: true });
+      })
+      .catch(function () {
+        showNotice('Those pictures could not be read.');
+      });
   });
 
   /* ---- speech engine ----------------------------------------------------
@@ -1330,7 +1469,7 @@
     recording = state;
 
     form.classList.add('is-recording');
-    recTime.textContent = '0:00';
+    recTime.textContent = '00:00';
     /* Belt and braces: clear anything a previous turn might have left running. */
     if (window.__krisRecTickers) {
       window.__krisRecTickers.forEach(function (id) {
@@ -1340,14 +1479,9 @@
     window.__krisRecTickers = [];
     hideNotice();
 
-    /* Level trace. */
-    recWave.textContent = '';
-    var bars = [];
-    for (var i = 0; i < 30; i++) {
-      var bar = document.createElement('i');
-      recWave.appendChild(bar);
-      bars.push(bar);
-    }
+    /* Level trace, drawn on a canvas: fine bars, dense enough to read as a
+       waveform rather than an equaliser, scrolling as it records. */
+    var levels = [];
 
     state.ticker = setInterval(function () {
       /* Only the live recording may write the clock. */
@@ -1355,7 +1489,7 @@
         clearInterval(state.ticker);
         return;
       }
-      recTime.textContent = formatSeconds((Date.now() - state.startedAt) / 1000);
+      recTime.textContent = formatClock(Math.floor((Date.now() - state.startedAt) / 1000));
     }, 250);
     window.__krisRecTickers.push(state.ticker);
 
@@ -1392,25 +1526,43 @@
               source.connect(state.analyser);
 
               var buffer = new Uint8Array(state.analyser.fftSize);
-              var levels = [];
+              var BAR = 2;
+              var GAP = 1;
+
               var draw = function () {
-                if (!recording || !state.analyser) return;
+                if (!recording || recording !== state || !state.analyser) return;
+
                 state.analyser.getByteTimeDomainData(buffer);
                 var sum = 0;
                 for (var n = 0; n < buffer.length; n++) {
                   var d = (buffer[n] - 128) / 128;
                   sum += d * d;
                 }
-                var rms = Math.sqrt(sum / buffer.length);
-                levels.push(rms);
-                while (levels.length > bars.length) levels.shift();
+                levels.push(Math.sqrt(sum / buffer.length));
 
-                for (var b = 0; b < bars.length; b++) {
-                  var v = levels[levels.length - bars.length + b] || 0;
-                  var h = Math.max(3, Math.min(22, v * 70));
-                  bars[b].style.height = h.toFixed(1) + 'px';
-                  bars[b].classList.toggle('is-hot', v > 0.04);
+                var dpr = window.devicePixelRatio || 1;
+                var w = recWave.clientWidth || 200;
+                var h = recWave.clientHeight || 26;
+                if (recWave.width !== Math.round(w * dpr)) recWave.width = Math.round(w * dpr);
+                if (recWave.height !== Math.round(h * dpr)) recWave.height = Math.round(h * dpr);
+
+                var slots = Math.max(8, Math.floor(w / (BAR + GAP)));
+                while (levels.length > slots) levels.shift();
+
+                var ctx = recWave.getContext('2d');
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                ctx.clearRect(0, 0, w, h);
+
+                var mid = h / 2;
+                for (var b = 0; b < slots; b++) {
+                  var v = levels[b];
+                  /* Slots not yet reached stay as a flat hairline, so the trace
+                     reads as progress rather than an empty box. */
+                  var height = v === undefined ? 1.5 : Math.max(1.5, Math.min(h, v * h * 3.2));
+                  ctx.fillStyle = v === undefined ? 'rgba(125,125,125,0.35)' : 'rgba(70,78,86,0.9)';
+                  ctx.fillRect(b * (BAR + GAP), mid - height / 2, BAR, height);
                 }
+
                 state.raf = requestAnimationFrame(draw);
               };
               state.raf = requestAnimationFrame(draw);
@@ -1734,6 +1886,11 @@
     '/static/assets/greeting.oga',
     '/static/assets/greeting.m4a',
     '/static/assets/greeting.wav',
+    /* Whatever name it was dropped in under. */
+    '/static/assets/note.mp3',
+    '/static/assets/note.ogg',
+    '/static/assets/welcome.mp3',
+    '/static/assets/welcome.ogg',
   ];
 
   /** Resolves true when a recorded greeting existed and started playing. */

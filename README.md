@@ -551,6 +551,22 @@ The app requests `modalities:['text','audio']` on every voice turn regardless an
 the device voice when none arrives, so **Kris's real voice appears with no code change** the
 moment BuddyPro returns audio again. Re-check any time with `npm run probe:audio`.
 
+### Attachments
+
+The paperclip takes **pictures** - JPEG, PNG, WebP and GIF, up to five per message and 3 MB
+each - previewed above the composer before sending, removable individually, and shown inside
+the member's own bubble afterwards. They travel as data URLs, because a remote URL is refused
+upstream with `invalid_media_data`.
+
+Verified working on this instance: a real photo came back described correctly ("a woman with
+dark hair in a sage green dress sitting relaxed on a couch"). An earlier test that appeared to
+show images failing had sent a 1x1 pixel PNG - the same mistake as testing audio with a
+synthetic tone.
+
+**Documents are not supported**, and that is BuddyPro's API rather than a choice here: it
+documents `image_url` and `input_audio`, and nothing else. Anything that is not one of the four
+image types is rejected in the composer with a reason, rather than silently dropped.
+
 ### Chat history
 
 **New chat** sits at the top of the drawer. It clears the view and lets the next message open a

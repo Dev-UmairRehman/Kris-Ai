@@ -137,7 +137,16 @@ function installStub() {
   const browser = await puppeteer.launch({
     executablePath: CHROME,
     headless: true,
-    args: ['--no-sandbox', '--disable-gpu', '--hide-scrollbars'],
+    args: [
+      '--no-sandbox',
+      '--disable-gpu',
+      '--hide-scrollbars',
+      /* The recorder really records, so it needs a device and an auto-granted
+         permission - without these getUserMedia fails and the trace never draws. */
+      '--use-fake-ui-for-media-stream',
+      '--use-fake-device-for-media-stream',
+      '--autoplay-policy=no-user-gesture-required',
+    ],
   });
 
   let page = await browser.newPage();
@@ -162,7 +171,9 @@ function installStub() {
   check('the microphone is offered when speech is supported', micVisible);
 
   await page.click('#micBtn');
-  await wait(500);
+  /* Long enough for getUserMedia, the audio graph and the first frames of the
+     trace - measuring at 500ms was testing the setup, not the feature. */
+  await wait(1800);
 
   const mid = await page.evaluate(() => ({
     recordingUi: document.getElementById('form').classList.contains('is-recording'),
@@ -170,7 +181,15 @@ function installStub() {
     sendShown: getComputedStyle(document.getElementById('recSend')).display !== 'none',
     cancelShown: getComputedStyle(document.getElementById('recCancel')).display !== 'none',
     timer: document.getElementById('recTime').textContent,
-    bars: document.querySelectorAll('#recWave i').length,
+    /* The trace is a canvas now, so count painted pixels rather than nodes. */
+    painted: (() => {
+      const c = document.getElementById('recWave');
+      if (!c || !c.getContext) return 0;
+      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      let n = 0;
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++;
+      return n;
+    })(),
     started: window.__speech.started,
     noticeShown: document.getElementById('notice').classList.contains('is-shown'),
     turns: document.querySelectorAll('.turn--me').length,
@@ -179,7 +198,7 @@ function installStub() {
   check('recognition actually started', mid.started === 1, 'started=' + mid.started);
   check('the composer becomes the recorder', mid.recordingUi && mid.inputHidden);
   check('send and cancel are offered', mid.sendShown && mid.cancelShown);
-  check('a level trace is drawn', mid.bars > 0, 'bars=' + mid.bars);
+  check('a level trace is drawn', mid.painted > 100, 'painted=' + mid.painted);
   check('no instruction text is shown', !mid.noticeShown);
 
   /* A pause must NOT send it - the member decides, like a messenger. */
