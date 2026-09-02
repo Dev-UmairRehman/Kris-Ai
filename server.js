@@ -247,7 +247,7 @@ function mask(email) {
 
 /* ---- pages -------------------------------------------------------------- */
 
-/* Bare widget, for the iframe on strategytraining.com/delphi.
+/* Bare widget, for the iframe on the Kris AI Memory page.
    Always served as HTML: a 302 here would render the join page inside the
    iframe, which reads as a broken embed. The page itself shows the gate and
    links out with target="_top". */

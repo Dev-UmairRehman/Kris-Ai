@@ -40,10 +40,10 @@ function check(label, ok, detail) {
 }
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/* A stand-in for the Uscreen /delphi page: the iframe plus the bridge that
+/* A stand-in for the Uscreen Kris AI Memory page: the iframe plus the bridge that
    answers the widget's request for the signed-in member. */
 const PARENT_HTML = `<!doctype html>
-<html><head><meta charset="utf-8"><title>Fake Uscreen /delphi</title>
+<html><head><meta charset="utf-8"><title>Fake Uscreen Kris AI Memory page</title>
 <style>body{margin:0;font-family:system-ui}header{background:#16323f;color:#fff;padding:14px 20px}
 .embed{width:100%;height:78vh;border:0;display:block}</style></head>
 <body>

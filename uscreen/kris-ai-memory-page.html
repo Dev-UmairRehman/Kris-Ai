@@ -68,8 +68,8 @@
   var WIDGET_ORIGIN = 'https://kris-ai-memory-baefm.ondigitalocean.app';
 
   /* The widget tells us when it has gated a visitor, so the page can explain
-     itself rather than showing a silent box. Uscreen already hides /delphi from
-     non-subscribers, so this is a belt-and-braces path. */
+     itself rather than showing a silent box. The page itself is public - login state is what
+     the gate checks, so this is a belt-and-braces path. */
   window.addEventListener('message', function (event) {
     if (event.origin !== WIDGET_ORIGIN) return;
     var data = event.data;

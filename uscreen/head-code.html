@@ -240,8 +240,10 @@
     });
   });
 
-  /* Warm the lookup so the answer is ready the moment the widget asks. */
-  if (location.pathname.replace(/\/+$/, '') === '/delphi') {
+  /* Warm the lookup so the answer is ready the moment the widget asks. Keyed on
+     the widget being present rather than on a page slug, so renaming or moving
+     the Kris AI Memory page does not quietly disable this. */
+  if (document.querySelector('iframe[src*="' + WIDGET_ORIGIN + '"]')) {
     resolveIdentity();
   }
 })();

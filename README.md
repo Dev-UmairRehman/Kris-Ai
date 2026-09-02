@@ -1,7 +1,9 @@
 # Kris AI Memory
 
-Kris AI Memory - a self-hosted clone of the Delphi chat page at `strategytraining.com/delphi`, backed by
-BuddyPro instead of Delphi, gated to signed-in StrategyTraining members, and deployable to
+Kris AI Memory — a self-hosted chat page for StrategyTraining.com, **backed by BuddyPro**.
+It is visually modelled on the Delphi widget at `strategytraining.com/delphi`, but shares no
+code or service with it: Kris AI (the existing page) is Delphi; **Kris AI Memory is BuddyPro**.
+Gated to signed-in StrategyTraining members, and deployable to
 DigitalOcean App Platform.
 
 The visual reference is the **live `/delphi` widget inside the StrategyTraining storefront**
@@ -17,7 +19,7 @@ One codebase, two routes:
 
 | Route | Purpose |
 | --- | --- |
-| `/embed` | Bare widget. Goes in an iframe on the Uscreen `/delphi` page. No header or footer — Uscreen supplies those. |
+| `/embed` | Bare widget. Goes in an iframe on the Uscreen Kris AI Memory page. No header or footer — Uscreen supplies those. |
 | `/` | Standalone route. Same widget, reachable with a handoff token. |
 | `/api/session` | Exchanges a store identity claim for a signed session cookie. |
 | `/api/chat` | One question in, one answer out. |
@@ -60,16 +62,22 @@ GET /embed  -> 200   (with Sec-Fetch-Dest: iframe from strategytraining.com)
 | Mode | Behaviour | Use when |
 | --- | --- | --- |
 | `strict` | Every visitor is verified against the Uscreen API. Requires `USCREEN_API_BASE` + `USCREEN_API_KEY`. | Production, once you have the Uscreen key. **Recommended.** |
-| `frame` | Being inside the members-only `/delphi` iframe is treated as proof. No Uscreen key needed. | Right now — there is no Uscreen key yet. |
+| `frame` | Framed by strategytraining.com **and** the head-code snippet reports someone signed in. No Uscreen key needed. | Right now — there is no Uscreen key yet. |
 | `open` | No gate. Refused in production by `lib/config.js`. | Local development only. |
 
 `strict` refuses to start without a Uscreen key, rather than silently denying every visitor.
 
-**Current setting is `frame`,** because no Uscreen API key has been supplied yet. That means
-membership is *inferred* from the iframe host rather than verified. Uscreen already hides
-`/delphi` from non-subscribers, so the practical exposure is small, but a determined person
-with `curl` could forge the `Referer` and reach the chat. Switch to `strict` as soon as you
-have the key — it is a two-value env change, no code.
+**Current setting is `frame`,** because no Uscreen API key has been supplied yet. Two things
+must both hold: the request is framed by strategytraining.com, and the head-code snippet says
+someone is signed in (`REQUIRE_STORE_IDENTITY=true`). It fails closed — no snippet, no answer,
+no session.
+
+A Uscreen landing page is **public**, so the frame alone proves nothing; the snippet's claim is
+what carries the gate. That claim is made in the browser, so someone already on
+strategytraining.com with the dev console open could assert it by hand. The CSP
+`frame-ancestors` rule keeps the widget from loading anywhere else, and the rate limits cap
+what any one of them could spend. Switch to `strict` as soon as you have the key — it is a
+two-value env change, no code — and the claim is then verified against Uscreen directly.
 
 ### To switch to `strict`
 
@@ -236,21 +244,26 @@ If you scale out, divide `RATE_GLOBAL_PER_MIN` by the instance count.
 
 ## Wiring it into Uscreen
 
-Two files in `uscreen/`. Replace `kris-ai-REPLACE.ondigitalocean.app` with the real
-deployed origin in **both**.
+Two files in `uscreen/`. The deployed origin is already filled in — nothing to replace.
+**Both are mandatory, in this order.**
 
-1. **`uscreen/delphi-page-embed.html`** → the `/delphi` page's Custom HTML block, replacing
-   the Delphi embed. Uscreen's editor canvas does not render Custom HTML; use *Preview page*.
-2. **`uscreen/head-code.html`** → *Settings → Snippets → Head Code*. **Add to** the existing
-   block; do not replace it — the gift-card and sub-nav snippets in
-   `../head-code-COMBINED.html` must stay.
+1. **`uscreen/head-code.html`** → *Settings → Snippets → Head Code*. **Append** to whatever is
+   in that box; do not replace it — the gift-card and sub-nav snippets already there must stay.
+   This is what grants access: without it every visitor, member or not, sees the sign-in screen.
+2. **`uscreen/kris-ai-memory-page.html`** → *Marketing → Website → Landing Pages → + New page*,
+   name it *Kris AI Memory*, add a **Custom HTML** block, paste the whole file, Publish.
+   Uscreen's editor canvas does not render Custom HTML; use *Preview page*, in a normal (not
+   incognito) tab so you are signed in.
+
+Then add the nav link to that page. Non-members will see the link, open the page, and get the
+sign-in screen with **Join** and **Sign in** buttons — the behaviour you asked for.
 
 The head snippet is the identity bridge. The widget cannot read the Uscreen session cookie
 across domains, so the store page tells it who is signed in:
 
 ```
 widget -> parent :  { type: 'kris-ai:ready' }
-parent -> widget :  { type: 'st-kris:identity', email, uscreenId }
+parent -> widget :  { type: 'st-kris:identity', signedIn, email, uscreenId }
 ```
 
 Both sides post to an explicit origin, never `'*'`.
@@ -263,7 +276,7 @@ same-origin authenticated JSON endpoints. It logs which source worked:
 [st-kris] identity via fetch /api/v1/users/me
 ```
 
-**Open the console on `/delphi` and send me that line.** Once we know which source your store
+**Open the console on your Kris AI Memory page and send me that line.** Once we know which source your store
 exposes, the lookup gets pinned to it and the guessing goes away. If none work you will see a
 `[st-kris] could not determine the signed-in member` warning, and the gate falls back to
 whatever `MEMBER_GATE_MODE` allows.

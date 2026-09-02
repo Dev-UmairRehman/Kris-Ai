@@ -117,7 +117,7 @@ services:
         value: ""
 
       # strict = verify every visitor against Uscreen (requires the two above)
-      # frame  = trust the members-only /delphi iframe (no Uscreen key needed)
+      # frame  = trust the head-code snippet's signed-in claim (no Uscreen key)
       - key: MEMBER_GATE_MODE
         scope: RUN_TIME
         value: frame
