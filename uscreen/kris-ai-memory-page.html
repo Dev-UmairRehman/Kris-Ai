@@ -104,6 +104,9 @@
          padding, the admin bar - without having to know what any of it is or
          how tall it happens to be today. It converges in one or two passes;
          the third is a guard. */
+      /* Visible again if a navigation had hidden it - see below. */
+      box.style.visibility = '';
+
       for (var pass = 0; pass < 4; pass++) {
         var applied = Math.max(MIN_HEIGHT, Math.round(height));
         box.style.height = applied + 'px';
@@ -123,6 +126,20 @@
       fitting = false;
     }
   }
+
+  /* Uscreen swaps pages with Turbo, without a reload. A cross-origin iframe can
+     keep painting for a frame or two after its container has gone, which looks
+     like the widget floating over the top of the next page. Hiding it the moment
+     a navigation begins costs nothing and removes that; fit() clears the flag if
+     we come back. */
+  function hideWhileLeaving() {
+    var box = document.querySelector('.kris-ai-embed');
+    if (box) box.style.visibility = 'hidden';
+  }
+  document.addEventListener('turbo:before-visit', hideWhileLeaving);
+  document.addEventListener('turbo:visit', hideWhileLeaving);
+  document.addEventListener('turbo:before-render', hideWhileLeaving);
+  window.addEventListener('pagehide', hideWhileLeaving);
 
   fit();
   if (document.readyState === 'loading') {

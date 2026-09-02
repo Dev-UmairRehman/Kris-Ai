@@ -391,6 +391,22 @@ function serve() {
     'inline=' + fitted.inline + ' computed=' + fitted.computed + ' (CSS min-height is overriding it)'
   );
 
+  /* Leaving the page must take the widget with it, so a stale frame cannot be
+     painted over whatever comes next. */
+  const leaving = await page.evaluate(() => {
+    document.dispatchEvent(new Event('turbo:before-visit'));
+    const box = document.querySelector('.kris-ai-embed');
+    return getComputedStyle(box).visibility;
+  });
+  check('it hides itself when a navigation starts', leaving === 'hidden', 'visibility=' + leaving);
+
+  const coming = await page.evaluate(() => {
+    document.dispatchEvent(new Event('turbo:load'));
+    const box = document.querySelector('.kris-ai-embed');
+    return getComputedStyle(box).visibility;
+  });
+  check('...and comes back if we return to it', coming === 'visible', 'visibility=' + coming);
+
   let id = await identityFrom(page);
   check('the widget gets an answer anyway', !!id, JSON.stringify(id));
   check('it is the identity message', id && id.type === 'st-kris:identity', JSON.stringify(id));
