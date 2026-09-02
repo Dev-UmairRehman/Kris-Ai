@@ -38,7 +38,11 @@
     "challenges, or preparing for consulting, I'll guide you with practical insights and " +
     'proven frameworks. How can I help you today?';
 
-  var IDENTITY_WAIT_MS = 1200;
+  /* How long to wait for the store page to say who is signed in. It may have
+     to ask Uscreen, which is a network round trip, so 1200ms was too tight -
+     a member on a slow connection saw the sign-in screen. A late answer is
+     also retried, see listenForLateIdentity. */
+  var IDENTITY_WAIT_MS = 4000;
   var HISTORY_KEY = 'kris_ai_history_v1';
   var BUDGET_KEY = 'kris_ai_call_seconds_v1';
   var HISTORY_MAX = 100;
@@ -520,10 +524,15 @@
       if (forced) return showGate(forced);
     }
 
-    requestIdentity()
-      .then(function (identity) {
-        return api('/api/session', identity);
-      })
+    listenForLateIdentity();
+    requestIdentity().then(attemptSession);
+  }
+
+  var sessionAttempts = 0;
+
+  function attemptSession(identity) {
+    sessionAttempts++;
+    return api('/api/session', identity)
       .then(function (res) {
         if (res.ok && res.data && res.data.ok) {
           sessionToken = res.data.token || null;
@@ -539,13 +548,46 @@
               fullPageUrl: location.origin + '/?t=' + encodeURIComponent(handoffToken),
             });
           }
-          return;
+          return true;
         }
         showGate(res.data && res.data.reason);
+        return false;
       })
       .catch(function () {
         showGate('verification_unavailable');
+        return false;
       });
+  }
+
+  /* The store page can take longer than IDENTITY_WAIT_MS to work out who is
+     signed in - on this store it has to ask Uscreen, which is a round trip. So
+     the sign-in screen is not final: keep listening, and if a signed-in answer
+     turns up late, try again rather than leaving a member staring at it.
+
+     Capped, so a page that keeps re-posting cannot drive requests in a loop. */
+  var LATE_IDENTITY_TRIES = 3;
+
+  function listenForLateIdentity() {
+    if (!isEmbed || window.parent === window) return;
+
+    window.addEventListener('message', function (event) {
+      if (allowedParents().indexOf(event.origin) === -1) return;
+
+      var data = event.data;
+      if (!data || data.type !== 'st-kris:identity') return;
+      if (data.signedIn !== true) return;
+      /* Only interesting if we already gave up and showed the gate. */
+      if (!app.classList.contains('is-gated')) return;
+      if (sessionAttempts >= LATE_IDENTITY_TRIES) return;
+
+      app.classList.remove('is-gated');
+      app.classList.add('is-booting');
+      attemptSession({
+        signedIn: true,
+        email: typeof data.email === 'string' ? data.email : '',
+        uscreenId: data.uscreenId != null ? String(data.uscreenId) : '',
+      });
+    });
   }
 
   /* ---- suggestions ------------------------------------------------------ */

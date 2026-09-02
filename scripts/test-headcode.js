@@ -76,8 +76,11 @@ const WIDGET_STUB =
   "parent.postMessage({ type: 'kris-ai:ready' }, '*');" +
   '<\/script></body></html>';
 
-/* `signedIn` controls whether Uscreen's logged-out marker (the /sign_in link)
-   is rendered - the signal both the routing block and the bridge read. */
+/* The store's chrome, reproducing the trap that broke the first attempt: an
+   <a href="/sign_in"> is present EVEN WHEN SIGNED IN (it lives in a menu), while
+   the visible Sign in control is a <ds-button> and only appears when signed out.
+   So "no sign-in link means signed in" reads every member as a visitor. Nothing
+   here may infer login state from the DOM - it must ask /account. */
 function chrome(signedIn) {
   return (
     '<header>header</header>' +
@@ -85,7 +88,9 @@ function chrome(signedIn) {
     '<div class="w-full border-b border-ds-default bg-ds-main overflow-x-auto z-[20]">' +
     'Browse Favorites Playlists</div>' +
     '<nav>' +
-    (signedIn ? '' : '<a href="/sign_in">Sign in</a>') +
+    /* always present, signed in or not - this is the trap */
+    '<a class="block py-2" href="/sign_in">Sign in</a>' +
+    (signedIn ? '' : '<ds-button href="/sign_in">Sign in</ds-button>') +
     /* the nav stores absolute URLs, as the real one does */
     '<a id="navDelphi" href="https://www.strategytraining.com' + DELPHI_PATH + '">Kris AI</a>' +
     '<a id="navMemory" href="https://www.strategytraining.com' + MEMORY_PATH + '">Kris AI Memory</a>' +
@@ -117,18 +122,44 @@ function landing(signedIn) {
   );
 }
 
+/* Uscreen's own answer, as measured on the live store: 401 with a JSON body for
+   a visitor, 200 for a member. The member's email comes back with it, which is
+   what names their memory thread. */
+const MEMBER_EMAIL = 'member@strategytraining.com';
+
+function accountResponse(signedIn) {
+  if (!signedIn) return { status: 401, body: '[]' };
+  return {
+    status: 200,
+    body: JSON.stringify({ user: { id: 4242, email: MEMBER_EMAIL } }),
+  };
+}
+
 function serve() {
   return http.createServer((req, res) => {
     const url = new URL(req.url, ORIGIN);
     const p = url.pathname.replace(/\/+$/, '') || '/';
-    const signedIn = url.searchParams.get('signedIn') === '1';
+
+    /* The page is served with ?signedIn=1; its later fetches have no query, so
+       carry the state in a cookie the way a real session would. */
+    const cookie = req.headers.cookie || '';
+    const signedIn =
+      url.searchParams.get('signedIn') === '1' || /(^|;\s*)fake_member=1/.test(cookie);
+
+    if (p === '/account') {
+      const a = accountResponse(signedIn);
+      res.writeHead(a.status, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(a.body);
+    }
 
     if (p === '/join') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       return res.end('<!doctype html><title>Join</title><h1>Join</h1>');
     }
 
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    const headers = { 'Content-Type': 'text/html; charset=utf-8' };
+    if (signedIn) headers['Set-Cookie'] = 'fake_member=1; Path=/';
+    res.writeHead(200, headers);
     res.end(p === MEMORY_PATH ? landing(signedIn) : storefront(signedIn));
   });
 }
@@ -151,6 +182,18 @@ function serve() {
     console.error('The identity bridge is missing from the page snippet.');
     process.exit(1);
   }
+  /* The DOM cannot tell you who is signed in on this store - see chrome(). */
+  for (const [name, src] of [['head-code.html', HEAD], ['the page snippet', PAGE]]) {
+    if (/querySelector\(\s*'a\[href="\/sign_in"\]/.test(src)) {
+      console.error(name + ' infers login state from a /sign_in link in the DOM.');
+      console.error('This store keeps that link when signed in - ask /account instead.');
+      process.exit(1);
+    }
+    if (!/fetch\('\/account'/.test(src)) {
+      console.error(name + ' does not ask Uscreen /account for login state.');
+      process.exit(1);
+    }
+  }
 
   const server = serve();
   await new Promise((r) => server.listen(PORT, '127.0.0.1', r));
@@ -166,6 +209,10 @@ function serve() {
   async function open(pathname, signedIn) {
     const page = await browser.newPage();
     page.on('pageerror', (e) => errors.push(pathname + ': ' + e.message));
+    /* Pages share one cookie jar, so a previous signed-in case would otherwise
+       leak its session into the signed-out ones. */
+    const cdp = await page.target().createCDPSession();
+    await cdp.send('Network.clearBrowserCookies');
     /* Serve the widget origin from the stub, so the bridge's pinned-origin
        check is exercised for real rather than relaxed. */
     await page.setRequestInterception(true);
@@ -183,11 +230,18 @@ function serve() {
       if (r.url().startsWith(REAL_ORIGIN)) {
         const u = new URL(r.url());
         const rp = u.pathname.replace(/\/+$/, '') || '/';
-        const rSignedIn = signedIn;
+        if (rp === '/account') {
+          const a = accountResponse(signedIn);
+          return r.respond({
+            status: a.status,
+            contentType: 'application/json; charset=utf-8',
+            body: a.body,
+          });
+        }
         return r.respond({
           status: 200,
           contentType: 'text/html; charset=utf-8',
-          body: rp === MEMORY_PATH ? landing(rSignedIn) : storefront(rSignedIn),
+          body: rp === MEMORY_PATH ? landing(signedIn) : storefront(signedIn),
         });
       }
       r.continue();
@@ -245,6 +299,12 @@ function serve() {
   check('the widget gets an answer anyway', !!id, JSON.stringify(id));
   check('it is the identity message', id && id.type === 'st-kris:identity', JSON.stringify(id));
   check('a signed-in member is reported', id && id.signedIn === true, JSON.stringify(id));
+  check(
+    'the email comes through, so memory is per-member',
+    id && id.email === MEMBER_EMAIL,
+    JSON.stringify(id)
+  );
+  check('and the Uscreen id too', id && String(id.uscreenId) === '4242', JSON.stringify(id));
   await page.close();
 
   console.log('\npage snippet: the same page, logged out');

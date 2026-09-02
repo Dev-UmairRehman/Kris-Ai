@@ -159,11 +159,25 @@
        logged in, no sub        -> /join   (Uscreen bounces them, we catch it)
        logged in, subscriber    -> the page (untouched)
 
-     Uscreen renders a /sign_in link only for logged-out visitors, so that is
-     the logged-out test. For a logged-in non-subscriber there is no client
-     signal, so we set a short-lived flag on click: if they end up anywhere
-     other than a Kris page within 12s, Uscreen rejected them and we send them
-     to /join rather than dumping them on the homepage.
+     HOW IT KNOWS: it asks Uscreen once per page - GET /account, same-origin, so
+     the session cookie rides along. 401 means signed out, 200 means signed in.
+     Measured on this store.
+
+     It does NOT read the DOM for a sign-in link. That test is unreliable here:
+     the store keeps an <a href="/sign_in"> in a menu even when someone is
+     signed in, and the visible Sign in control is a <ds-button>, not an <a>. A
+     false "signed out" would send a paying member to /join, which is worse than
+     doing nothing.
+
+     So this FAILS OPEN: until the probe has answered, and if it never answers,
+     clicks are left alone. That is safe because routing is only a convenience -
+     the widget on the Kris AI Memory page gates access on its own, and Uscreen
+     gates /delphi on its own.
+
+     For a logged-in non-subscriber there is no client signal at all, so we set a
+     short-lived flag on click: if they end up anywhere other than a Kris page
+     within 12s, Uscreen rejected them and we send them to /join rather than
+     dumping them on the homepage.
 
      Note for /kris-ai-memory: it is a landing page, so it is PUBLIC and Uscreen
      will not bounce anyone from it. The click interception above is what keeps
@@ -178,8 +192,27 @@
   var KEY = 'st_kai_click';
   var WINDOW_MS = 12000;
 
-  function loggedOut() {
-    return !!document.querySelector('a[href="/sign_in"], a[href$="/sign_in"]');
+  /* null until Uscreen answers, then true/false. null means "do not touch". */
+  var signedIn = null;
+
+  function probeAccount() {
+    try {
+      fetch('/account', {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      })
+        .then(function (res) {
+          if (res.status === 401 || res.status === 403) signedIn = false;
+          else if (res.ok) signedIn = true;
+        })
+        .catch(function () {
+          /* leave it null - clicks stay untouched */
+        });
+    } catch (e) {}
+  }
+
+  function knownSignedOut() {
+    return signedIn === false;
   }
 
   document.addEventListener('click', function (e) {
@@ -189,7 +222,8 @@
       /* Ask block 2 whether this link is a Kris link - one source of truth. */
       if (!window.ST_KRIS || !window.ST_KRIS.pageOf(a.getAttribute('href'))) return;
 
-      if (loggedOut()) {          // no point sending them to a page that rejects them
+      /* Only when Uscreen has actually said so. Unknown = leave it alone. */
+      if (knownSignedOut()) {     // no point sending them to a page that rejects them
         e.preventDefault();
         location.href = '/join';
         return;
@@ -216,8 +250,14 @@
     } catch (err) {}
   }
 
+  probeAccount();
   check();
-  document.addEventListener('turbo:load', check);
+  document.addEventListener('turbo:load', function () {
+    /* A Turbo navigation can be a sign-in or a sign-out, so ask again. */
+    signedIn = null;
+    probeAccount();
+    check();
+  });
 })();
 </script>
 
