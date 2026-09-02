@@ -85,6 +85,35 @@ function installStub() {
   window.SpeechRecognition = FakeRecognition;
   window.webkitSpeechRecognition = FakeRecognition;
 
+  /* speechSynthesis is a read-only getter, so it must be redefined. */
+  Object.defineProperty(window, 'speechSynthesis', {
+    configurable: true,
+    value: {
+      speak: function (u) {
+        setTimeout(function () {
+          if (u && u.onend) u.onend();
+        }, 400);
+      },
+      cancel: function () {},
+      getVoices: function () {
+        return [];
+      },
+    },
+  });
+
+  /* Follow the call status pill so the state machine can be asserted. */
+  window.__states = [];
+  document.addEventListener('DOMContentLoaded', function () {
+    var el = document.getElementById('callStatusText');
+    if (!el) return;
+    new MutationObserver(function () {
+      var t = el.textContent.trim();
+      if (!window.__states.length || window.__states[window.__states.length - 1] !== t) {
+        window.__states.push(t);
+      }
+    }).observe(el, { childList: true, characterData: true, subtree: true });
+  });
+
   /* Keep the call off the network and out of the speakers. */
   window.speechSynthesis = {
     speak: function (u) {
@@ -244,6 +273,46 @@ function installStub() {
     'starts=' + call.started
   );
   await page.screenshot({ path: path.join(OUT, 'speech-call.png') });
+
+  /* the greeting, then Listening -> Thinking -> Talking */
+  await page
+    .waitForFunction(() => (window.__states || []).filter((s) => s === 'Talking').length >= 2, {
+      timeout: 180000,
+    })
+    .catch(() => {});
+  await wait(600);
+
+  const flow = await page.evaluate(() => ({
+    states: window.__states || [],
+    greeted: /Welcome to StrategyTraining/.test(document.querySelector('.thread').textContent),
+    thinkingBg: (() => {
+      const el = document.getElementById('callStatus');
+      el.classList.add('is-thinking');
+      const c = getComputedStyle(el).backgroundColor;
+      el.classList.remove('is-thinking');
+      return c;
+    })(),
+  }));
+  console.log('        states: ' + JSON.stringify(flow.states));
+  check('Kris opens the call with the introduction', flow.greeted);
+  check(
+    'the greeting speaks before listening',
+    flow.states.indexOf('Talking') > -1 &&
+      flow.states.indexOf('Talking') < flow.states.indexOf('Listening'),
+    JSON.stringify(flow.states)
+  );
+  check(
+    'a pause moves Listening -> Thinking',
+    flow.states.indexOf('Thinking') > flow.states.indexOf('Listening'),
+    JSON.stringify(flow.states)
+  );
+  check(
+    'Thinking is followed by Talking',
+    flow.states.lastIndexOf('Talking') > flow.states.indexOf('Thinking'),
+    JSON.stringify(flow.states)
+  );
+  check('Thinking has its own colour', flow.thinkingBg === 'rgb(254, 243, 199)', flow.thinkingBg);
+  await page.screenshot({ path: path.join(OUT, 'call-flow.png') });
 
   console.log('\njs errors: ' + (errors.length ? errors.join(' | ') : 'none'));
   check('no page errors', errors.length === 0, errors.join(' | '));

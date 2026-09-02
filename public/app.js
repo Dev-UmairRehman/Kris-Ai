@@ -1508,6 +1508,8 @@
   var callSeconds = 0;
   var spentSeconds = 0;
   var wantListening = false;
+  /* Kris's own audio for the current call turn. */
+  var callAudio = null;
 
   function formatClock(total) {
     var m = Math.floor(total / 60);
@@ -1530,6 +1532,7 @@
     callStatusText.textContent = label;
     callStatus.classList.toggle('is-speaking', mode === 'speaking');
     callStatus.classList.toggle('is-listening', mode === 'listening');
+    callStatus.classList.toggle('is-thinking', mode === 'thinking');
     callBars.hidden = mode !== 'speaking';
     callDots.hidden = mode === 'speaking';
   }
@@ -1592,6 +1595,10 @@
         /* Calls are listed separately from chats, with the phone icon. */
         startConversation('call');
 
+        /* Kris opens the call, then we listen - going straight to Listening
+           left the member with nothing to answer. */
+        playGreeting();
+
         callSeconds = 0;
         callClock.textContent = '00:00';
         callTimer = setInterval(function () {
@@ -1604,12 +1611,135 @@
           }
         }, 1000);
 
-        startListening();
+        /* playGreeting() opens the call and hands over to listening. */
       })
       .catch(function () {
         app.classList.remove('call-connecting');
         setCallStatus('Microphone blocked', null);
       });
+  }
+
+  /* ---- the call turn ----------------------------------------------------
+     A call turn is the same round trip as a voice note, which is the whole
+     point: the recording is sent, so BuddyPro answers with its own TTS in the
+     owner's cloned voice. Speaking the answer with the browser voice - which is
+     what this used to do - can never sound like Kris.
+
+     The states a member sees, each with its own colour:
+       Listening  they are talking, we are recording and transcribing
+       Thinking   sent, waiting on the answer
+       Talking    Kris is speaking
+     -------------------------------------------------------------------- */
+
+  /* ---- the opening ------------------------------------------------------
+     A pre-recorded greeting in Kris's real voice is used when one is present
+     at /static/assets/greeting.mp3. There is no way to make BuddyPro speak
+     arbitrary text - measured: with the system prompt replaced it repeats the
+     AUDIO's transcript, not a supplied text part - so an exact-wording greeting
+     has to be a file. Without it, the device voice reads the same words so the
+     call still opens properly.
+
+     To record the real one: send this paragraph to the Kris bot in Telegram,
+     save the voice message it returns, and drop it in as greeting.mp3.
+     -------------------------------------------------------------------- */
+
+  function playGreeting() {
+    /* Show it in the thread either way, so the words are always there. */
+    addTurn('kris', WELCOME, { store: false });
+
+    setCallStatus('Talking', 'speaking');
+    stopListening();
+
+    var greeting = new Audio('/static/assets/greeting.mp3');
+
+    function thenListen() {
+      callAudio = null;
+      if (!callLive) return;
+      setCallStatus('Listening', 'listening');
+      startListening();
+    }
+
+    greeting.addEventListener('ended', thenListen);
+    greeting.addEventListener('error', function () {
+      /* No recording available - read it with the device voice. */
+      callAudio = null;
+      if (callLive) speak(WELCOME);
+    });
+
+    callAudio = greeting;
+    greeting.play().catch(function () {
+      callAudio = null;
+      if (callLive) speak(WELCOME);
+    });
+  }
+
+  /** Capture audio alongside recognition, so the turn can be sent as audio. */
+  function startCapture() {
+    var recorder = null;
+    var chunks = [];
+    var stream = null;
+    var stopped = false;
+
+    var ready =
+      navigator.mediaDevices && window.MediaRecorder
+        ? navigator.mediaDevices
+            .getUserMedia({ audio: true })
+            .then(function (s) {
+              if (stopped) {
+                s.getTracks().forEach(function (t) {
+                  t.stop();
+                });
+                return;
+              }
+              stream = s;
+              recorder = new MediaRecorder(s);
+              recorder.ondataavailable = function (e) {
+                if (e.data && e.data.size) chunks.push(e.data);
+              };
+              recorder.start();
+            })
+            .catch(function () {
+              /* no capture - the turn still goes as text */
+            })
+        : Promise.resolve();
+
+    function release() {
+      if (stream) {
+        stream.getTracks().forEach(function (t) {
+          t.stop();
+        });
+        stream = null;
+      }
+    }
+
+    return {
+      stop: function () {
+        stopped = true;
+        return ready.then(function () {
+          return new Promise(function (resolve) {
+            if (!recorder || recorder.state !== 'recording') {
+              release();
+              resolve(null);
+              return;
+            }
+            recorder.onstop = function () {
+              var blob = chunks.length
+                ? new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
+                : null;
+              chunks = [];
+              release();
+              resolve(blob);
+            };
+            try {
+              recorder.stop();
+            } catch (e) {
+              release();
+              resolve(null);
+            }
+          });
+        });
+      },
+    };
   }
 
   function startListening() {
@@ -1618,8 +1748,8 @@
     wantListening = true;
 
     /* A request may still be in flight - from the composer, or the turn before.
-       Wait for it rather than giving up, which used to leave the call stuck on
-       its opening status with the microphone never opening. */
+       Wait for it rather than giving up, which used to leave the call stuck
+       with the microphone never opening. */
     if (busy) {
       setTimeout(function () {
         if (callLive && wantListening && !muted) startListening();
@@ -1629,24 +1759,29 @@
 
     setCallStatus('Listening', 'listening');
 
+    var capture = startCapture();
+
     function relisten(delay) {
       recognition = null;
+      capture.stop();
       if (callLive && wantListening && !muted) setTimeout(startListening, delay || 250);
     }
 
     recognition = listenOnce({
       lang: currentLanguage(),
 
-      /* The moment speech is detected, say so - otherwise a slow answer looks
-         like the call has frozen on "Listening". */
-      onInterim: function (text) {
-        if (text) setCallStatus('Listening', 'listening');
-      },
-
       onResult: function (question) {
         recognition = null;
-        if (!callLive) return;
-        askOnCall(question);
+        if (!callLive) {
+          capture.stop();
+          return;
+        }
+        /* Straight to Thinking - the member should never wonder whether it
+           heard them. */
+        setCallStatus('Thinking', 'thinking');
+        capture.stop().then(function (blob) {
+          askOnCall(question, blob);
+        });
       },
 
       /* A quiet stretch is normal in a call - go round again rather than
@@ -1658,6 +1793,7 @@
       onError: function (err) {
         if (err === 'not-allowed' || err === 'service-not-allowed') {
           recognition = null;
+          capture.stop();
           setCallStatus('Microphone blocked', null);
           wantListening = false;
           endCall();
@@ -1680,66 +1816,93 @@
     }
   }
 
-  function askOnCall(question) {
-    setCallStatus('Thinking', null);
+  /**
+   * One question, sent as audio so the answer comes back in Kris's own voice.
+   * @param {string} question the transcript, used for history and as fallback
+   * @param {?Blob}  blob     the recording itself
+   */
+  function askOnCall(question, blob) {
+    setCallStatus('Thinking', 'thinking');
 
-    send(question, {
+    var options = {
       wantAudio: true,
-      onReply: function (reply) {
-        if (!callLive) return;
-        if (!reply || !reply.content) {
-          setCallStatus('Listening', 'listening');
-          startListening();
-          return;
-        }
-        /* BuddyPro returns its own voice - the same one the Telegram bot uses.
-           speechSynthesis is only a fallback if that audio is missing. */
-        if (reply.audio) playReply(reply.audio, reply.content);
-        else speak(reply.content);
-      },
-    });
-  }
+      spokenReply: true,
+      onReply: playReply,
+    };
 
-  var replyAudio = null;
-
-  function stopReplyAudio() {
-    if (!replyAudio) return;
-    try {
-      replyAudio.pause();
-      replyAudio.src = '';
-    } catch (e) {
-      /* already torn down */
+    if (!blob) {
+      send(question || '', options);
+      return;
     }
-    replyAudio = null;
+
+    toWavBase64(blob)
+      .then(function (base64) {
+        send(question || '', {
+          wantAudio: true,
+          spokenReply: true,
+          audio: base64,
+          audioFormat: 'wav',
+          onReply: playReply,
+        });
+      })
+      .catch(function () {
+        send(question || '', options);
+      });
   }
 
-  function playReply(dataUrl, fallbackText) {
-    stopReplyAudio();
-    stopListening();
+  /** Play Kris's own audio when it came back; otherwise fall back to the
+      device voice so the call never goes silent. */
+  function playReply(reply) {
+    if (!callLive) return;
+
+    var content = (reply && reply.content) || '';
+    var audio = reply && reply.audio;
+
+    if (!content && !audio) {
+      setCallStatus('Listening', 'listening');
+      startListening();
+      return;
+    }
+
+    if (!audio) {
+      speak(content);
+      return;
+    }
+
     setCallStatus('Talking', 'speaking');
+    stopListening();
 
-    replyAudio = new Audio(dataUrl);
+    if (callAudio) {
+      try {
+        callAudio.pause();
+      } catch (e) {
+        /* ignore */
+      }
+    }
 
-    function resume() {
-      replyAudio = null;
+    callAudio = new Audio(audio);
+
+    function done() {
+      callAudio = null;
       if (!callLive) return;
       setCallStatus('Listening', 'listening');
       startListening();
     }
 
-    replyAudio.onended = resume;
-    replyAudio.onerror = resume;
+    callAudio.addEventListener('ended', done);
+    callAudio.addEventListener('error', function () {
+      /* Could not play Kris's audio - say it with the device voice instead. */
+      callAudio = null;
+      if (callLive) speak(content);
+    });
 
-    var started = replyAudio.play();
-    if (started && typeof started.catch === 'function') {
-      started.catch(function () {
-        /* Autoplay was refused. The call began with a click so this is rare -
-           fall back to the device voice rather than stalling silently. */
-        stopReplyAudio();
-        speak(fallbackText || '');
-      });
-    }
+    callAudio.play().catch(function () {
+      callAudio = null;
+      if (callLive) speak(content);
+    });
   }
+
+
 
   /**
    * @param {string} text
@@ -1799,7 +1962,13 @@
        speech runs about 15 characters a second at this rate. */
     if (onStart) onStart(Math.max(1, Math.round(utterance.text.length / 15)));
 
-    synth.speak(utterance);
+    /* If the engine refuses the utterance the call must not stall on Talking -
+       hand back to listening instead. */
+    try {
+      synth.speak(utterance);
+    } catch (e) {
+      finished();
+    }
   }
 
   /* Markdown and URLs read badly aloud. */

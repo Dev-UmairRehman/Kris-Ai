@@ -352,6 +352,37 @@ Two honest limitations, surfaced in the UI itself rather than buried here:
 The minutes budget (100, counting down, banked across reloads in `localStorage`) is cosmetic
 parity with the reference. Real quota enforcement belongs server-side; not built.
 
+### The call
+
+Kris opens the call, then the states cycle - each with its own colour, so a member can tell at
+a glance what is happening:
+
+```
+Connecting -> Talking (greeting) -> Listening -> Thinking -> Talking -> Listening
+```
+
+- **Listening** (neutral) they are speaking; we record and transcribe
+- **Thinking** (amber) sent, waiting on the answer
+- **Talking** (cyan, with a level meter) Kris is speaking
+
+A call turn is now **the same round trip as a voice note** - the recording is sent, so the
+answer comes back as BuddyPro's own TTS in the cloned voice. Previously the call spoke every
+answer through `speechSynthesis`, which could never sound like Kris no matter what.
+
+#### The greeting
+
+There is no way to make BuddyPro speak arbitrary text. Measured: with `x_buddy_systemPrompt`
+set to `replace` and a text-to-speech instruction, it repeats **the audio's transcript**
+verbatim - not a supplied text part. So an exact-wording greeting has to be a recording.
+
+The call plays `public/assets/greeting.mp3` when present, and reads the same words with the
+device voice when it is not. Either way the paragraph is added to the thread as text, so the
+words are never missing.
+
+**To get the greeting in Kris's real voice:** send the introduction paragraph to the Kris bot
+in Telegram, save the voice message it replies with, and drop it in as
+`public/assets/greeting.mp3`. One-time, and no code change.
+
 ### Voice: what BuddyPro actually does, measured
 
 BuddyPro's docs are explicit on the rule that governs everything here:

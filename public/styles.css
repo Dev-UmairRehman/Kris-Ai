@@ -875,6 +875,12 @@ button {
   background: var(--surface-2);
   color: var(--text);
 }
+/* Each state gets its own colour, so the member can tell at a glance whether
+   Kris is hearing them, working, or answering. */
+.callstatus.is-thinking {
+  background: #fef3c7;
+  color: #92400e;
+}
 
 /* Three-bar level meter used in the Talking state. */
 .bars {
