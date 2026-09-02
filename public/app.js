@@ -1749,11 +1749,6 @@
     '/static/assets/greeting.oga',
     '/static/assets/greeting.m4a',
     '/static/assets/greeting.wav',
-    /* Whatever name it was dropped in under. */
-    '/static/assets/note.mp3',
-    '/static/assets/note.ogg',
-    '/static/assets/welcome.mp3',
-    '/static/assets/welcome.ogg',
   ];
 
   /** Resolves true when a recorded greeting existed and started playing. */
