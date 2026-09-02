@@ -5,6 +5,12 @@
      Marketing > Website > Landing Pages > your "Kris AI Memory" page >
      add a Custom HTML block > paste this whole file into it > Publish.
 
+     VERSION 6.  HOW TO TELL WHAT IS ACTUALLY LIVE
+     On the published page, open the console. The first [st-kris] line names the
+     version, e.g.  [st-kris] page snippet v6.  If it says anything else, or
+     nothing, the paste did not take and the fixes in this file are not running -
+     re-paste the WHOLE file over the Custom HTML block and publish again.
+
      THIS FILE IS SELF-CONTAINED. It carries the widget AND the identity bridge
      that lets a signed-in member in. One paste, nothing else to do.
 
@@ -77,6 +83,12 @@
 (function () {
   'use strict';
 
+  /* Bumped whenever this file changes, and logged on load. Three rounds were
+     spent debugging behaviour that was simply not on the page yet, so the page
+     now says which version it is running. */
+  var SNIPPET_VERSION = 6;
+  console.log('[st-kris] page snippet v' + SNIPPET_VERSION);
+
   /* Low enough to still fit on a 1366x768 screen once the store's nav, the
      admin bar and the footer have taken their share. The widget scrolls its own
      messages, so a short one is usable; a taller floor would force the page to
@@ -136,6 +148,26 @@
     var box = document.querySelector('.kris-ai-embed');
     if (box) box.style.visibility = 'hidden';
   }
+  /* Earliest possible signal, and it does not depend on Turbo firing anything:
+     the member has clicked something that leaves this page. Capture phase, so
+     it runs before any handler that might stop propagation. */
+  document.addEventListener(
+    'click',
+    function (event) {
+      var link = event.target && event.target.closest ? event.target.closest('a[href]') : null;
+      if (!link) return;
+      try {
+        var to = new URL(link.getAttribute('href'), location.href);
+        if (to.pathname !== location.pathname || to.origin !== location.origin) {
+          hideWhileLeaving();
+        }
+      } catch (e) {
+        /* not a URL we can read - leave it alone */
+      }
+    },
+    true
+  );
+
   document.addEventListener('turbo:before-visit', hideWhileLeaving);
   document.addEventListener('turbo:visit', hideWhileLeaving);
   document.addEventListener('turbo:before-render', hideWhileLeaving);

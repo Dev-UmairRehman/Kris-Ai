@@ -253,10 +253,12 @@ function serve() {
   });
 
   const errors = [];
+  const consoleLines = [];
 
   async function open(pathname, signedIn) {
     const page = await browser.newPage();
     page.on('pageerror', (e) => errors.push(pathname + ': ' + e.message));
+    page.on('console', (m) => consoleLines.push(m.text()));
     /* Pages share one cookie jar, so a previous signed-in case would otherwise
        leak its session into the signed-out ones. */
     const cdp = await page.target().createCDPSession();
@@ -345,6 +347,14 @@ function serve() {
   let page = await open(MEMORY_PATH, true);
   let r = await page.evaluate(probe);
 
+  /* Three rounds went into debugging code that was not on the page yet, so the
+     snippet now names its version and this checks that it does. */
+  check(
+    'the page snippet announces its version',
+    consoleLines.some((l) => /page snippet v[0-9]+/.test(l)),
+    consoleLines.filter((l) => l.indexOf('[st-kris]') > -1).join(' | ') || '(no [st-kris] line)'
+  );
+
   check(
     'the head code really is absent here (as Uscreen serves it)',
     r.hasApi === false,
@@ -392,7 +402,18 @@ function serve() {
   );
 
   /* Leaving the page must take the widget with it, so a stale frame cannot be
-     painted over whatever comes next. */
+     painted over whatever comes next. Clicking a link away is the earliest
+     signal, and does not depend on Turbo firing anything. */
+  const onClick = await page.evaluate(() => {
+    const away = document.getElementById('navOther');   // -> /courses
+    away.addEventListener('click', (e) => e.preventDefault(), false);
+    away.click();
+    return getComputedStyle(document.querySelector('.kris-ai-embed')).visibility;
+  });
+  check('clicking a link away hides it at once', onClick === 'hidden', 'visibility=' + onClick);
+
+  await page.evaluate(() => document.dispatchEvent(new Event('turbo:load')));
+
   const leaving = await page.evaluate(() => {
     document.dispatchEvent(new Event('turbo:before-visit'));
     const box = document.querySelector('.kris-ai-embed');
