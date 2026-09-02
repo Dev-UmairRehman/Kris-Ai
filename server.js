@@ -62,7 +62,10 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: '12mb' })); // audio uploads arrive base64
+/* Audio and pictures arrive base64. The picture caps below are set to stay
+   inside this, so an over-large request gets a clear error rather than a bare
+   413 from body-parser. */
+app.use(express.json({ limit: '12mb' }));
 
 /* Static assets only. The HTML never lives under /public, so there is no
    ungated path to it. */
@@ -327,13 +330,22 @@ app.post('/api/chat', async (req, res) => {
      rather than trusted. */
   const IMAGE_URL = new RegExp("^data:image/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$");
   const MAX_IMAGES = 5;
-  const MAX_IMAGE_CHARS = 4 * 1024 * 1024; // ~3MB of picture each
+  const MAX_IMAGE_CHARS = 2 * 1024 * 1024; // ~1.5MB of picture each
+  const MAX_IMAGE_TOTAL = 9 * 1024 * 1024; // stay inside the body limit
 
   let images = [];
   if (Array.isArray(req.body?.images)) {
     images = req.body.images
       .filter((u) => typeof u === 'string' && IMAGE_URL.test(u) && u.length <= MAX_IMAGE_CHARS)
       .slice(0, MAX_IMAGES);
+
+    /* Say why, rather than letting body-parser answer with a bare 413. */
+    const total = images.reduce((n, u) => n + u.length, 0);
+    if (total > MAX_IMAGE_TOTAL) {
+      return res.status(413).json({
+        error: 'Those pictures are too large together. Send fewer, or smaller ones.',
+      });
+    }
 
     if (images.length !== req.body.images.length) {
       console.warn(

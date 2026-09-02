@@ -1100,7 +1100,7 @@
      -------------------------------------------------------------------- */
 
   var MAX_ATTACHMENTS = 5;
-  var MAX_ATTACHMENT_BYTES = 3 * 1024 * 1024;
+  var MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024; // before downscaling
   var pending_attachments = [];
 
   function paintAttachments() {
@@ -1135,6 +1135,8 @@
     });
   }
 
+  var MAX_EDGE = 1600; // plenty for anything Kris needs to look at
+
   function readAsDataUrl(file) {
     return new Promise(function (resolve, reject) {
       var reader = new FileReader();
@@ -1143,6 +1145,39 @@
       };
       reader.onerror = reject;
       reader.readAsDataURL(file);
+    });
+  }
+
+  /* Resize before sending. Five untouched phone photos are roughly 20MB of
+     base64, which exceeds the request body limit and would fail with an opaque
+     413; downscaled they are a few hundred KB each. GIFs are left alone so
+     animation survives. */
+  function shrink(file) {
+    if (file.type === 'image/gif') return readAsDataUrl(file);
+
+    return readAsDataUrl(file).then(function (dataUrl) {
+      return new Promise(function (resolve) {
+        var img = new Image();
+        img.onload = function () {
+          var scale = Math.min(1, MAX_EDGE / Math.max(img.width, img.height));
+          if (scale === 1 && dataUrl.length < 1.2 * 1024 * 1024) return resolve(dataUrl);
+
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          try {
+            resolve(canvas.toDataURL('image/jpeg', 0.85));
+          } catch (e) {
+            resolve(dataUrl);
+          }
+        };
+        img.onerror = function () {
+          resolve(dataUrl);
+        };
+        img.src = dataUrl;
+      });
     });
   }
 
@@ -1176,7 +1211,7 @@
         return;
       }
       if (file.size > MAX_ATTACHMENT_BYTES) {
-        rejected.push(file.name + ' (over 3 MB)');
+        rejected.push(file.name + ' (over 8 MB)');
         return;
       }
       accepted.push(file);
@@ -1185,7 +1220,7 @@
     if (rejected.length) showNotice('Not attached: ' + rejected.join('; ') + '.');
     else hideNotice();
 
-    Promise.all(accepted.map(readAsDataUrl))
+    Promise.all(accepted.map(shrink))
       .then(function (urls) {
         urls.forEach(function (url, i) {
           pending_attachments.push({ url: url, name: accepted[i].name });

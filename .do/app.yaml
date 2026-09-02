@@ -122,6 +122,23 @@ services:
         scope: RUN_TIME
         value: frame
 
+      # --- voice and language ---
+      # Audio upload. BuddyPro's audio is intermittent; the server retries as
+      # text when it fails, so a bad turn degrades instead of erroring.
+      - key: VOICE_ENABLED
+        scope: RUN_TIME
+        value: "true"
+
+      # Pins the reply language. BuddyPro drifts otherwise. Empty = auto-detect.
+      - key: RESPONSE_LANGUAGE
+        scope: RUN_TIME
+        value: English
+
+      # Never true in production - lib/config.js refuses to start if it is.
+      - key: BUDDYPRO_MOCK
+        scope: RUN_TIME
+        value: "false"
+
       # --- rate limiting ---
       - key: RATE_GLOBAL_PER_MIN
         scope: RUN_TIME
