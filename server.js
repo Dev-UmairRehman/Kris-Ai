@@ -75,6 +75,13 @@ app.use(
     index: false,
     dotfiles: 'ignore',
     setHeaders(res, filePath) {
+      /* embed.js is the storefront loader. It is pasted into Uscreen once and
+         then only ever updated by deploying, so a week-long cache would mean a
+         week before a fix reached anyone. Five minutes. */
+      if (filePath.endsWith('embed.js')) {
+        res.setHeader('Cache-Control', config.isProd ? 'public, max-age=300' : 'no-store');
+        return;
+      }
       if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
         res.setHeader('Cache-Control', config.isProd ? 'public, max-age=604800' : 'no-store');
       }

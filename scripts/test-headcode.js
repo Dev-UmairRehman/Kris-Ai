@@ -61,6 +61,10 @@ const PAGE = fs.readFileSync(
   path.join(__dirname, '..', 'uscreen', 'kris-ai-memory-page.html'),
   'utf8'
 );
+/* The page snippet is now two lines that load this. All the storefront-side
+   behaviour lives here, so this is what the assertions below are really
+   about. */
+const EMBED = fs.readFileSync(path.join(__dirname, '..', 'public', 'embed.js'), 'utf8');
 
 const WIDGET_ORIGIN = (HEAD.match(/widgetOrigin: '([^']+)'/) || [])[1];
 const MEMORY_PATH = (HEAD.match(/memory: '([^']+)'/) || [])[1];
@@ -242,12 +246,23 @@ function serve() {
     console.error('Uscreen does not inject Head Code into landing pages.');
     process.exit(1);
   }
-  if (!/kris-ai:ready/.test(PAGE)) {
-    console.error('The identity bridge is missing from the page snippet.');
+  if (!/kris-ai:ready/.test(EMBED)) {
+    console.error('The identity bridge is missing from public/embed.js.');
+    process.exit(1);
+  }
+  /* The paste-in has to stay small: the Uscreen block silently kept an older
+     13KB version rather than saving a 19KB one. */
+  if (PAGE.length > 4000) {
+    console.error('The page snippet is ' + PAGE.length + ' bytes. It is meant to be two');
+    console.error('lines - the Uscreen block would not save the large version.');
+    process.exit(1);
+  }
+  if (!/<script[^>]+src=/.test(PAGE)) {
+    console.error('The page snippet no longer loads embed.js.');
     process.exit(1);
   }
   /* The DOM cannot tell you who is signed in on this store - see chrome(). */
-  for (const [name, src] of [['head-code.html', HEAD], ['the page snippet', PAGE]]) {
+  for (const [name, src] of [['head-code.html', HEAD], ['embed.js', EMBED]]) {
     if (/querySelector\(\s*'a\[href="\/sign_in"\]/.test(src)) {
       console.error(name + ' infers login state from a /sign_in link in the DOM.');
       console.error('This store keeps that link when signed in - ask /account instead.');
@@ -288,6 +303,16 @@ function serve() {
        check is exercised for real rather than relaxed. */
     await page.setRequestInterception(true);
     page.on('request', (r) => {
+      /* The loader itself, served from the widget origin exactly as in
+         production - so the script's own src is what tells it where the widget
+         lives, which is the mechanism under test. */
+      if (r.url().indexOf('/static/embed.js') > -1) {
+        return r.respond({
+          status: 200,
+          contentType: 'application/javascript; charset=utf-8',
+          body: EMBED,
+        });
+      }
       if (r.url().startsWith(WIDGET_ORIGIN)) {
         return r.respond({
           status: 200,
@@ -371,8 +396,8 @@ function serve() {
   /* Three rounds went into debugging code that was not on the page yet, so the
      snippet now names its version and this checks that it does. */
   check(
-    'the page snippet announces its version',
-    consoleLines.some((l) => /page snippet v[0-9]+/.test(l)),
+    'the loader announces its version and origin',
+    consoleLines.some((l) => /embed v[0-9]+ from /.test(l)),
     consoleLines.filter((l) => l.indexOf('[st-kris]') > -1).join(' | ') || '(no [st-kris] line)'
   );
 
