@@ -330,6 +330,22 @@ button {
 
 /* --- suggested questions ------------------------------------------------ */
 
+/* The landing list: a heading and full-width rows, as on the reference. */
+.suggest {
+  margin-top: clamp(26px, 4.5vh, 46px);
+}
+.suggest__title {
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.suggest__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
 .chip {
   display: flex;
   align-items: flex-start;

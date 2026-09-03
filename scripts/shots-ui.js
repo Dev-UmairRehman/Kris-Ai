@@ -60,7 +60,17 @@ const state = () =>
     chipCount: document.querySelectorAll('#suggestDockList .chip').length,
     /* the old floating pill must be gone for good */
     oldDock: !!document.querySelector('.suggestdock'),
-    introSuggest: !!document.querySelector('.intro .suggest, #suggestList'),
+    introSuggest: !!document.querySelector('.intro .suggest'),
+    introChips: document.querySelectorAll('#suggestList .chip').length,
+    introTitle: (function () {
+      var h = document.querySelector('.suggest__title');
+      return h ? h.textContent.trim() : '';
+    })(),
+    /* full-width rows on the landing, not the columnar cards of the panel */
+    introChipDir: (function () {
+      var c = document.querySelector('#suggestList .chip');
+      return c ? getComputedStyle(c).flexDirection : '';
+    })(),
     turns: document.querySelectorAll('#thread .turn').length,
     /* layout */
     hScroll: document.documentElement.scrollWidth > document.documentElement.clientWidth,
@@ -113,8 +123,19 @@ const state = () =>
   console.log('\nlanding');
   let s = await page.evaluate(state);
   check('the old floating suggestions pill is gone', !s.oldDock);
-  check('the landing carries no suggestion list', !s.introSuggest);
-  check('the panel is not showing yet', !s.panelVisible);
+  check('the landing lists the questions, as on the reference', s.introSuggest);
+  check('all three of them', s.introChips === 3, 'chips=' + s.introChips);
+  check(
+    'under a Suggested Questions heading',
+    s.introTitle === 'Suggested Questions',
+    JSON.stringify(s.introTitle)
+  );
+  check(
+    'as full-width rows, not the panel cards',
+    s.introChipDir === 'row',
+    'flex-direction=' + s.introChipDir
+  );
+  check('the in-chat pill is not showing yet', !s.panelVisible);
   check('no horizontal scroll', !s.hScroll);
   await page.screenshot({ path: path.join(OUT, 'ui-1-landing.png') });
 

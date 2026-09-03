@@ -81,6 +81,7 @@
   var callBtn = document.getElementById('callBtn');
   var headerCallBtn = document.getElementById('headerCallBtn');
 
+  var suggestList = document.getElementById('suggestList');
   var suggestPanel = document.getElementById('suggestPanel');
   var suggestToggle = document.getElementById('suggestToggle');
   var suggestDockList = document.getElementById('suggestDockList');
@@ -621,7 +622,10 @@
     return btn;
   }
 
+  /* Two homes for the same questions: listed in full on the landing, and
+     behind the pill once a conversation is open. */
   SUGGESTIONS.forEach(function (question) {
+    suggestList.appendChild(buildChip(question));
     suggestDockList.appendChild(buildChip(question));
   });
 
