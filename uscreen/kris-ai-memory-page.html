@@ -3,30 +3,33 @@
 
      WHERE THIS GOES
      Marketing > Website > Landing Pages > "Kris AI Memory" > Custom HTML block.
-     Paste these two lines, publish. Nothing to edit.
+     Paste all of it, publish. Nothing to edit.
 
-     NOT in Settings > Snippets > Head Code. That box takes head-code.html and
-     nothing else. Put this there and the widget renders on every page of the
-     store, above the header - it now detects that and removes itself, but do
-     not rely on it.
+     NOT in Settings > Snippets > Head Code. That box keeps head-code.html and
+     nothing else.
 
-     WHY THIS IS ONLY TWO LINES NOW
-     All of it - the styles, the iframe, the height fit, the identity bridge -
-     used to be pasted here, and the file grew to 19,126 bytes. Measured on the
-     live store, the block that actually saved was 13,072 bytes, and the page
-     kept running an older version no matter how many times it was re-pasted.
-     The editor was silently truncating or refusing the save, so fixes never
-     arrived and the same problems kept being reported against code that was
-     not on the page.
+     WHY IT LOADS THE SCRIPT THIS WAY
+     A tag with a src attribute would be simpler, but pasting one into this block
+     did not save at all - not even the div beside it - which points at the
+     editor rejecting the whole block over the external tag. An inline script
+     demonstrably does save here, so the loader is written inline and builds the
+     tag itself. Same result, using only what this box is known to accept.
 
-     So the work moved into embed.js, which ships with the app. It updates when
-     the app is deployed, and this block never needs touching again.
+     Everything else - styles, iframe, height fit, identity bridge - lives in
+     embed.js and ships with the app, so this block never needs touching again.
 
      CHECKING WHAT IS LIVE
      Open the console on the published page. It prints:
        [st-kris] embed v8 from https://kris-ai-memory-baefm.ondigitalocean.app
-     If that line is missing, this block did not save.
+     No line means this block did not save.
      ========================================================================== -->
 
 <div id="kris-ai-memory"></div>
-<script src="https://kris-ai-memory-baefm.ondigitalocean.app/static/embed.js"></script>
+<script>
+(function () {
+  var s = document.createElement('script');
+  s.src = 'https://kris-ai-memory-baefm.ondigitalocean.app/static/embed.js';
+  s.async = false;
+  (document.head || document.documentElement).appendChild(s);
+})();
+</script>

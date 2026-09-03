@@ -257,8 +257,15 @@ function serve() {
     console.error('lines - the Uscreen block would not save the large version.');
     process.exit(1);
   }
-  if (!/<script[^>]+src=/.test(PAGE)) {
+  /* No src attribute on purpose: a tag carrying one would not save in the
+     Uscreen block. The loader is inline and builds the tag itself. */
+  if (!/embed\.js/.test(PAGE)) {
     console.error('The page snippet no longer loads embed.js.');
+    process.exit(1);
+  }
+  if (/<script[^>]+src=/.test(PAGE)) {
+    console.error('The page snippet uses a src attribute. That form did not save');
+    console.error('in the Uscreen Custom HTML block - build the tag inline instead.');
     process.exit(1);
   }
   /* The DOM cannot tell you who is signed in on this store - see chrome(). */
