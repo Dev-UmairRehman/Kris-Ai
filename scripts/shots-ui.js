@@ -66,6 +66,14 @@ const state = () =>
       var h = document.querySelector('.suggest__title');
       return h ? h.textContent.trim() : '';
     })(),
+    tagline: (function () {
+      var t = document.querySelector('.tagline');
+      return t ? t.textContent.replace(/\s+/g, ' ').trim() : '';
+    })(),
+    taglineEmphasis: (function () {
+      var e = document.querySelector('.tagline strong');
+      return e ? e.textContent.trim() : '';
+    })(),
     /* full-width rows on the landing, not the columnar cards of the panel */
     introChipDir: (function () {
       var c = document.querySelector('#suggestList .chip');
@@ -136,6 +144,17 @@ const state = () =>
     'flex-direction=' + s.introChipDir
   );
   check('the in-chat pill is not showing yet', !s.panelVisible);
+  /* This is the page with memory, and the landing should say so. */
+  check(
+    'the tagline says the conversation carries over',
+    /remember/i.test(s.tagline),
+    JSON.stringify(s.tagline)
+  );
+  check(
+    '...with that word emphasised',
+    /remember/i.test(s.taglineEmphasis),
+    JSON.stringify(s.taglineEmphasis)
+  );
   check('no horizontal scroll', !s.hScroll);
   await page.screenshot({ path: path.join(OUT, 'ui-1-landing.png') });
 

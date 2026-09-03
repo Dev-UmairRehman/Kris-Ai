@@ -302,7 +302,16 @@ button {
   margin-top: 9px;
   text-align: center;
   font-size: 15px;
+  line-height: 1.5;
   color: var(--muted);
+  max-width: 34ch;
+  margin-left: auto;
+  margin-right: auto;
+}
+/* The one word worth emphasising - this is the page with memory. */
+.tagline strong {
+  font-weight: 600;
+  color: var(--accent-deep);
 }
 
 .actions {
