@@ -1,0 +1,1271 @@
+<!-- ==========================================================================
+     StrategyTraining.com - THE MASTERPLAN DIGITAL page
+
+     WHERE THIS GOES
+     Uscreen admin > Marketing > Website > Landing Pages > + New page
+       Page name:  MasterPlan Digital
+       Page URL:   masterplan-digital     (live at /pages/masterplan-digital;
+                                           the "your MasterPlan is ready"
+                                           email links there)
+     Add a Custom HTML block, paste ALL of this file into it, publish.
+     Then add the page to the site menu next to Kris AI.
+     NOT into Settings > Snippets > Head Code.
+
+     WHAT IT IS
+     The whole MasterPlan tool, on the page itself:
+       1. Upload your resume
+       2. Add your social profiles and where you live
+       3. It generates the MasterPlan and the leadership case study, shows
+          the progress, and opens both documents when they are ready
+     plus My MasterPlans and the shared Library.
+     It reads who is signed in from the store, and talks to the MasterPlan
+     server at https://kris-ai-memory-baefm.ondigitalocean.app.
+
+     Opened outside StrategyTraining.com (as a file, in an editor preview) it
+     shows the page with a "Preview" note; creating a MasterPlan only works on
+     the published page.
+
+     GENERATED FILE - do not edit by hand. Built from masterplan/views/app.html,
+     masterplan/public/app.css and masterplan/public/app.js by
+     "npm run build:masterplan-page".
+     ========================================================================== -->
+
+<style>
+/* MasterPlan Digital - black on white, as the client asked: no colour, no
+   chrome. Georgia for the voice of the documents, the system sans for the UI. */
+
+.mp {
+  --ink: #111;
+  --ink-2: #444;
+  --ink-3: #767676;
+  --line: #d9d9d9;
+  --soft: #f5f5f5;
+  --paper: #fff;
+  --serif: Georgia, 'Times New Roman', serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Everything is scoped under .mp, so the same styles can sit inside the
+   StrategyTraining page without touching the store's own header and footer. */
+.mp, .mp *, .mp *::before, .mp *::after { box-sizing: border-box; }
+.mp { font: 16px/1.55 var(--sans); color: var(--ink); background: var(--paper); -webkit-font-smoothing: antialiased; text-align: left; }
+/* :where() keeps these resets at the lowest priority, under every .mp-* rule. */
+:where(.mp) :where(h1, h2, h3, p) { letter-spacing: normal; text-transform: none; color: inherit; }
+:where(.mp) :where(button, input, select, textarea) { font-family: var(--sans); }
+.mp [hidden], .mp[hidden] { display: none !important; }
+.mp-preview { margin: 0 0 22px; padding: 10px 14px; border: 1px dashed var(--ink-3); font-size: 14px; color: var(--ink-2); }
+
+.mp { max-width: 860px; margin: 0 auto; padding: 32px 24px 64px; }
+
+.mp-boot { padding: 80px 0; text-align: center; color: var(--ink-3); }
+.mp:not(.is-booting) .mp-boot { display: none; }
+
+.mp-kicker { margin: 0 0 6px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.mp-title { margin: 0 0 10px; font: 700 40px/1.1 var(--serif); letter-spacing: -.01em; }
+.mp-lede { margin: 0 0 26px; max-width: 640px; font: 18px/1.55 var(--serif); color: var(--ink-2); }
+
+.mp-gate { padding: 48px 0; }
+/* Line up with the page around it (.mpx__wrap: 1040px, same gutter). */
+.mp.is-bare { max-width: none; padding: 8px clamp(20px, 5vw, 48px) 48px; }
+.mp.is-bare .mp-head .mp-kicker,
+.mp.is-bare .mp-head .mp-title,
+.mp.is-bare .mp-head .mp-lede { display: none; }
+
+/* ---- tabs ---- */
+.mp-tabs { display: flex; gap: 28px; border-bottom: 1px solid var(--line); margin-bottom: 32px; overflow-x: auto; }
+.mp-tabs button {
+  appearance: none; border: 0; background: none; padding: 10px 0 12px; margin-bottom: -1px;
+  font: 600 15px var(--sans); color: var(--ink-3); cursor: pointer; white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+.mp-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.mp-tabs button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.mp-count { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 4px; border-radius: 10px; background: var(--ink); color: #fff; font-size: 12px; line-height: 20px; text-align: center; }
+
+/* ---- the three steps ---- */
+.mp-stepper { display: flex; gap: 0; list-style: none; margin: 0 0 34px; padding: 0; }
+.mp-stepper li {
+  flex: 1; display: flex; align-items: center; gap: 10px; padding: 0 0 12px;
+  border-bottom: 2px solid var(--line); font-size: 14px; font-weight: 600; color: var(--ink-3);
+}
+.mp-stepper li span {
+  width: 26px; height: 26px; border-radius: 50%; border: 1px solid currentColor;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 13px; flex: none;
+}
+.mp-stepper li.is-current { color: var(--ink); border-bottom-color: var(--ink); }
+.mp-stepper li.is-current span { background: var(--ink); border-color: var(--ink); color: #fff; }
+.mp-stepper li.is-done { color: var(--ink); border-bottom-color: var(--ink); }
+.mp-stepper li.is-done span { font-size: 0; }
+.mp-stepper li.is-done span::after { content: '✓'; font-size: 13px; }
+
+.mp-wiz { max-width: 720px; }
+.mp-wiz-title { margin: 0 0 6px; font: 700 28px/1.2 var(--serif); }
+.mp-wiz-sub { margin: 0 0 22px; font: 17px/1.55 var(--serif); color: var(--ink-2); }
+.mp-wiz-h3 { margin: 30px 0 4px; font: 700 18px/1.3 var(--serif); }
+.mp-wiz-nav { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--line); }
+.mp-grid.mp-grid-4 { grid-template-columns: 1.4fr 1fr 1fr 1.2fr; }
+.mp-field em { font-style: normal; font-weight: 400; color: var(--ink-3); }
+.mp-checks { margin-top: 28px; }
+
+.mp-drop-lg { min-height: 230px; gap: 8px; }
+.mp-drop-icon { width: 44px; height: 44px; border: 1px solid var(--ink); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 6px; }
+.mp-drop.has-file .mp-drop-icon { background: var(--ink); color: #fff; }
+.mp-drop.has-file .mp-drop-icon::before { content: '✓'; }
+.mp-drop.has-file .mp-drop-icon { font-size: 0; }
+.mp-drop.has-file .mp-drop-icon::before { font-size: 18px; }
+
+.mp-gen { list-style: none; margin: 8px 0 22px; padding: 0; }
+.mp-gen li { position: relative; padding: 11px 0 11px 34px; border-bottom: 1px solid var(--line); color: var(--ink-3); font-size: 16px; }
+.mp-gen li::before {
+  content: ''; position: absolute; left: 0; top: 13px; width: 18px; height: 18px;
+  border: 1px solid var(--line); border-radius: 50%;
+}
+.mp-gen li.is-current { color: var(--ink); font-weight: 600; }
+.mp-gen li.is-current::before { border: 2px solid var(--ink); border-right-color: transparent; animation: mp-spin 0.9s linear infinite; }
+.mp-gen li.is-done { color: var(--ink); }
+.mp-gen li.is-done::before { content: '✓'; background: var(--ink); border-color: var(--ink); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+@keyframes mp-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .mp-gen li.is-current::before { animation: none; } }
+.mp-progress-lg { height: 4px; margin: 0 0 8px; }
+
+/* ---- form ---- */
+.mp-steps { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+.mp-step { position: relative; padding: 0 0 30px 48px; counter-increment: step; }
+.mp-step::before {
+  content: counter(step); position: absolute; left: 0; top: 0;
+  width: 30px; height: 30px; border: 1px solid var(--ink); border-radius: 50%;
+  font: 600 14px/28px var(--sans); text-align: center;
+}
+.mp-step h2 { margin: 2px 0 12px; font: 700 21px/1.3 var(--serif); }
+.mp-hint { margin: 6px 0 12px; font-size: 14px; color: var(--ink-3); }
+
+.mp-drop {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  min-height: 132px; padding: 20px; border: 1px dashed #999; cursor: pointer; text-align: center;
+  transition: background .15s, border-color .15s;
+}
+.mp-drop:hover, .mp-drop.is-over { background: var(--soft); border-color: var(--ink); }
+.mp-drop.has-file { border-style: solid; border-color: var(--ink); }
+.mp-drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.mp-drop-main { font-weight: 600; }
+.mp-drop-sub { font-size: 13px; color: var(--ink-3); }
+
+.mp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
+.mp-span { grid-column: 1 / -1; }
+.mp-field { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; }
+.mp-field input, .mp-field select, .mp-more textarea {
+  width: 100%; padding: 11px 12px; border: 1px solid #bdbdbd; border-radius: 0; background: #fff;
+  font: 16px var(--sans); color: var(--ink);
+}
+.mp-field input:focus, .mp-field select:focus, .mp-more textarea:focus { outline: 2px solid var(--ink); outline-offset: -1px; border-color: var(--ink); }
+.mp-field input[aria-invalid="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+
+.mp-more { margin-top: 14px; }
+.mp-more summary { cursor: pointer; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
+.mp-more textarea { margin-top: 10px; resize: vertical; }
+
+.mp-check { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 12px; font-size: 15px; cursor: pointer; }
+.mp-check input { width: 18px; height: 18px; margin: 3px 0 0; accent-color: var(--ink); flex: none; }
+
+.mp-submit { padding-left: 48px; }
+.mp-error { margin: 12px 0 0; padding: 10px 12px; border-left: 3px solid var(--ink); background: var(--soft); font-size: 14px; }
+
+/* ---- buttons ---- */
+.mp-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px 24px; border: 1px solid var(--ink); background: var(--ink); color: #fff;
+  font: 600 15px var(--sans); text-decoration: none; cursor: pointer;
+}
+.mp-btn:hover { background: #333; }
+.mp-btn:disabled { opacity: .45; cursor: default; }
+.mp-btn-ghost { background: #fff; color: var(--ink); }
+.mp-btn-ghost:hover { background: var(--soft); }
+.mp-btn-sm { padding: 8px 14px; font-size: 14px; }
+.mp-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.mp-link { appearance: none; border: 0; background: none; padding: 0; font: inherit; font-size: 14px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.mp-icon { appearance: none; width: 34px; height: 34px; border: 1px solid var(--line); background: #fff; font-size: 18px; cursor: pointer; }
+
+/* ---- lists ---- */
+.mp-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.mp-item { padding: 20px 0; border-bottom: 1px solid var(--line); }
+.mp-item-top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.mp-item h3 { margin: 0; font: 700 20px/1.3 var(--serif); }
+.mp-item .mp-sub { margin: 2px 0 0; font-size: 14px; color: var(--ink-3); }
+.mp-docs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.mp-doc {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 210px;
+  padding: 12px 16px; border: 1px solid var(--ink); background: #fff; color: var(--ink);
+  font: 600 15px/1.3 var(--sans); text-align: left; cursor: pointer;
+}
+.mp-doc:hover { background: var(--soft); }
+.mp-doc small { font-weight: 400; color: var(--ink-3); font-size: 13px; }
+.mp-doc[disabled] { border-color: var(--line); color: var(--ink-3); cursor: default; background: #fff; }
+
+.mp-status { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); white-space: nowrap; }
+.mp-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink); }
+.mp-status.is-busy .dot { animation: mp-pulse 1.2s ease-in-out infinite; }
+.mp-status.is-failed .dot { background: #fff; border: 1.5px solid var(--ink); }
+@keyframes mp-pulse { 50% { opacity: .2; } }
+@media (prefers-reduced-motion: reduce) { .mp-status.is-busy .dot { animation: none; } }
+.mp-progress { height: 2px; margin-top: 14px; background: var(--line); overflow: hidden; }
+.mp-progress span { display: block; height: 100%; background: var(--ink); transition: width .6s; }
+.mp-item-foot { display: flex; gap: 18px; margin-top: 12px; }
+
+.mp-empty, .mp-optin { padding: 36px 0; }
+.mp-empty p, .mp-optin p { max-width: 560px; font: 17px/1.55 var(--serif); color: var(--ink-2); }
+.mp-optin h2 { margin: 0 0 8px; font: 700 24px var(--serif); }
+.mp-libbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+.mp-empty-line { color: var(--ink-3); }
+
+/* ---- viewer ---- */
+.mp-viewer { position: fixed; inset: 0; z-index: 2147483000; display: flex; flex-direction: column; background: #e9e9e9; }
+.mp-vbar { display: flex; align-items: center; gap: 16px; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--line); }
+.mp-vtitle { flex: 1; margin: 0; font: 700 16px var(--serif); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-vtools { display: flex; align-items: center; gap: 6px; }
+.mp-vpage { min-width: 80px; text-align: right; font-size: 13px; color: var(--ink-3); }
+.mp-vpages { flex: 1; overflow: auto; padding: 20px 12px 40px; -webkit-overflow-scrolling: touch; }
+.mp-page { position: relative; margin: 0 auto 16px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
+.mp-page canvas { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.mp-vmsg { padding: 60px 20px; text-align: center; color: var(--ink-2); }
+
+@media (max-width: 860px) and (min-width: 641px) {
+  .mp-grid.mp-grid-4 { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 640px) {
+  .mp { padding: 22px 16px 48px; }
+  .mp-title { font-size: 30px; }
+  .mp-lede { font-size: 16px; }
+  .mp-grid, .mp-grid.mp-grid-4 { grid-template-columns: 1fr; }
+  .mp-step { padding-left: 0; }
+  .mp-step::before { position: static; display: inline-block; margin-bottom: 8px; }
+  .mp-submit { padding-left: 0; }
+  .mp-doc { min-width: 0; width: 100%; }
+  .mp-item-top { flex-direction: column; gap: 4px; }
+}
+
+@media print { .mp { display: none !important; } }
+</style>
+
+<main id="mp" class="mp is-booting">
+
+  <div class="mp-boot" id="mp-boot" role="status">Loading the MasterPlan…</div>
+
+  <section class="mp-gate" id="mp-gate" hidden>
+    <h1 class="mp-title">The MasterPlan Digital</h1>
+    <p class="mp-lede" id="mp-gate-text">Sign in to your StrategyTraining account to use the MasterPlan.</p>
+    <div class="mp-actions">
+      <a class="mp-btn" id="mp-signin" target="_top" href="#">Sign in</a>
+      <a class="mp-btn mp-btn-ghost" id="mp-join" target="_top" href="#">Join</a>
+      <button type="button" class="mp-btn" id="mp-retry" hidden>Try again</button>
+    </div>
+  </section>
+
+  <section class="mp-app" id="mp-app" hidden>
+    <header class="mp-head">
+      <p class="mp-kicker">StrategyTraining.com</p>
+      <h1 class="mp-title">The MasterPlan Digital</h1>
+      <p class="mp-lede">Drop in your resume and your social profiles. We read them against the MasterPlan and draft two documents for you: your MasterPlan, and a case study of you as a leader. Every guess is marked, so you can correct it.</p>
+      <nav class="mp-tabs" role="tablist">
+        <button role="tab" data-tab="new" aria-selected="true">New MasterPlan</button>
+        <button role="tab" data-tab="mine" aria-selected="false">My MasterPlans <span class="mp-count" id="mp-mine-count" hidden></span></button>
+        <button role="tab" data-tab="library" aria-selected="false">Library</button>
+      </nav>
+    </header>
+
+    <!-- ===== new ===== -->
+    <section class="mp-panel" id="panel-new" data-panel="new">
+      <!-- three steps: resume -> social profiles -> generating -->
+      <ol class="mp-stepper" aria-label="Progress">
+        <li data-for="1" class="is-current"><span>1</span>Resume</li>
+        <li data-for="2"><span>2</span>Social profiles</li>
+        <li data-for="3"><span>3</span>Your MasterPlan</li>
+      </ol>
+
+      <!-- step 1: resume -->
+      <div class="mp-wiz" data-step="1">
+        <h2 class="mp-wiz-title">Upload your resume</h2>
+        <p class="mp-wiz-sub">Your resume is the main source. Every fact in your MasterPlan traces back to a line in it.</p>
+        <label class="mp-drop mp-drop-lg" id="mp-drop">
+          <input type="file" id="f-resume" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
+          <span class="mp-drop-icon" aria-hidden="true">↑</span>
+          <span class="mp-drop-main" id="mp-drop-main">Drop your resume here, or <u>choose a file</u></span>
+          <span class="mp-drop-sub" id="mp-drop-sub">PDF, Word (.docx) or text. Up to 8 MB.</span>
+        </label>
+        <p class="mp-error" id="e-1" role="alert" hidden></p>
+        <div class="mp-wiz-nav">
+          <span></span>
+          <button type="button" class="mp-btn" id="to-2" disabled>Continue</button>
+        </div>
+      </div>
+
+      <!-- step 2: social profiles -->
+      <form class="mp-wiz" data-step="2" id="f-step2" novalidate hidden>
+        <h2 class="mp-wiz-title">Add your social profiles</h2>
+        <p class="mp-wiz-sub">Public links only. We read what the public page shows. Add at least one, or paste your bio below.</p>
+        <div class="mp-grid">
+          <label class="mp-field"><span>LinkedIn</span><input type="url" id="f-link-1" placeholder="https://www.linkedin.com/in/…" inputmode="url"></label>
+          <label class="mp-field"><span>Instagram</span><input type="url" id="f-link-2" placeholder="https://www.instagram.com/…" inputmode="url"></label>
+          <label class="mp-field mp-span"><span>Other (X, YouTube, TikTok, a website)</span><input type="url" id="f-link-3" placeholder="https://…" inputmode="url"></label>
+        </div>
+        <details class="mp-more">
+          <summary>Profile private or hard to read? Paste your bio and recent post titles</summary>
+          <textarea id="f-pasted" rows="4" maxlength="8000" placeholder="Bio, follower count, the titles of your recent posts…"></textarea>
+        </details>
+
+        <h3 class="mp-wiz-h3">Where you live</h3>
+        <p class="mp-hint">Sets the living costs in your plan. Your street address is never needed.</p>
+        <div class="mp-grid mp-grid-4">
+          <label class="mp-field"><span>City</span><input type="text" id="f-city" autocomplete="address-level2" required></label>
+          <label class="mp-field"><span>State or region</span><input type="text" id="f-region" autocomplete="address-level1"></label>
+          <label class="mp-field"><span>ZIP / postal code</span><input type="text" id="f-postal" autocomplete="postal-code"></label>
+          <label class="mp-field"><span>Country</span><input type="text" id="f-country" autocomplete="country-name" value="United States" required></label>
+        </div>
+
+        <h3 class="mp-wiz-h3">About you</h3>
+        <div class="mp-grid">
+          <label class="mp-field"><span>Name <em>(optional, taken from your resume)</em></span><input type="text" id="f-name" autocomplete="name"></label>
+          <label class="mp-field"><span>Pronouns</span>
+            <select id="f-pronouns">
+              <option value="they/them">they/them</option>
+              <option value="she/her">she/her</option>
+              <option value="he/him">he/him</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="mp-checks">
+          <label class="mp-check"><input type="checkbox" id="f-share"><span><strong>Share my MasterPlan with other members.</strong> Members who share can read each other's MasterPlans in the Library. If you do not share, only you see yours.</span></label>
+          <label class="mp-check"><input type="checkbox" id="f-confirm"><span>This is my resume and these are my profiles.</span></label>
+        </div>
+
+        <p class="mp-error" id="f-error" role="alert" hidden></p>
+        <div class="mp-wiz-nav">
+          <button type="button" class="mp-btn mp-btn-ghost" id="back-1">Back</button>
+          <button type="submit" class="mp-btn" id="f-submit">Generate my MasterPlan</button>
+        </div>
+      </form>
+
+      <!-- step 3: generating -->
+      <div class="mp-wiz" data-step="3" hidden>
+        <h2 class="mp-wiz-title" id="g-title">Generating your MasterPlan</h2>
+        <p class="mp-wiz-sub" id="g-sub">This takes about ten minutes. You can leave this page; we will email <span id="g-email">you</span> when it is ready.</p>
+        <ol class="mp-gen" id="g-stages">
+          <li data-stage="reading">Reading your resume and profiles</li>
+          <li data-stage="researching">Researching living costs where you live</li>
+          <li data-stage="writing">Writing your MasterPlan and your leadership case study</li>
+          <li data-stage="rendering">Preparing your documents</li>
+        </ol>
+        <div class="mp-progress mp-progress-lg"><span id="g-bar" style="width:4%"></span></div>
+        <p class="mp-error" id="g-error" role="alert" hidden></p>
+        <div class="mp-docs" id="g-docs" hidden></div>
+        <div class="mp-wiz-nav">
+          <button type="button" class="mp-link" id="g-again">Start another MasterPlan</button>
+          <button type="button" class="mp-link" data-goto="mine">See all my MasterPlans</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== mine ===== -->
+    <section class="mp-panel" id="panel-mine" data-panel="mine" hidden>
+      <div class="mp-empty" id="mine-empty" hidden>
+        <p>You have no MasterPlans yet.</p>
+        <button class="mp-btn" data-goto="new">Create your first</button>
+      </div>
+      <ul class="mp-list" id="mine-list"></ul>
+    </section>
+
+    <!-- ===== library ===== -->
+    <section class="mp-panel" id="panel-library" data-panel="library" hidden>
+      <div class="mp-optin" id="lib-optin" hidden>
+        <h2>The Library</h2>
+        <p>The Library holds the MasterPlans of members who chose to share. Share yours and you can read theirs. Your MasterPlan, your case study and, later, your podcast become visible to other sharing members.</p>
+        <button class="mp-btn" id="lib-share-on">Share mine and open the Library</button>
+      </div>
+      <div id="lib-body" hidden>
+        <div class="mp-libbar">
+          <p class="mp-hint">You are sharing your MasterPlans with other members who share.</p>
+          <button class="mp-link" id="lib-share-off">Stop sharing</button>
+        </div>
+        <p class="mp-empty-line" id="lib-empty" hidden>No shared MasterPlans yet. Yours will appear here once it is ready.</p>
+        <ul class="mp-list" id="lib-list"></ul>
+      </div>
+    </section>
+  </section>
+
+  <!-- ===== viewer ===== -->
+  <div class="mp-viewer" id="mp-viewer" hidden role="dialog" aria-modal="true" aria-labelledby="v-title">
+    <div class="mp-vbar">
+      <button class="mp-link" id="v-close" aria-label="Close">← Back</button>
+      <p class="mp-vtitle" id="v-title"></p>
+      <div class="mp-vtools">
+        <button class="mp-icon" id="v-out" aria-label="Zoom out">−</button>
+        <button class="mp-icon" id="v-in" aria-label="Zoom in">+</button>
+        <span class="mp-vpage" id="v-page"></span>
+      </div>
+    </div>
+    <div class="mp-vpages" id="v-pages"></div>
+  </div>
+</main>
+
+<script>window.MP_BOOT = {"mode":"page","apiOrigin":"https://kris-ai-memory-baefm.ondigitalocean.app","ready":true,"signInUrl":"/sign_in","joinUrl":"/join","maxUploadBytes":8388608,"pdfjsVersion":"6.4.299"};</script>
+<script>
+'use strict';
+
+/* ---------------------------------------------------------------------------
+   MasterPlan Digital - the page.
+
+   Boot: ask the store page who is signed in (same handshake as Kris AI
+   Memory, with its own message names), exchange that for a MasterPlan
+   session, then show the three tabs.
+
+   The session token lives only in this script's memory and goes out as a
+   Bearer header - the iframe is cross-site, so cookies cannot be relied on.
+
+   The viewer renders each PDF page onto a canvas with PDF.js. There is no
+   download button, no text layer to copy from and no file URL: the bytes are
+   fetched with the token and drawn. That stops casual saving; it cannot stop a
+   screenshot, and nothing on the web can.
+   --------------------------------------------------------------------------- */
+
+(function () {
+  var BOOT = window.MP_BOOT || {};
+  /* Two homes for this script:
+       embed  inside the iframe served by the app (views/app.html)
+       page   pasted straight into the Uscreen page (uscreen/masterplan-page.html):
+              the API is on another origin, and the member is read from the
+              store's own /account page, which this page can see. */
+  var PAGE = BOOT.mode === 'page';
+  var BASE = (BOOT.apiOrigin || '') + '/masterplan';
+  /* The page opened outside the store (a saved file, an editor preview):
+     show the tool, but there is no member and no server to talk to. */
+  var PREVIEW = PAGE && !/(^|\.)strategytraining\.com$/i.test(location.hostname) && !BOOT.localApi;
+  if (PAGE && !BOOT.openReport) {
+    try { BOOT.openReport = new URLSearchParams(location.search).get('report') || ''; } catch (e) { /* old browser */ }
+  }
+  var IDENTITY_WAIT_MS = 4000;
+  var POLL_MS = 8000;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var root = $('mp');
+  /* On the Uscreen page the title is already on the page around the app. */
+  if (BOOT.bare) root.classList.add('is-bare');
+  var token = null;
+  var email = '';
+  var state = { mine: [], sharing: false, library: [] };
+  var pollTimer = null;
+
+  /* ---- api ---------------------------------------------------------------- */
+
+  function api(method, path, body) {
+    if (PREVIEW) {
+      return Promise.resolve({
+        ok: false,
+        status: 0,
+        data: { error: 'This is a preview. Publish this page on StrategyTraining.com to create a MasterPlan.' },
+      });
+    }
+    var headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = 'Bearer ' + token;
+    return fetch(BASE + path, {
+      method: method,
+      headers: headers,
+      body: body ? JSON.stringify(body) : undefined,
+      /* Our API never redirects. A redirect means the request did not reach
+         the MasterPlan service (not deployed, or a proxy page), and following
+         it would land on the store's join page. */
+      redirect: 'manual',
+    }).then(function (res) {
+      var json = /json/i.test(res.headers.get('content-type') || '');
+      return (json ? res.json() : Promise.reject(new Error('not json'))).catch(function () {
+        /* Not an answer from the MasterPlan service. */
+        return { error: 'The MasterPlan service is not reachable right now. Please try again in a few minutes.', reason: 'service_down' };
+      }).then(function (data) {
+        if (res.status === 401 && data.reason === 'no_session') showGate('expired');
+        return { ok: res.ok && data.reason !== 'service_down', status: res.status, data: data };
+      });
+    }, function () {
+      return {
+        ok: false,
+        status: 0,
+        data: { error: 'The MasterPlan service is not reachable right now. Please try again in a few minutes.', reason: 'service_down' },
+      };
+    });
+  }
+
+  /* ---- identity handshake ------------------------------------------------- */
+
+  var embedded = window.parent !== window;
+  var parents = BOOT.allowedParentOrigins || [];
+
+  function toParent(msg) {
+    if (!embedded) return;
+    parents.forEach(function (origin) {
+      try { window.parent.postMessage(msg, origin); } catch (e) { /* not this one */ }
+    });
+  }
+
+  /* Page mode: ask the store directly. GET /account with no Accept header
+     answers 401 when signed out, 200 (the account page, carrying the email)
+     when signed in, and 406 also means signed in. */
+  var EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+  function probeAccount() {
+    return fetch('/account', { credentials: 'same-origin' }).then(function (res) {
+      var path = '';
+      try { path = new URL(res.url, location.href).pathname; } catch (e) { /* ignore */ }
+      if (/\/(sign_in|login|join)\b/.test(path)) return { signedIn: false, via: '/account -> ' + path };
+      if (res.status === 401 || res.status === 403) return { signedIn: false, via: '/account ' + res.status };
+      if (res.status === 406) return { signedIn: true, email: emailOnPage(), via: '/account 406' };
+      if (!res.ok) return null;
+      return res.text().then(function (t) {
+        return { signedIn: true, email: emailFromAccount(t), via: '/account 200' };
+      });
+    }).catch(function () { return null; });
+  }
+
+  /* Same probe as the live Kris AI loader. A failed probe is tried once more
+     before anyone is called signed out. */
+  function identityFromStore() {
+    return probeAccount().then(function (r) {
+      if (r) return r;
+      return new Promise(function (ok) { setTimeout(ok, 1500); }).then(probeAccount);
+    }).then(function (r) {
+      r = r || { signedIn: false, via: 'probe failed twice', transient: true };
+      try { console.log('[st-mp] signedIn=' + r.signedIn + ' email=' + (r.email ? 'yes' : 'none') + ' via ' + r.via); } catch (e) { /* no console */ }
+      return r;
+    });
+  }
+  /* Picking the member's email must never guess: two members given the same
+     guessed address would share one MasterPlan account.
+       1. the value of the account form's email field;
+       2. otherwise the email-like strings on the account page, minus asset
+          names (logo@2x.png) and the store's own addresses - used only if
+          exactly one is left, or one of them is also shown in this page's
+          profile menu;
+       3. otherwise nothing, and the member is asked to try again. */
+  var NOT_MEMBER = /@(strategytraining|firmsconsulting|uscreen|michael)\b|\.(png|jpe?g|gif|svg|webp|css|js|ico)$/i;
+  function candidates(text) {
+    var all = String(text || '').match(new RegExp(EMAIL_RE.source, 'g')) || [];
+    var seen = {};
+    return all.filter(function (e) {
+      e = e.toLowerCase();
+      if (NOT_MEMBER.test(e) || seen[e]) return false;
+      seen[e] = true;
+      return true;
+    });
+  }
+  function emailFromAccount(html) {
+    var field = html.match(/<input[^>]*(?:type="email"|(?:name|id)="[^"]*email[^"]*")[^>]*>/i);
+    var value = field && field[0].match(/value="([^"]*)"/i);
+    if (value && candidates(value[1]).length === 1) return value[1].trim();
+    var list = candidates(html);
+    if (list.length === 1) return list[0];
+    var onPage = candidates(document.body ? document.body.textContent : '').map(function (e) { return e.toLowerCase(); });
+    var both = list.filter(function (e) { return onPage.indexOf(e.toLowerCase()) !== -1; });
+    return both.length === 1 ? both[0] : '';
+  }
+  function emailOnPage() {
+    var list = candidates(document.body ? document.body.textContent : '');
+    return list.length === 1 ? list[0] : '';
+  }
+
+  function requestIdentity() {
+    if (PAGE) return identityFromStore();
+    if (!embedded) return Promise.resolve({});
+    return new Promise(function (resolve) {
+      var settled = false;
+      function done(v) {
+        if (settled) return;
+        settled = true;
+        window.removeEventListener('message', onMsg);
+        resolve(v || {});
+      }
+      function onMsg(e) {
+        if (parents.indexOf(e.origin) === -1) return;
+        var d = e.data;
+        if (!d || d.type !== 'st-mp:identity') return;
+        done({ signedIn: d.signedIn === true, email: typeof d.email === 'string' ? d.email : '' });
+      }
+      window.addEventListener('message', onMsg);
+      toParent({ type: 'mp:ready' });
+      setTimeout(function () { done({}); }, IDENTITY_WAIT_MS);
+    });
+  }
+
+  var attempts = 0;
+  var lastIdentity = {};
+  function startSession(identity) {
+    attempts++;
+    lastIdentity = identity || {};
+    return api('POST', '/api/session', identity).then(function (r) {
+      if (r.ok && r.data.ok) {
+        token = r.data.token;
+        email = r.data.email || '';
+        openApp();
+      } else {
+        showGate((r.data && r.data.reason) || 'service_down');
+      }
+    }).catch(function () { showGate('service_down'); });
+  }
+
+  /* A store page that answers late still gets the member in. */
+  window.addEventListener('message', function (e) {
+    if (parents.indexOf(e.origin) === -1) return;
+    var d = e.data;
+    if (!d || d.type !== 'st-mp:identity' || d.signedIn !== true) return;
+    if (token || attempts >= 3 || $('mp-gate').hidden) return;
+    startSession({ signedIn: true, email: d.email || '' });
+  });
+
+  function showGate(reason) {
+    root.classList.remove('is-booting');
+    $('mp-app').hidden = true;
+    $('mp-gate').hidden = false;
+    $('mp-signin').href = BOOT.signInUrl || '#';
+    $('mp-join').href = BOOT.joinUrl || '#';
+
+    /* "Sign in" only for someone who really is signed out. A signed-in member
+       whose session failed for another reason is told what happened, and
+       gets a Try again button instead of a sign-in prompt. */
+    var signedOut = reason === 'no_identity_from_store' && !lastIdentity.signedIn;
+    var text;
+    if (signedOut || reason === 'signed_out') text = 'Sign in to your StrategyTraining account to use the MasterPlan.';
+    else if (reason === 'not_subscribed' || reason === 'customer_not_found') text = 'The MasterPlan is part of a StrategyTraining membership.';
+    else if (reason === 'not_configured') text = 'The MasterPlan is being set up. Please check back soon.';
+    else if (reason === 'no_email') text = 'You are signed in, but we could not read the email on your account. Open your account menu once, then press Try again.';
+    else if (reason === 'expired') text = 'Your session has expired. Press Try again to continue.';
+    else if (reason === 'service_down') text = 'The MasterPlan service is not reachable right now. Please try again in a few minutes.';
+    else text = 'We could not open the MasterPlan just now. Please try again in a moment.';
+    $('mp-gate-text').textContent = text;
+
+    var offerSignIn = signedOut || reason === 'signed_out' || reason === 'not_subscribed' || reason === 'customer_not_found';
+    $('mp-signin').hidden = !offerSignIn || reason === 'not_subscribed' || reason === 'customer_not_found';
+    $('mp-join').hidden = !offerSignIn;
+    $('mp-retry').hidden = offerSignIn;
+  }
+
+  $('mp-retry').addEventListener('click', function () {
+    $('mp-gate').hidden = true;
+    root.classList.add('is-booting');
+    attempts = 0;
+    token = null;
+    (PAGE ? identityFromStore() : requestIdentity()).then(startSession);
+  });
+
+  /* ---- app ------------------------------------------------------------------ */
+
+  function openApp() {
+    root.classList.remove('is-booting');
+    $('mp-gate').hidden = true;
+    $('mp-app').hidden = false;
+    $('g-email').textContent = email || 'you';
+    refreshMine().then(function () {
+      if (BOOT.openReport) {
+        var r = state.mine.find(function (x) { return x.id === BOOT.openReport; });
+        selectTab('mine');
+        if (r && r.status === 'ready') openViewer(r.id, 'narrative', r.name + ', The MasterPlan');
+        return;
+      }
+      /* A MasterPlan still being written: pick up where the member left it. */
+      var busy = state.mine.find(function (x) { return x.status === 'queued' || x.status === 'running'; });
+      if (busy) track(busy.id);
+    });
+  }
+
+  /* ---- tabs ---------------------------------------------------------------- */
+
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.mp-tabs [data-tab]'));
+  function selectTab(name) {
+    tabs.forEach(function (t) { t.setAttribute('aria-selected', String(t.dataset.tab === name)); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-panel]'), function (p) {
+      p.hidden = p.dataset.panel !== name;
+    });
+    if (name === 'library') refreshLibrary();
+    if (name === 'mine') refreshMine();
+  }
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () { selectTab(t.dataset.tab); });
+  });
+  document.addEventListener('click', function (e) {
+    var go = e.target.closest && e.target.closest('[data-goto]');
+    if (go) selectTab(go.dataset.goto);
+  });
+
+  /* ---- new: the three steps ------------------------------------------------ */
+
+  function showStep(n) {
+    Array.prototype.forEach.call(document.querySelectorAll('.mp-wiz'), function (w) {
+      w.hidden = w.dataset.step !== String(n);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.mp-stepper li'), function (li) {
+      var k = Number(li.dataset.for);
+      li.classList.toggle('is-current', k === n);
+      li.classList.toggle('is-done', k < n);
+    });
+    selectTab('new');
+    var top = document.querySelector('.mp-stepper');
+    if (top && top.scrollIntoView) top.scrollIntoView({ block: 'nearest' });
+  }
+
+  function showError(id, msg) {
+    var el = $(id);
+    el.textContent = msg || '';
+    el.hidden = !msg;
+  }
+
+  /* Step 1: the resume. */
+
+  var file = null;
+  var drop = $('mp-drop');
+  var fileInput = $('f-resume');
+
+  function takeFile(f) {
+    if (!f) return;
+    if (f.size > (BOOT.maxUploadBytes || 8388608)) return showError('e-1', 'That file is larger than 8 MB.');
+    if (!/\.(pdf|docx|txt)$/i.test(f.name)) return showError('e-1', 'Please use a PDF, Word (.docx) or text file.');
+    file = f;
+    showError('e-1', '');
+    drop.classList.add('has-file');
+    $('mp-drop-main').textContent = f.name;
+    $('mp-drop-sub').textContent = Math.max(1, Math.round(f.size / 1024)) + ' KB · click to choose a different file';
+    $('to-2').disabled = false;
+  }
+  fileInput.addEventListener('change', function () { takeFile(fileInput.files[0]); });
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('is-over'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('is-over'); });
+  });
+  drop.addEventListener('drop', function (e) { takeFile(e.dataTransfer.files[0]); });
+
+  $('to-2').addEventListener('click', function () {
+    if (!file) return showError('e-1', 'Add your resume first.');
+    showStep(2);
+    $('f-link-1').focus();
+  });
+  $('back-1').addEventListener('click', function () { showStep(1); });
+
+  function readBase64(f) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(String(r.result).split(',')[1] || ''); };
+      r.onerror = function () { reject(r.error); };
+      r.readAsDataURL(f);
+    });
+  }
+
+  /* Step 2: social profiles and place, then generate. */
+
+  $('f-step2').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = function (id) { return $(id).value.trim(); };
+    var err = function (msg) { showError('f-error', msg); };
+
+    var links = ['f-link-1', 'f-link-2', 'f-link-3'].map(v).filter(Boolean);
+    var badLink = links.filter(function (u) { return !/^https?:\/\/\S+\.\S+/i.test(u); });
+    if (badLink.length) return err('Profile links must start with https:// - check ' + badLink[0]);
+    if (!links.length && !v('f-pasted')) return err('Add at least one social profile link, or paste your bio.');
+    var missing = ['f-city', 'f-country'].filter(function (id) {
+      var bad = !v(id);
+      $(id).setAttribute('aria-invalid', String(bad));
+      return bad;
+    });
+    if (missing.length) return err('Please add your city and country.');
+    if (!$('f-confirm').checked) return err('Please confirm the resume and profiles are yours.');
+    if (!file) { showStep(1); return showError('e-1', 'Add your resume first.'); }
+
+    var btn = $('f-submit');
+    btn.disabled = true;
+    btn.textContent = 'Uploading…';
+    err('');
+
+    readBase64(file).then(function (b64) {
+      return api('POST', '/api/reports', {
+        name: v('f-name'),
+        pronouns: $('f-pronouns').value,
+        city: v('f-city'),
+        region: v('f-region'),
+        postalCode: v('f-postal'),
+        country: v('f-country'),
+        links: links,
+        pasted: $('f-pasted').value.trim(),
+        resumeName: file.name,
+        resumeBase64: b64,
+        share: $('f-share').checked,
+        confirm: true,
+      });
+    }).then(function (r) {
+      if (!r.ok) throw new Error(r.data.error || 'That did not go through. Please try again.');
+      resetForm();
+      track(r.data.report.id);
+    }).catch(function (e2) {
+      err(e2.message || 'That did not go through. Please try again.');
+    }).then(function () {
+      btn.disabled = false;
+      btn.textContent = 'Generate my MasterPlan';
+    });
+  });
+
+  function resetForm() {
+    $('f-step2').reset();
+    $('f-share').checked = state.sharing;
+    fileInput.value = '';
+    file = null;
+    drop.classList.remove('has-file');
+    $('mp-drop-main').innerHTML = 'Drop your resume here, or <u>choose a file</u>';
+    $('mp-drop-sub').textContent = 'PDF, Word (.docx) or text. Up to 8 MB.';
+    $('to-2').disabled = true;
+  }
+
+  /* Step 3: watch it being written. */
+
+  var ORDER = ['queued', 'reading', 'researching', 'writing', 'rendering', 'ready'];
+  var BAR = { queued: 4, reading: 14, researching: 32, writing: 58, rendering: 92, ready: 100 };
+  var tracking = null;
+  var trackTimer = null;
+
+  function track(id) {
+    tracking = id;
+    $('g-title').textContent = 'Generating your MasterPlan';
+    $('g-sub').hidden = false;
+    $('g-docs').hidden = true;
+    $('g-docs').textContent = '';
+    showError('g-error', '');
+    paintStage('queued');
+    showStep(3);
+    pollTrack();
+  }
+
+  function paintStage(stage) {
+    var at = ORDER.indexOf(stage);
+    Array.prototype.forEach.call(document.querySelectorAll('#g-stages li'), function (li) {
+      var k = ORDER.indexOf(li.dataset.stage);
+      li.classList.toggle('is-done', k < at);
+      li.classList.toggle('is-current', k === at);
+    });
+    $('g-bar').style.width = (BAR[stage] || 4) + '%';
+  }
+
+  var trackFailures = 0;
+  function pollTrack() {
+    clearTimeout(trackTimer);
+    if (!tracking) return;
+    api('GET', '/api/reports').then(function (res) {
+      if (!tracking) return;
+      if (!res.ok) {
+        /* A deploy or a network blip: keep checking, backing off, and say so
+           after a few misses instead of freezing on "Generating". */
+        trackFailures++;
+        if (trackFailures >= 3) showError('g-error', 'Reconnecting… Your MasterPlan keeps being written on our side; we will also email you when it is ready.');
+        trackTimer = setTimeout(pollTrack, Math.min(60000, 5000 * Math.pow(2, trackFailures)));
+        return;
+      }
+      trackFailures = 0;
+      showError('g-error', '');
+      state.mine = res.data.reports || [];
+      var r = state.mine.find(function (x) { return x.id === tracking; });
+      if (!r) {
+        $('g-title').textContent = 'This MasterPlan no longer exists';
+        $('g-sub').hidden = true;
+        showError('g-error', 'It may have been deleted. You can start a new one.');
+        tracking = null;
+        renderMine();
+        return;
+      }
+      if (r.status === 'ready') {
+        paintStage('ready');
+        $('g-title').textContent = 'Your MasterPlan is ready';
+        $('g-sub').hidden = true;
+        var docs = docButtons(r);
+        $('g-docs').replaceWith(docs);
+        docs.id = 'g-docs';
+        tracking = null;
+        renderMine();
+        return;
+      }
+      if (r.status === 'failed') {
+        $('g-title').textContent = 'Your MasterPlan did not finish';
+        showError('g-error', (r.error || 'Something went wrong.') + ' Use "Try again" under My MasterPlans.');
+        tracking = null;
+        renderMine();
+        return;
+      }
+      paintStage(r.stage || 'queued');
+      trackTimer = setTimeout(pollTrack, 5000);
+    });
+  }
+
+  $('g-again').addEventListener('click', function () {
+    tracking = null;
+    clearTimeout(trackTimer);
+    showStep(1);
+  });
+
+  /* ---- mine ------------------------------------------------------------------ */
+
+  var STAGES = {
+    queued: ['Waiting to start', 6],
+    reading: ['Reading your resume and profiles', 18],
+    researching: ['Researching local living costs', 36],
+    writing: ['Writing your MasterPlan and case study', 62],
+    rendering: ['Preparing your documents', 92],
+  };
+
+  function fmtDate(iso) {
+    try {
+      return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  function docButtons(r) {
+    var wrap = el('div', 'mp-docs');
+    var who = r.name || 'Your MasterPlan';
+    [['narrative', 'The MasterPlan'], ['article', r.docs.article && r.docs.article.title]].forEach(function (d) {
+      var info = r.docs[d[0]];
+      if (!info) return;
+      var b = el('button', 'mp-doc');
+      b.type = 'button';
+      b.appendChild(document.createTextNode(d[1] || 'Case study'));
+      b.appendChild(el('small', null, (d[0] === 'narrative' ? 'Your MasterPlan' : 'Leadership case study') + ' · ' + info.pages + ' pages'));
+      b.addEventListener('click', function () { openViewer(r.id, d[0], who + ', ' + (d[1] || '')); });
+      wrap.appendChild(b);
+    });
+    var pod = el('button', 'mp-doc');
+    pod.type = 'button';
+    pod.disabled = true;
+    pod.appendChild(document.createTextNode('Podcast'));
+    pod.appendChild(el('small', null, r.podcast ? 'Ready' : 'Coming soon'));
+    wrap.appendChild(pod);
+    return wrap;
+  }
+
+  function renderMine() {
+    var list = $('mine-list');
+    list.textContent = '';
+    $('mine-empty').hidden = state.mine.length > 0;
+    var busy = 0;
+
+    state.mine.forEach(function (r) {
+      var li = el('li', 'mp-item');
+      var top = el('div', 'mp-item-top');
+      var left = el('div');
+      left.appendChild(el('h3', null, r.name || 'Your MasterPlan'));
+      left.appendChild(el('p', 'mp-sub', 'Started ' + fmtDate(r.createdAt)));
+      top.appendChild(left);
+
+      var status = el('span', 'mp-status');
+      status.appendChild(el('span', 'dot'));
+      if (r.status === 'ready') {
+        status.appendChild(document.createTextNode('Ready'));
+      } else if (r.status === 'failed') {
+        status.classList.add('is-failed');
+        status.appendChild(document.createTextNode('Not finished'));
+      } else {
+        busy++;
+        status.classList.add('is-busy');
+        status.appendChild(document.createTextNode((STAGES[r.stage] || STAGES.queued)[0]));
+      }
+      top.appendChild(status);
+      li.appendChild(top);
+
+      if (r.status === 'ready') {
+        li.appendChild(docButtons(r));
+      } else if (r.status === 'failed') {
+        li.appendChild(el('p', 'mp-sub', r.error || 'Something went wrong.'));
+      } else {
+        var bar = el('div', 'mp-progress');
+        var fill = el('span');
+        fill.style.width = (STAGES[r.stage] || STAGES.queued)[1] + '%';
+        bar.appendChild(fill);
+        li.appendChild(bar);
+      }
+
+      var foot = el('div', 'mp-item-foot');
+      if (r.status === 'failed') {
+        var retry = el('button', 'mp-link', 'Try again');
+        retry.addEventListener('click', function () {
+          api('POST', '/api/reports/' + r.id + '/retry').then(refreshMine);
+        });
+        foot.appendChild(retry);
+      }
+      if (r.status !== 'running') {
+        var del = el('button', 'mp-link', 'Delete');
+        del.addEventListener('click', function () {
+          if (!window.confirm('Delete this MasterPlan? This cannot be undone.')) return;
+          api('POST', '/api/reports/' + r.id + '/delete').then(function (res) {
+            if (!res.ok) window.alert(res.data.error || 'Could not delete it.');
+            refreshMine();
+          });
+        });
+        foot.appendChild(del);
+      }
+      if (foot.childNodes.length) li.appendChild(foot);
+      list.appendChild(li);
+    });
+
+    var count = $('mp-mine-count');
+    count.hidden = !busy;
+    count.textContent = busy;
+    schedulePoll(busy > 0);
+  }
+
+  function refreshMine() {
+    return api('GET', '/api/reports').then(function (r) {
+      if (!r.ok) {
+        /* Keep checking while anything was still being written. */
+        var busy = state.mine.some(function (x) { return x.status === 'queued' || x.status === 'running'; });
+        schedulePoll(busy, POLL_MS * 3);
+        return;
+      }
+      state.mine = r.data.reports || [];
+      state.sharing = !!r.data.sharing;
+      /* The form's share box starts from the member's current choice. */
+      $('f-share').checked = state.sharing;
+      renderMine();
+    });
+  }
+
+  function schedulePoll(on, delay) {
+    clearTimeout(pollTimer);
+    if (on) pollTimer = setTimeout(refreshMine, delay || POLL_MS);
+  }
+
+  /* ---- library --------------------------------------------------------------- */
+
+  function refreshLibrary() {
+    return api('GET', '/api/library').then(function (r) {
+      if (!r.ok) return;
+      state.sharing = !!r.data.sharing;
+      state.library = r.data.reports || [];
+      $('lib-optin').hidden = state.sharing;
+      $('lib-body').hidden = !state.sharing;
+      var list = $('lib-list');
+      list.textContent = '';
+      $('lib-empty').hidden = state.library.length > 0;
+      state.library.forEach(function (e) {
+        var li = el('li', 'mp-item');
+        var top = el('div', 'mp-item-top');
+        var left = el('div');
+        left.appendChild(el('h3', null, e.name + (e.mine ? ' (you)' : '')));
+        left.appendChild(el('p', 'mp-sub', fmtDate(e.createdAt)));
+        top.appendChild(left);
+        li.appendChild(top);
+        li.appendChild(docButtons({ id: e.id, name: e.name, docs: { narrative: { pages: '' }, article: { title: e.articleTitle, pages: '' } }, podcast: null }));
+        Array.prototype.forEach.call(li.querySelectorAll('.mp-doc small'), function (s) {
+          s.textContent = s.textContent.replace(/ · +pages$/, '');
+        });
+        list.appendChild(li);
+      });
+    });
+  }
+
+  function setSharing(on) {
+    return api('POST', '/api/sharing', { sharing: on }).then(refreshLibrary);
+  }
+  $('lib-share-on').addEventListener('click', function () { setSharing(true); });
+  $('lib-share-off').addEventListener('click', function () {
+    if (window.confirm('Stop sharing? Your MasterPlans leave the Library and you will no longer see other members’.')) setSharing(false);
+  });
+
+  /* ---- viewer -------------------------------------------------------------- */
+
+  var pdfjsPromise = null;
+  function loadPdfJs() {
+    if (!pdfjsPromise) {
+      /* The version in the URL keeps the main file and its worker from the
+         same release, whatever the browser cached before an upgrade. */
+      var v = '?v=' + encodeURIComponent(BOOT.pdfjsVersion || '1');
+      pdfjsPromise = import(BASE + '/static/pdfjs/pdf.min.mjs' + v).then(function (lib) {
+        lib.GlobalWorkerOptions.workerSrc = BASE + '/static/pdfjs/pdf.worker.min.mjs' + v;
+        return lib;
+      });
+    }
+    return pdfjsPromise;
+  }
+
+  var viewer = { doc: null, task: null, scale: 1, observer: null, opener: null, load: 0 };
+  var pages = $('v-pages');
+
+  function viewerMessage(text) {
+    pages.textContent = '';
+    pages.appendChild(el('p', 'mp-vmsg', text));
+  }
+
+  /* Drop whatever the viewer holds: the document, its loading task and the
+     page observer. */
+  function releaseViewer() {
+    if (viewer.observer) viewer.observer.disconnect();
+    viewer.observer = null;
+    if (viewer.task) viewer.task.destroy();
+    viewer.task = null;
+    viewer.doc = null;
+  }
+
+  function openViewer(id, doc, title) {
+    /* Each open gets a number. A slow load that finishes after the member has
+       closed the viewer or opened another document is thrown away, so a
+       document is never drawn under another one's title. */
+    var load = ++viewer.load;
+    releaseViewer();
+    viewer.opener = document.activeElement;
+    $('v-title').textContent = title;
+    $('v-page').textContent = '';
+    pages.textContent = '';
+    pages.appendChild(el('p', 'mp-vmsg', 'Opening…'));
+    $('mp-viewer').hidden = false;
+    document.body.style.overflow = 'hidden';
+    $('v-close').focus();
+
+    Promise.all([
+      loadPdfJs(),
+      fetch(BASE + '/api/reports/' + encodeURIComponent(id) + '/' + doc, { headers: { Authorization: 'Bearer ' + token } }).then(function (res) {
+        if (!res.ok) throw new Error('not available');
+        return res.arrayBuffer();
+      }),
+    ]).then(function (got) {
+      if (load !== viewer.load) return null;
+      var task = got[0].getDocument({ data: new Uint8Array(got[1]), isEvalSupported: false });
+      viewer.task = task;
+      return task.promise.then(function (pdf) {
+        if (load !== viewer.load) {
+          task.destroy();
+          return null;
+        }
+        return pdf;
+      });
+    }).then(function (pdf) {
+      if (!pdf) return;
+      viewer.doc = pdf;
+      viewer.scale = 1;
+      layoutPages();
+      $('v-page').textContent = 'Page 1 of ' + pdf.numPages;
+    }).catch(function () {
+      if (load === viewer.load) viewerMessage('This document could not be opened. Please try again.');
+    });
+  }
+
+  function layoutPages() {
+    var pdf = viewer.doc;
+    if (!pdf) return;
+    pages.textContent = '';
+    drawFailures = 0;
+    if (viewer.observer) viewer.observer.disconnect();
+    var width = Math.min(pages.clientWidth - 24, 860) * viewer.scale;
+
+    viewer.observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) drawPage(en.target);
+      });
+    }, { root: pages, rootMargin: '600px 0px' });
+
+    for (var n = 1; n <= pdf.numPages; n++) {
+      var box = el('div', 'mp-page');
+      box.dataset.page = n;
+      box.style.width = width + 'px';
+      box.style.height = Math.round(width * (11 / 8.5)) + 'px';
+      pages.appendChild(box);
+      viewer.observer.observe(box);
+    }
+  }
+
+  var drawFailures = 0;
+  function drawPage(box) {
+    if (box.dataset.drawn || !viewer.doc) return;
+    box.dataset.drawn = '1';
+    var load = viewer.load;
+    viewer.doc.getPage(Number(box.dataset.page)).then(function (page) {
+      if (load !== viewer.load) return null;
+      var cssWidth = box.clientWidth;
+      var base = page.getViewport({ scale: 1 });
+      var ratio = Math.min(window.devicePixelRatio || 1, 2);
+      var vp = page.getViewport({ scale: (cssWidth / base.width) * ratio });
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.floor(vp.width);
+      canvas.height = Math.floor(vp.height);
+      box.style.height = Math.round(vp.height / ratio) + 'px';
+      box.appendChild(canvas);
+      return page.render({ canvas: canvas, canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    }).catch(function () {
+      if (load !== viewer.load) return;
+      box.dataset.drawn = '';
+      /* A browser that cannot draw the pages at all gets told, instead of a
+         column of blank boxes. */
+      if (++drawFailures >= 2) viewerMessage('This browser could not display the document. Please update your browser, or try Chrome, Edge, Safari or Firefox.');
+    });
+  }
+
+  function closeViewer() {
+    viewer.load++;
+    $('mp-viewer').hidden = true;
+    document.body.style.overflow = '';
+    releaseViewer();
+    pages.textContent = '';
+    if (viewer.opener && viewer.opener.focus) viewer.opener.focus();
+  }
+
+  $('v-close').addEventListener('click', closeViewer);
+  $('v-in').addEventListener('click', function () { viewer.scale = Math.min(2, viewer.scale + 0.25); layoutPages(); });
+  $('v-out').addEventListener('click', function () { viewer.scale = Math.max(0.5, viewer.scale - 0.25); layoutPages(); });
+  document.addEventListener('keydown', function (e) {
+    if ($('mp-viewer').hidden) return;
+    if (e.key === 'Escape') closeViewer();
+    /* Nothing to save or print here. */
+    if ((e.ctrlKey || e.metaKey) && /^[sp]$/i.test(e.key)) e.preventDefault();
+  });
+  /* The page counter follows the page that fills the middle of the view. */
+  pages.addEventListener('scroll', function () {
+    if (!viewer.doc) return;
+    var mid = pages.scrollTop + pages.clientHeight / 2;
+    var boxes = pages.children;
+    for (var i = 0; i < boxes.length; i++) {
+      var b = boxes[i];
+      if (b.offsetTop + b.offsetHeight >= mid) {
+        $('v-page').textContent = 'Page ' + (i + 1) + ' of ' + viewer.doc.numPages;
+        break;
+      }
+    }
+  }, { passive: true });
+  pages.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  var resizeTimer = null;
+  window.addEventListener('resize', function () {
+    if ($('mp-viewer').hidden) return;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(layoutPages, 200);
+  });
+
+  /* ---- boot ------------------------------------------------------------------ */
+
+  if (PREVIEW) {
+    /* Show the tool as a member would see it, with a note that it is a preview. */
+    var note = document.createElement('p');
+    note.className = 'mp-preview';
+    note.textContent = 'Preview. This page only works once it is published on StrategyTraining.com and you are signed in.';
+    $('mp-app').insertBefore(note, $('mp-app').firstChild);
+    openApp();
+  } else if (!BOOT.ready) {
+    showGate('not_configured');
+  } else if (BOOT.devOpen && !embedded) {
+    startSession({ signedIn: true });
+  } else {
+    requestIdentity().then(function (who) {
+      /* On the store page a signed-out visitor is told to sign in straight
+         away; there is no need to ask the server. */
+      if (PAGE && who.signedIn === false && !who.transient) {
+        lastIdentity = who;
+        return showGate('signed_out');
+      }
+      return startSession(who);
+    });
+  }
+})();
+</script>

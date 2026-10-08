@@ -21,10 +21,16 @@
     "test:call": "node scripts/test-call.js",
     "make:greeting": "node scripts/make-greeting.js",
     "test:headcode": "node scripts/test-headcode.js",
-    "shots:ui": "node scripts/shots-ui.js"
+    "shots:ui": "node scripts/shots-ui.js",
+    "test:masterplan": "node --test masterplan/test/costs.test.js masterplan/test/pipeline.test.js",
+    "build:masterplan-page": "node scripts/build-masterplan-page.js",
+    "seal:masterplan-knowledge": "node scripts/seal-masterplan-knowledge.js"
   },
   "dependencies": {
-    "express": "^4.21.2"
+    "@anthropic-ai/sdk": "^0.132.1",
+    "express": "^4.21.2",
+    "pdfjs-dist": "^6.4.299",
+    "pdfmake": "^0.3.11"
   },
   "devDependencies": {
     "puppeteer-core": "^25.9.0"

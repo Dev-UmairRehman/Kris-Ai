@@ -720,3 +720,11 @@ content is short.
 The small dark chip beside the verified tick reads `DIGITAL TWIN`. The text in the live badge
 is too small to read in a screenshot — tell me what it should say and it is a one-line change
 in `views/app.html`.
+
+
+## MasterPlan Digital (separate product on this server)
+
+Everything under `/masterplan` belongs to MasterPlan Digital, a separate StrategyTraining.com product
+that shares this server to avoid a second app. It shares only the member gate. It is off
+until `MP_ENABLED=true`, and if it fails to load, Kris AI keeps running. See
+[masterplan/README.md](masterplan/README.md).

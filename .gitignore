@@ -4,3 +4,10 @@ node_modules/
 *.log
 .do-token
 .shots/
+
+# MasterPlan Digital local storage (MP_STORAGE=disk)
+.data/
+
+# MasterPlan source material: client IP + a real person's details. Never commit
+# it readable; masterplan/knowledge.enc is the sealed copy (npm run seal:masterplan-knowledge).
+masterplan/knowledge/

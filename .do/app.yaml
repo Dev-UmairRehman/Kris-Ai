@@ -154,6 +154,74 @@ services:
         scope: RUN_TIME
         value: "12"
 
+      # --- MasterPlan Digital (./masterplan, routes under /masterplan) ---
+      # A separate StrategyTraining.com product sharing this server. Not Michael AI.
+      # Stays off until MP_ENABLED=true; GET /masterplan/healthz lists what is missing.
+      - key: MP_ENABLED
+        scope: RUN_TIME
+        value: "false"
+
+      - key: MP_LLM_PROVIDER
+        scope: RUN_TIME
+        value: openrouter
+
+      - key: MP_OPENROUTER_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+
+      - key: MP_MODEL
+        scope: RUN_TIME
+        value: anthropic/claude-opus-5.5
+
+      - key: MP_STORAGE
+        scope: RUN_TIME
+        value: spaces
+
+      - key: MP_SPACES_ENDPOINT
+        scope: RUN_TIME
+        value: https://fra1.digitaloceanspaces.com
+
+      - key: MP_SPACES_BUCKET
+        scope: RUN_TIME
+        value: ""
+
+      - key: MP_SPACES_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+
+      - key: MP_SPACES_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+
+      # log until the email method is chosen; webhook posts the message as JSON.
+      - key: MP_EMAIL_DRIVER
+        scope: RUN_TIME
+        value: log
+
+      - key: MP_EMAIL_WEBHOOK_URL
+        scope: RUN_TIME
+        value: ""
+
+      - key: MP_EMAIL_WEBHOOK_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+
+      - key: MP_PAGE_URL
+        scope: RUN_TIME
+        value: https://www.strategytraining.com/pages/masterplan-digital
+
+      - key: MP_PER_MEMBER_PER_DAY
+        scope: RUN_TIME
+        value: "2"
+
+      - key: MP_GLOBAL_PER_DAY
+        scope: RUN_TIME
+        value: "40"
+
 ingress:
   rules:
     - match:

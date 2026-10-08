@@ -11,6 +11,7 @@
      POST /api/session    exchange a store identity claim for a session cookie.
      POST /api/chat       ask Kris one question.
      POST /api/memory     Michael AI writes a member's finished work into memory.
+     /masterplan/*        MasterPlan Digital, a separate product (masterplan/README.md).
 
    The BuddyPro key and the Uscreen key exist only in this process. Nothing
    secret is ever written into the page.
@@ -533,6 +534,20 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
+/* ---- MasterPlan Digital -------------------------------------------------
+   A separate StrategyTraining.com product that shares this server to avoid a
+   second app. Everything it does lives under /masterplan in ./masterplan.
+   Loaded defensively: a problem there must never take the Kris AI widget
+   down with it. */
+
+let masterplan = null;
+try {
+  masterplan = require('./masterplan');
+  app.use('/masterplan', masterplan.router);
+} catch (err) {
+  console.error('[masterplan] failed to load; Kris AI is unaffected:', err);
+}
+
 /* ---- fallbacks --------------------------------------------------------- */
 
 app.use((req, res) => {
@@ -565,6 +580,21 @@ const server = app.listen(config.port, () => {
       '[kris-ai] gate=frame: membership is inferred from the iframe host, not verified against Uscreen.'
     );
   }
+  if (masterplan) {
+    try {
+      masterplan.boot();
+    } catch (err) {
+      console.error('[masterplan] boot failed; Kris AI is unaffected:', err);
+    }
+  }
+});
+
+/* A stray rejected promise (most likely from a storage hiccup in the
+   MasterPlan module) must not end the process: since Node 15 that is the
+   default, and it would take the Kris AI widget down with it. Log it loudly
+   and keep serving. */
+process.on('unhandledRejection', (reason) => {
+  console.error('[server] unhandled rejection (kept running):', reason);
 });
 
 for (const signal of ['SIGTERM', 'SIGINT']) {
