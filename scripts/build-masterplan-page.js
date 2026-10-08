@@ -26,8 +26,13 @@ const html = fs.readFileSync(path.join(ROOT, 'masterplan', 'views', 'app.html'),
 const css = fs.readFileSync(path.join(ROOT, 'masterplan', 'public', 'app.css'), 'utf8');
 const js = fs.readFileSync(path.join(ROOT, 'masterplan', 'public', 'app.js'), 'utf8');
 
-const main = html.match(/<main id="mp"[\s\S]*?<\/main>/);
-if (!main) throw new Error('No <main id="mp"> in views/app.html');
+/* The tool's markup: from <div id="mp"> to just before the boot script. Plain
+   divs (no main/header/nav) so store-wide tag styles cannot reach it. */
+const start = html.indexOf('<div id="mp"');
+const end = html.indexOf('<script>window.MP_BOOT');
+if (start < 0 || end < start) throw new Error('No <div id="mp"> ... boot script in views/app.html');
+const main = [html.slice(start, end).trim()];
+if (/<(main|header|nav)\b/i.test(main[0])) throw new Error('use divs in the tool markup, not main/header/nav');
 
 /* The store page has its own body; only the .mp rules travel. */
 const pageCss = css.replace(/^html, body \{[^}]*\}\r?\n/m, '');

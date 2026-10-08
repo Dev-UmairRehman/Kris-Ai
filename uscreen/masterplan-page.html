@@ -56,6 +56,18 @@
 .mp-preview { margin: 0 0 22px; padding: 10px 14px; border: 1px dashed var(--ink-3); font-size: 14px; color: var(--ink-2); }
 
 .mp { max-width: 860px; margin: 0 auto; padding: 32px 24px 64px; }
+/* On the store page the white runs the full width and fills the space between
+   the store's header and footer. Sideways shadows (no blur, no spread) paint
+   white copies of the column to its left and right: they never change the
+   layout, catch no clicks and cannot add a horizontal scrollbar, and they stay
+   exactly as tall as the column, so the store's header and footer show. */
+.mp.is-page {
+  min-height: calc(100vh - 210px);
+  box-shadow:
+    -700px 0 0 var(--paper), 700px 0 0 var(--paper),
+    -1400px 0 0 var(--paper), 1400px 0 0 var(--paper),
+    -2100px 0 0 var(--paper), 2100px 0 0 var(--paper);
+}
 
 .mp-boot { padding: 80px 0; text-align: center; color: var(--ink-3); }
 .mp:not(.is-booting) .mp-boot { display: none; }
@@ -64,7 +76,14 @@
 .mp-title { margin: 0 0 10px; font: 700 40px/1.1 var(--serif); letter-spacing: -.01em; }
 .mp-lede { margin: 0 0 26px; max-width: 640px; font: 18px/1.55 var(--serif); color: var(--ink-2); }
 
-.mp-gate { padding: 48px 0; }
+.mp-gate { padding: 56px 0 40px; }
+.mp-gate .mp-title { font-size: 46px; }
+.mp-gate .mp-lede { max-width: 620px; }
+.mp-gate .mp-actions { margin-top: 6px; }
+.mp-gate-what { list-style: none; margin: 44px 0 0; padding: 26px 0 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+.mp-gate-what li { font-size: 15px; line-height: 1.55; color: var(--ink-2); }
+.mp-gate-what strong { display: block; margin-bottom: 4px; font: 700 18px/1.3 var(--serif); color: var(--ink); }
+@media (max-width: 640px) { .mp-gate .mp-title { font-size: 34px; } .mp-gate-what { grid-template-columns: 1fr; gap: 18px; } }
 /* Line up with the page around it (.mpx__wrap: 1040px, same gutter). */
 .mp.is-bare { max-width: none; padding: 8px clamp(20px, 5vw, 48px) 48px; }
 .mp.is-bare .mp-head .mp-kicker,
@@ -253,18 +272,25 @@
 @media print { .mp { display: none !important; } }
 </style>
 
-<main id="mp" class="mp is-booting">
+<div id="mp" class="mp is-booting" role="main">
 
   <div class="mp-boot" id="mp-boot" role="status">Loading the MasterPlan…</div>
 
   <section class="mp-gate" id="mp-gate" hidden>
+    <p class="mp-kicker">StrategyTraining.com</p>
     <h1 class="mp-title">The MasterPlan Digital</h1>
+    <p class="mp-lede">Drop in your resume and your social profiles. We read them against the MasterPlan and draft two documents for you: your MasterPlan, and a case study of you as a leader.</p>
     <p class="mp-lede" id="mp-gate-text">Sign in to your StrategyTraining account to use the MasterPlan.</p>
     <div class="mp-actions">
       <a class="mp-btn" id="mp-signin" target="_top" href="#">Sign in</a>
       <a class="mp-btn mp-btn-ghost" id="mp-join" target="_top" href="#">Join</a>
       <button type="button" class="mp-btn" id="mp-retry" hidden>Try again</button>
     </div>
+    <ul class="mp-gate-what">
+      <li><strong>Your MasterPlan</strong>The nine questions, the four exercises and chapters eleven to twenty, answered from your own record.</li>
+      <li><strong>Your case study</strong>A case study in leadership psychology: the patterns in your career and the tensions they hide.</li>
+      <li><strong>Every guess marked</strong>Facts are plain; anything inferred carries an asterisk, for you to confirm or correct.</li>
+    </ul>
   </section>
 
   <!-- An account with MasterPlans opened in a browser it has not seen before. -->
@@ -279,16 +305,16 @@
   </section>
 
   <section class="mp-app" id="mp-app" hidden>
-    <header class="mp-head">
+    <div class="mp-head">
       <p class="mp-kicker">StrategyTraining.com</p>
       <h1 class="mp-title">The MasterPlan Digital</h1>
       <p class="mp-lede">Drop in your resume and your social profiles. We read them against the MasterPlan and draft two documents for you: your MasterPlan, and a case study of you as a leader. Every guess is marked, so you can correct it.</p>
-      <nav class="mp-tabs" role="tablist">
+      <div class="mp-tabs" role="tablist">
         <button role="tab" data-tab="new" aria-selected="true">New MasterPlan</button>
         <button role="tab" data-tab="mine" aria-selected="false">My MasterPlans <span class="mp-count" id="mp-mine-count" hidden></span></button>
         <button role="tab" data-tab="library" aria-selected="false">Library</button>
-      </nav>
-    </header>
+      </div>
+    </div>
 
     <!-- ===== new ===== -->
     <section class="mp-panel" id="panel-new" data-panel="new">
@@ -427,7 +453,7 @@
     </div>
     <div class="mp-vpages" id="v-pages"></div>
   </div>
-</main>
+</div>
 
 <script>window.MP_BOOT = {"mode":"page","apiOrigin":"https://kris-ai-memory-baefm.ondigitalocean.app","ready":true,"signInUrl":"/sign_in","joinUrl":"/join","maxUploadBytes":8388608,"pdfjsVersion":"6.4.299"};</script>
 <script>
@@ -471,6 +497,7 @@
   var root = $('mp');
   /* On the Uscreen page the title is already on the page around the app. */
   if (BOOT.bare) root.classList.add('is-bare');
+  if (PAGE) root.classList.add('is-page');
   var token = null;
   var email = '';
   var state = { mine: [], sharing: false, library: [] };
@@ -1260,13 +1287,19 @@
     pages.textContent = '';
     drawFailures = 0;
     if (viewer.observer) viewer.observer.disconnect();
-    var width = Math.min(pages.clientWidth - 24, 860) * viewer.scale;
+    /* Whole pixels: a fractional width makes the browser resample the canvas,
+       which softens the text. */
+    var width = Math.floor(Math.min(pages.clientWidth - 24, 860) * viewer.scale);
 
+    /* Pages are drawn as they come near the view and dropped again when they
+       are far away, so a 30-page document at high resolution never holds more
+       than a handful of pages in memory. */
     viewer.observer = new IntersectionObserver(function (entries) {
       entries.forEach(function (en) {
         if (en.isIntersecting) drawPage(en.target);
+        else freePage(en.target);
       });
-    }, { root: pages, rootMargin: '600px 0px' });
+    }, { root: pages, rootMargin: '1200px 0px' });
 
     for (var n = 1; n <= pdf.numPages; n++) {
       var box = el('div', 'mp-page');
@@ -1287,21 +1320,46 @@
       if (load !== viewer.load) return null;
       var cssWidth = box.clientWidth;
       var base = page.getViewport({ scale: 1 });
-      var ratio = Math.min(window.devicePixelRatio || 1, 2);
+      /* Draw well above screen resolution and let the browser scale down:
+         on an ordinary 1x laptop screen, a page drawn at exactly 1x looks
+         soft, like a picture of text. 2x there, 3x on retina screens. */
+      var dpr = window.devicePixelRatio || 1;
+      var ratio = Math.min(3, Math.max(2, dpr * 1.5));
       var vp = page.getViewport({ scale: (cssWidth / base.width) * ratio });
       var canvas = document.createElement('canvas');
       canvas.width = Math.floor(vp.width);
       canvas.height = Math.floor(vp.height);
       box.style.height = Math.round(vp.height / ratio) + 'px';
       box.appendChild(canvas);
-      return page.render({ canvas: canvas, canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-    }).catch(function () {
+      var task = page.render({ canvas: canvas, canvasContext: canvas.getContext('2d', { alpha: false }), viewport: vp });
+      box._render = task;
+      return task.promise.then(function () {
+        box._render = null;
+      });
+    }).catch(function (err) {
+      if (err && err.name === 'RenderingCancelledException') return;
       if (load !== viewer.load) return;
       box.dataset.drawn = '';
       /* A browser that cannot draw the pages at all gets told, instead of a
          column of blank boxes. */
       if (++drawFailures >= 2) viewerMessage('This browser could not display the document. Please update your browser, or try Chrome, Edge, Safari or Firefox.');
     });
+  }
+
+  /* Give a far-away page's canvas memory back; it is drawn again on return. */
+  function freePage(box) {
+    if (!box.dataset.drawn) return;
+    if (box._render) {
+      box._render.cancel();
+      box._render = null;
+    }
+    var canvas = box.querySelector('canvas');
+    if (canvas) {
+      canvas.width = 0;
+      canvas.height = 0;
+      box.removeChild(canvas);
+    }
+    box.dataset.drawn = '';
   }
 
   function closeViewer() {

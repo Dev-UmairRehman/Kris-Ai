@@ -38,6 +38,7 @@
   var root = $('mp');
   /* On the Uscreen page the title is already on the page around the app. */
   if (BOOT.bare) root.classList.add('is-bare');
+  if (PAGE) root.classList.add('is-page');
   var token = null;
   var email = '';
   var state = { mine: [], sharing: false, library: [] };
@@ -827,13 +828,19 @@
     pages.textContent = '';
     drawFailures = 0;
     if (viewer.observer) viewer.observer.disconnect();
-    var width = Math.min(pages.clientWidth - 24, 860) * viewer.scale;
+    /* Whole pixels: a fractional width makes the browser resample the canvas,
+       which softens the text. */
+    var width = Math.floor(Math.min(pages.clientWidth - 24, 860) * viewer.scale);
 
+    /* Pages are drawn as they come near the view and dropped again when they
+       are far away, so a 30-page document at high resolution never holds more
+       than a handful of pages in memory. */
     viewer.observer = new IntersectionObserver(function (entries) {
       entries.forEach(function (en) {
         if (en.isIntersecting) drawPage(en.target);
+        else freePage(en.target);
       });
-    }, { root: pages, rootMargin: '600px 0px' });
+    }, { root: pages, rootMargin: '1200px 0px' });
 
     for (var n = 1; n <= pdf.numPages; n++) {
       var box = el('div', 'mp-page');
@@ -854,21 +861,46 @@
       if (load !== viewer.load) return null;
       var cssWidth = box.clientWidth;
       var base = page.getViewport({ scale: 1 });
-      var ratio = Math.min(window.devicePixelRatio || 1, 2);
+      /* Draw well above screen resolution and let the browser scale down:
+         on an ordinary 1x laptop screen, a page drawn at exactly 1x looks
+         soft, like a picture of text. 2x there, 3x on retina screens. */
+      var dpr = window.devicePixelRatio || 1;
+      var ratio = Math.min(3, Math.max(2, dpr * 1.5));
       var vp = page.getViewport({ scale: (cssWidth / base.width) * ratio });
       var canvas = document.createElement('canvas');
       canvas.width = Math.floor(vp.width);
       canvas.height = Math.floor(vp.height);
       box.style.height = Math.round(vp.height / ratio) + 'px';
       box.appendChild(canvas);
-      return page.render({ canvas: canvas, canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-    }).catch(function () {
+      var task = page.render({ canvas: canvas, canvasContext: canvas.getContext('2d', { alpha: false }), viewport: vp });
+      box._render = task;
+      return task.promise.then(function () {
+        box._render = null;
+      });
+    }).catch(function (err) {
+      if (err && err.name === 'RenderingCancelledException') return;
       if (load !== viewer.load) return;
       box.dataset.drawn = '';
       /* A browser that cannot draw the pages at all gets told, instead of a
          column of blank boxes. */
       if (++drawFailures >= 2) viewerMessage('This browser could not display the document. Please update your browser, or try Chrome, Edge, Safari or Firefox.');
     });
+  }
+
+  /* Give a far-away page's canvas memory back; it is drawn again on return. */
+  function freePage(box) {
+    if (!box.dataset.drawn) return;
+    if (box._render) {
+      box._render.cancel();
+      box._render = null;
+    }
+    var canvas = box.querySelector('canvas');
+    if (canvas) {
+      canvas.width = 0;
+      canvas.height = 0;
+      box.removeChild(canvas);
+    }
+    box.dataset.drawn = '';
   }
 
   function closeViewer() {

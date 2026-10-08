@@ -24,6 +24,18 @@ html, body { margin: 0; background: #fff; }
 .mp-preview { margin: 0 0 22px; padding: 10px 14px; border: 1px dashed var(--ink-3); font-size: 14px; color: var(--ink-2); }
 
 .mp { max-width: 860px; margin: 0 auto; padding: 32px 24px 64px; }
+/* On the store page the white runs the full width and fills the space between
+   the store's header and footer. Sideways shadows (no blur, no spread) paint
+   white copies of the column to its left and right: they never change the
+   layout, catch no clicks and cannot add a horizontal scrollbar, and they stay
+   exactly as tall as the column, so the store's header and footer show. */
+.mp.is-page {
+  min-height: calc(100vh - 210px);
+  box-shadow:
+    -700px 0 0 var(--paper), 700px 0 0 var(--paper),
+    -1400px 0 0 var(--paper), 1400px 0 0 var(--paper),
+    -2100px 0 0 var(--paper), 2100px 0 0 var(--paper);
+}
 
 .mp-boot { padding: 80px 0; text-align: center; color: var(--ink-3); }
 .mp:not(.is-booting) .mp-boot { display: none; }
@@ -32,7 +44,14 @@ html, body { margin: 0; background: #fff; }
 .mp-title { margin: 0 0 10px; font: 700 40px/1.1 var(--serif); letter-spacing: -.01em; }
 .mp-lede { margin: 0 0 26px; max-width: 640px; font: 18px/1.55 var(--serif); color: var(--ink-2); }
 
-.mp-gate { padding: 48px 0; }
+.mp-gate { padding: 56px 0 40px; }
+.mp-gate .mp-title { font-size: 46px; }
+.mp-gate .mp-lede { max-width: 620px; }
+.mp-gate .mp-actions { margin-top: 6px; }
+.mp-gate-what { list-style: none; margin: 44px 0 0; padding: 26px 0 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+.mp-gate-what li { font-size: 15px; line-height: 1.55; color: var(--ink-2); }
+.mp-gate-what strong { display: block; margin-bottom: 4px; font: 700 18px/1.3 var(--serif); color: var(--ink); }
+@media (max-width: 640px) { .mp-gate .mp-title { font-size: 34px; } .mp-gate-what { grid-template-columns: 1fr; gap: 18px; } }
 /* Line up with the page around it (.mpx__wrap: 1040px, same gutter). */
 .mp.is-bare { max-width: none; padding: 8px clamp(20px, 5vw, 48px) 48px; }
 .mp.is-bare .mp-head .mp-kicker,

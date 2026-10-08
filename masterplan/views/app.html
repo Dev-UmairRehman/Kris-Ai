@@ -11,18 +11,25 @@
      around this page. -->
 </head>
 <body>
-<main id="mp" class="mp is-booting">
+<div id="mp" class="mp is-booting" role="main">
 
   <div class="mp-boot" id="mp-boot" role="status">Loading the MasterPlan…</div>
 
   <section class="mp-gate" id="mp-gate" hidden>
+    <p class="mp-kicker">StrategyTraining.com</p>
     <h1 class="mp-title">The MasterPlan Digital</h1>
+    <p class="mp-lede">Drop in your resume and your social profiles. We read them against the MasterPlan and draft two documents for you: your MasterPlan, and a case study of you as a leader.</p>
     <p class="mp-lede" id="mp-gate-text">Sign in to your StrategyTraining account to use the MasterPlan.</p>
     <div class="mp-actions">
       <a class="mp-btn" id="mp-signin" target="_top" href="#">Sign in</a>
       <a class="mp-btn mp-btn-ghost" id="mp-join" target="_top" href="#">Join</a>
       <button type="button" class="mp-btn" id="mp-retry" hidden>Try again</button>
     </div>
+    <ul class="mp-gate-what">
+      <li><strong>Your MasterPlan</strong>The nine questions, the four exercises and chapters eleven to twenty, answered from your own record.</li>
+      <li><strong>Your case study</strong>A case study in leadership psychology: the patterns in your career and the tensions they hide.</li>
+      <li><strong>Every guess marked</strong>Facts are plain; anything inferred carries an asterisk, for you to confirm or correct.</li>
+    </ul>
   </section>
 
   <!-- An account with MasterPlans opened in a browser it has not seen before. -->
@@ -37,16 +44,16 @@
   </section>
 
   <section class="mp-app" id="mp-app" hidden>
-    <header class="mp-head">
+    <div class="mp-head">
       <p class="mp-kicker">StrategyTraining.com</p>
       <h1 class="mp-title">The MasterPlan Digital</h1>
       <p class="mp-lede">Drop in your resume and your social profiles. We read them against the MasterPlan and draft two documents for you: your MasterPlan, and a case study of you as a leader. Every guess is marked, so you can correct it.</p>
-      <nav class="mp-tabs" role="tablist">
+      <div class="mp-tabs" role="tablist">
         <button role="tab" data-tab="new" aria-selected="true">New MasterPlan</button>
         <button role="tab" data-tab="mine" aria-selected="false">My MasterPlans <span class="mp-count" id="mp-mine-count" hidden></span></button>
         <button role="tab" data-tab="library" aria-selected="false">Library</button>
-      </nav>
-    </header>
+      </div>
+    </div>
 
     <!-- ===== new ===== -->
     <section class="mp-panel" id="panel-new" data-panel="new">
@@ -185,7 +192,7 @@
     </div>
     <div class="mp-vpages" id="v-pages"></div>
   </div>
-</main>
+</div>
 
 <script>window.MP_BOOT = {{BOOTSTRAP}};</script>
 <script src="/masterplan/static/app.js?v={{ASSET_V}}"></script>
