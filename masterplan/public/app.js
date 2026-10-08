@@ -486,8 +486,12 @@
 
   /* The progress view: watch it being written. */
 
-  var ORDER = ['queued', 'reading', 'researching', 'writing', 'rendering', 'ready'];
-  var BAR = { queued: 4, reading: 14, researching: 32, writing: 58, rendering: 92, ready: 100 };
+  var ORDER = ['queued', 'reading', 'researching', 'writing', 'rendering', 'podcast', 'ready'];
+  var BAR = { queued: 4, reading: 10, researching: 24, writing: 46, rendering: 62, podcast: 78, ready: 100 };
+
+  function podcastPending(r) {
+    return !!(r.podcast && (r.podcast.status === 'queued' || r.podcast.status === 'running'));
+  }
   var tracking = null;
   var trackTimer = null;
 
@@ -495,9 +499,11 @@
     tracking = id;
     $('g-title').textContent = 'Generating your MasterPlan';
     $('g-sub').hidden = false;
+    $('g-pod').hidden = true;
     $('g-docs').hidden = true;
     $('g-docs').textContent = '';
     showError('g-error', '');
+    $('g-stages').querySelector('[data-stage="podcast"]').hidden = false;
     paintStage('queued');
     showProgress();
     pollTrack();
@@ -540,12 +546,26 @@
         return;
       }
       if (r.status === 'ready') {
-        paintStage('ready');
-        $('g-title').textContent = 'Your MasterPlan is ready';
-        $('g-sub').hidden = true;
+        /* The documents open as soon as they exist; the podcast follows. */
         var docs = docButtons(r);
         $('g-docs').replaceWith(docs);
         docs.id = 'g-docs';
+        $('g-stages').querySelector('[data-stage="podcast"]').hidden = !r.podcast;
+        if (podcastPending(r)) {
+          paintStage('podcast');
+          $('g-title').textContent = 'Your documents are ready';
+          $('g-sub').hidden = true;
+          $('g-pod').hidden = false;
+          trackTimer = setTimeout(pollTrack, 8000);
+          return;
+        }
+        paintStage('ready');
+        $('g-title').textContent = 'Your MasterPlan is ready';
+        $('g-sub').hidden = true;
+        $('g-pod').hidden = true;
+        if (r.podcast && r.podcast.status === 'failed') {
+          showError('g-error', 'Your documents are ready, but the podcast did not finish. Use "Try the podcast again" under My MasterPlans.');
+        }
         tracking = null;
         renderMine();
         return;
@@ -606,12 +626,24 @@
       b.addEventListener('click', function () { openViewer(r.id, d[0], who + ', ' + (d[1] || '')); });
       wrap.appendChild(b);
     });
-    var pod = el('button', 'mp-doc');
-    pod.type = 'button';
-    pod.disabled = true;
-    pod.appendChild(document.createTextNode('Podcast'));
-    pod.appendChild(el('small', null, r.podcast ? 'Ready' : 'Coming soon'));
-    wrap.appendChild(pod);
+    var p = r.podcast;
+    if (p) {
+      var pod = el('button', 'mp-doc mp-doc-pod');
+      pod.type = 'button';
+      pod.appendChild(document.createTextNode(p.status === 'ready' && p.title ? 'The Debate: ' + p.title : 'The Debate'));
+      var note = 'Podcast';
+      if (p.status === 'ready') note += p.seconds ? ' · ' + Math.max(1, Math.round(p.seconds / 60)) + ' min' : '';
+      else if (p.status === 'failed') note += ' · not finished';
+      else note += ' · recording…';
+      pod.appendChild(el('small', null, note));
+      if (p.status === 'ready') {
+        pod.addEventListener('click', function () { openPlayer(r.id, p, who); });
+      } else {
+        pod.disabled = true;
+        if (p.status !== 'failed') pod.classList.add('is-busy');
+      }
+      wrap.appendChild(pod);
+    }
     return wrap;
   }
 
@@ -631,7 +663,11 @@
 
       var status = el('span', 'mp-status');
       status.appendChild(el('span', 'dot'));
-      if (r.status === 'ready') {
+      if (r.status === 'ready' && podcastPending(r)) {
+        busy++;
+        status.classList.add('is-busy');
+        status.appendChild(document.createTextNode('Recording the podcast'));
+      } else if (r.status === 'ready') {
         status.appendChild(document.createTextNode('Ready'));
       } else if (r.status === 'failed') {
         status.classList.add('is-failed');
@@ -664,7 +700,15 @@
         });
         foot.appendChild(retry);
       }
-      if (r.status !== 'running') {
+      if (r.status === 'ready' && r.podcast && r.podcast.status === 'failed') {
+        var again = el('button', 'mp-link', 'Try the podcast again');
+        again.addEventListener('click', function () {
+          again.disabled = true;
+          api('POST', '/api/reports/' + r.id + '/retry').then(refreshMine);
+        });
+        foot.appendChild(again);
+      }
+      if (r.status !== 'running' && !podcastPending(r)) {
         var del = el('button', 'mp-link', 'Delete');
         del.addEventListener('click', function () {
           if (!window.confirm('Delete this MasterPlan? This cannot be undone.')) return;
@@ -689,7 +733,7 @@
     return api('GET', '/api/reports').then(function (r) {
       if (!r.ok) {
         /* Keep checking while anything was still being written. */
-        var busy = state.mine.some(function (x) { return x.status === 'queued' || x.status === 'running'; });
+        var busy = state.mine.some(function (x) { return x.status === 'queued' || x.status === 'running' || podcastPending(x); });
         schedulePoll(busy, POLL_MS * 3);
         return;
       }
@@ -731,7 +775,12 @@
         left.appendChild(el('p', 'mp-sub', fmtDate(e.createdAt)));
         top.appendChild(left);
         li.appendChild(top);
-        li.appendChild(docButtons({ id: e.id, name: e.name, docs: { narrative: { pages: '' }, article: { title: e.articleTitle, pages: '' } }, podcast: null }));
+        li.appendChild(docButtons({
+          id: e.id,
+          name: e.name,
+          docs: { narrative: { pages: '' }, article: { title: e.articleTitle, pages: '' } },
+          podcast: e.podcast ? { status: 'ready', title: e.podcast.title, seconds: e.podcast.seconds } : null,
+        }));
         Array.prototype.forEach.call(li.querySelectorAll('.mp-doc small'), function (s) {
           s.textContent = s.textContent.replace(/ · +pages$/, '');
         });
@@ -943,6 +992,181 @@
     if ($('mp-viewer').hidden) return;
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(layoutPages, 200);
+  });
+
+  /* ---- podcast player -------------------------------------------------------- */
+
+  /* The episode plays on the site only: it is fetched with the member's token
+     into memory and played from there, through our own controls. There is no
+     file link, no native player menu and no save button. */
+  var player = { audio: null, url: null, load: 0, opener: null, seeking: false };
+  var RATES = [1, 1.25, 1.5, 0.75];
+
+  function clock(s) {
+    s = Math.max(0, Math.floor(s || 0));
+    var m = Math.floor(s / 60);
+    var h = Math.floor(m / 60);
+    var ss = ('0' + (s % 60)).slice(-2);
+    return h ? h + ':' + ('0' + (m % 60)).slice(-2) + ':' + ss : m + ':' + ss;
+  }
+
+  function playerControls(on) {
+    ['p-play', 'p-back', 'p-fwd', 'p-seek', 'p-rate'].forEach(function (k) { $(k).disabled = !on; });
+  }
+
+  function paintPlayer() {
+    var a = player.audio;
+    var playing = !!(a && !a.paused);
+    $('mp-player').classList.toggle('is-playing', playing);
+    $('p-play').setAttribute('aria-label', playing ? 'Pause' : 'Play');
+    if (!a) return;
+    var len = isFinite(a.duration) ? a.duration : 0;
+    $('p-now').textContent = clock(a.currentTime);
+    $('p-len').textContent = clock(len);
+    if (!player.seeking && len) $('p-seek').value = Math.round((a.currentTime / len) * 1000);
+    $('p-seek').style.setProperty('--at', ($('p-seek').value / 10) + '%');
+  }
+
+  function releasePlayer() {
+    if (player.audio) {
+      player.audio.pause();
+      player.audio.removeAttribute('src');
+      player.audio.load();
+    }
+    player.audio = null;
+    if (player.url) URL.revokeObjectURL(player.url);
+    player.url = null;
+  }
+
+  function openPlayer(id, p, who) {
+    var load = ++player.load;
+    releasePlayer();
+    player.opener = document.activeElement;
+    $('p-title').textContent = p.title || 'The Debate';
+    $('p-who').textContent = who || '';
+    $('p-now').textContent = '0:00';
+    $('p-len').textContent = clock(p.seconds);
+    $('p-seek').value = 0;
+    $('p-seek').style.setProperty('--at', '0%');
+    $('p-rate').textContent = '1×';
+    $('p-msg').textContent = 'Loading the episode…';
+    playerControls(false);
+    $('mp-player').classList.remove('is-playing');
+    $('mp-player').hidden = false;
+    document.body.style.overflow = 'hidden';
+    $('p-close').focus();
+
+    fetch(BASE + '/api/reports/' + encodeURIComponent(id) + '/podcast', { headers: { Authorization: 'Bearer ' + token } })
+      .then(function (res) {
+        if (!res.ok) throw new Error('not available');
+        var total = Number(res.headers.get('content-length')) || 0;
+        if (!res.body || !res.body.getReader || !total) return res.arrayBuffer().then(function (b) { return [b]; });
+        /* Read it in pieces to show how far the download is. */
+        var reader = res.body.getReader();
+        var parts = [];
+        var got = 0;
+        function pump() {
+          return reader.read().then(function (r) {
+            if (load !== player.load) {
+              reader.cancel();
+              return null;
+            }
+            if (r.done) return parts;
+            parts.push(r.value);
+            got += r.value.length;
+            $('p-msg').textContent = 'Loading the episode… ' + Math.min(99, Math.round((got / total) * 100)) + '%';
+            return pump();
+          });
+        }
+        return pump();
+      })
+      .then(function (parts) {
+        if (!parts || load !== player.load) return;
+        player.url = URL.createObjectURL(new Blob(parts, { type: 'audio/mpeg' }));
+        var a = new Audio();
+        a.preload = 'auto';
+        a.src = player.url;
+        player.audio = a;
+        ['timeupdate', 'play', 'pause', 'durationchange', 'loadedmetadata', 'ratechange'].forEach(function (ev) {
+          a.addEventListener(ev, paintPlayer);
+        });
+        a.addEventListener('ended', function () {
+          paintPlayer();
+          $('p-msg').textContent = 'That is the episode. Next: the conversation with Kris AI.';
+        });
+        a.addEventListener('error', function () {
+          if (load === player.load) $('p-msg').textContent = 'This browser could not play the episode. Please try Chrome, Edge, Safari or Firefox.';
+        });
+        $('p-msg').textContent = '';
+        playerControls(true);
+        $('p-play').focus();
+      })
+      .catch(function () {
+        if (load === player.load) $('p-msg').textContent = 'The episode could not be loaded. Please try again.';
+      });
+  }
+
+  function closePlayer() {
+    player.load++;
+    releasePlayer();
+    $('mp-player').hidden = true;
+    document.body.style.overflow = '';
+    if (player.opener && player.opener.focus) player.opener.focus();
+  }
+
+  function togglePlay() {
+    var a = player.audio;
+    if (!a) return;
+    if (a.paused) {
+      var pr = a.play();
+      if (pr && pr.catch) pr.catch(function () { $('p-msg').textContent = 'Press play again to start the episode.'; });
+    } else {
+      a.pause();
+    }
+  }
+
+  function skip(by) {
+    var a = player.audio;
+    if (!a || !isFinite(a.duration)) return;
+    a.currentTime = Math.max(0, Math.min(a.duration - 0.25, a.currentTime + by));
+    paintPlayer();
+  }
+
+  $('p-close').addEventListener('click', closePlayer);
+  $('p-play').addEventListener('click', togglePlay);
+  $('p-back').addEventListener('click', function () { skip(-15); });
+  $('p-fwd').addEventListener('click', function () { skip(15); });
+  $('p-rate').addEventListener('click', function () {
+    var a = player.audio;
+    if (!a) return;
+    var next = RATES[(RATES.indexOf(a.playbackRate) + 1) % RATES.length] || 1;
+    a.playbackRate = next;
+    $('p-rate').textContent = next + '×';
+  });
+  $('p-seek').addEventListener('input', function () {
+    var a = player.audio;
+    player.seeking = true;
+    $('p-seek').style.setProperty('--at', ($('p-seek').value / 10) + '%');
+    if (a && isFinite(a.duration)) $('p-now').textContent = clock((a.duration * $('p-seek').value) / 1000);
+  });
+  $('p-seek').addEventListener('change', function () {
+    var a = player.audio;
+    player.seeking = false;
+    if (a && isFinite(a.duration)) a.currentTime = (a.duration * $('p-seek').value) / 1000;
+    paintPlayer();
+  });
+  $('mp-player').addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  $('mp-player').addEventListener('click', function (e) {
+    if (e.target === $('mp-player')) closePlayer();
+  });
+  document.addEventListener('keydown', function (e) {
+    if ($('mp-player').hidden) return;
+    if (e.key === 'Escape') closePlayer();
+    else if ((e.ctrlKey || e.metaKey) && /^[sp]$/i.test(e.key)) e.preventDefault();
+    else if (e.key === ' ' && e.target && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
+      e.preventDefault();
+      togglePlay();
+    }
   });
 
   /* ---- boot ------------------------------------------------------------------ */

@@ -197,6 +197,55 @@ html, body { margin: 0; background: #fff; }
 .mp-page canvas { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .mp-vmsg { padding: 60px 20px; text-align: center; color: var(--ink-2); }
 
+/* ---- podcast ---- */
+.mp-doc.is-busy small::after { content: ''; display: inline-block; width: 6px; height: 6px; margin-left: 7px; border-radius: 50%; background: var(--navy); vertical-align: 1px; animation: mp-pulse 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .mp-doc.is-busy small::after { animation: none; } }
+
+.mp-player {
+  position: fixed; inset: 0; z-index: 2147483000; display: flex; align-items: center; justify-content: center;
+  padding: 20px; background: rgba(22, 24, 29, .55); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+}
+.mp-pcard {
+  position: relative; width: 100%; max-width: 520px; max-height: 100%; overflow: auto;
+  padding: 30px 34px 26px; background: #fff; border-top: 3px solid var(--navy); box-shadow: 0 18px 50px rgba(0,0,0,.25);
+  text-align: center; user-select: none; -webkit-user-select: none;
+}
+.mp-pclose { position: absolute; top: 14px; left: 18px; }
+.mp-pcard .mp-kicker { margin: 18px 0 12px; }
+.mp-ptitle { margin: 0 0 8px; font: 500 30px/1.15 var(--serif); color: var(--ink); }
+.mp-pwho { margin: 0 0 26px; font-size: 13.5px; color: var(--ink-3); }
+.mp-pmain { display: flex; align-items: center; justify-content: center; gap: 26px; margin: 0 0 24px; }
+.mp-pplay {
+  position: relative; width: 72px; height: 72px; padding: 0; border: 0; border-radius: 50%; background: var(--navy); cursor: pointer;
+  box-shadow: 0 6px 18px rgba(28, 37, 65, .28); transition: transform .15s, background .15s;
+}
+.mp-pplay:hover:not([disabled]) { background: var(--navy-2); transform: scale(1.04); }
+.mp-pplay[disabled] { background: var(--field); box-shadow: none; cursor: default; }
+.mp-picon { position: absolute; left: 50%; top: 50%; width: 0; height: 0; margin: -11px 0 0 -7px; border-style: solid; border-width: 11px 0 11px 19px; border-color: transparent transparent transparent #fff; }
+.mp-player.is-playing .mp-picon { width: 20px; height: 22px; margin: -11px 0 0 -10px; border: 0; border-left: 6px solid #fff; border-right: 6px solid #fff; }
+.mp-pskip {
+  appearance: none; width: 46px; height: 46px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: #fff;
+  font: 500 12.5px/1 var(--sans); color: var(--ink-2); cursor: pointer;
+}
+.mp-pskip:hover:not([disabled]) { border-color: var(--navy); color: var(--navy); }
+.mp-pskip[disabled] { color: var(--field); cursor: default; }
+.mp-pseek {
+  --at: 0%;
+  appearance: none; -webkit-appearance: none; display: block; width: 100%; height: 4px; margin: 0; padding: 0; border: 0; border-radius: 2px; cursor: pointer;
+  background: linear-gradient(to right, var(--navy) var(--at), var(--line) var(--at));
+}
+.mp-pseek:focus { outline: none; }
+.mp-pseek:focus-visible { outline: 2px solid var(--navy); outline-offset: 6px; }
+.mp-pseek::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border: 0; border-radius: 50%; background: var(--navy); }
+.mp-pseek::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: var(--navy); }
+.mp-pseek[disabled] { cursor: default; }
+.mp-pseek[disabled]::-webkit-slider-thumb { background: var(--field); }
+.mp-ptimes { display: flex; justify-content: space-between; align-items: center; margin: 10px 0 0; font: 12.5px/1 var(--sans); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.mp-prate { text-decoration: none; padding: 4px 10px; border: 1px solid var(--line); font-size: 12px; }
+.mp-prate[disabled] { color: var(--field); cursor: default; }
+.mp-pmsg { min-height: 20px; margin: 16px 0 0; font-size: 13px; color: var(--ink-2); }
+.mp-pnote { margin: 14px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12px; line-height: 1.6; color: var(--ink-3); }
+
 @media (max-width: 640px) {
   .mp { padding: 26px 18px 48px; }
   .mp-title { font-size: 36px; }
@@ -205,6 +254,9 @@ html, body { margin: 0; background: #fff; }
   .mp-tabs { justify-content: flex-start; margin-top: 0; overflow-x: auto; }
   .mp-doc { min-width: 0; width: 100%; }
   .mp-item-top { flex-direction: column; gap: 4px; }
+  .mp-player { padding: 0; align-items: stretch; }
+  .mp-pcard { max-width: none; display: flex; flex-direction: column; justify-content: center; padding: 56px 22px 28px; border-top: 0; }
+  .mp-ptitle { font-size: 26px; }
 }
 
 @media print { .mp { display: none !important; } }

@@ -2,16 +2,22 @@
 
 A StrategyTraining.com product. A member uploads a resume, adds public social
 profile links and their city / ZIP. Claude reads them against the MasterPlan
-Master Guide and writes two documents:
+Master Guide and makes three outputs:
 
 1. **The MasterPlan** - the nine questions, the four exercises, chapters eleven
    to twenty and the synthesis (about 25 pages).
 2. **The leadership case article** - a case study in leadership psychology
    (about 9 pages).
+3. **The podcast** - "The Debate", two hosts arguing the member's career like
+   NFL analysts on a promising prospect, ending on the coming conversation with
+   Kris AI (about 18 minutes). It replaces the client's NotebookLM Audio
+   Overview (Debate, default length, English, both documents as sources, their
+   focus text), which has no public API.
 
-The member is emailed when they are ready and reads them on the site. The PDFs
-are view-only: there is no download button, no file URL and no text layer.
-The podcast (NotebookLM) is a reserved slot, not built yet.
+The member is emailed once all three are ready and reads and listens on the
+site. Nothing is downloadable: the PDFs are drawn on canvas (no text layer), the
+episode plays from memory through the page's own player (no file URL, no
+native audio menu), and both are fetched with the member's token.
 
 This module rides on the Kris AI Memory server to avoid a second
 DigitalOcean app. It shares only the member gate (`lib/auth.js`,
@@ -31,10 +37,16 @@ keeps running.
 | writing | eight narrative parts plus the article, five calls at a time, all reading one cached system prompt (guide + method + both worked examples) | `writer.js` |
 | checks | em dashes removed, names other than the member's flagged (book case-study people, theorists, the test client), "not X but Y" flagged; one targeted repair call if needed | `writer.js` |
 | rendering | markdown -> PDF with pdfmake (pure JS, no browser): Gelasio (Georgia metrics), the guide's margins, callouts, ruled tables, shaded sidebars, brand footer | `render.js` |
-| ready | stored, added to the Library if the member shares, emailed | `jobs.js`, `mailer.js` |
+| ready | stored and readable at once, added to the Library if the member shares | `jobs.js` |
+| podcast | Claude writes the two-host script from both documents; each line is voiced by `openai/gpt-audio` through OpenRouter (two voices, word for word, four lines at a time); joined with short pauses and encoded to MP3 in a worker thread (lamejs, no ffmpeg). Its failure never touches the documents: it shows as not finished with "Try the podcast again" | `podcast.js`, `mp3-worker.js` |
+| email | once, after the podcast (or its failure), listing what is ready | `mailer.js` |
 
 About eleven model calls a report. Rough cost on Claude Opus 5.5 at high
-effort: a few dollars (logged per report as `costEstimateUsd`).
+effort: a few dollars, plus roughly $1.50 for the podcast's voices and a little
+for its script (logged per report as `costEstimateUsd`, the podcast's share in
+`podcast.costEstimateUsd`). `MP_PODCAST=false` turns the podcast off;
+`MP_PODCAST_MODEL=openai/gpt-audio-mini` cuts the voice cost to cents at
+some loss of liveliness.
 
 ## Sharing
 
@@ -54,6 +66,7 @@ reports/<id>/inputs.json       what the member submitted (deleted with the repor
 reports/<id>/work.json         profile, research, both drafts (re-render without re-writing)
 reports/<id>/narrative.pdf
 reports/<id>/article.pdf
+reports/<id>/podcast.mp3
 shared.json                    the Library
 active.json                    queued/running reports - resumed after a deploy
 ```

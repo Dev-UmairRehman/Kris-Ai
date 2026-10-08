@@ -177,6 +177,74 @@ test('a report runs end to end and the library rules hold', async () => {
   console.log('model calls:', calls.length, ' output dir:', tmp);
 });
 
+test('the podcast follows the documents, can fail on its own and be retried', async () => {
+  /* The script and speech steps are stubbed, so no API credit is spent. */
+  const podcast = require('../podcast');
+  const mailer = require('../mailer');
+  const sent = [];
+  const realSend = mailer.sendReady;
+  mailer.sendReady = async (d) => { sent.push(d); };
+  podcast.available = () => true;
+  let fail = false;
+  podcast.makePodcast = async ({ name, narrative, article }) => {
+    assert.ok(name && narrative && article, 'the podcast gets both documents');
+    await new Promise((r) => setTimeout(r, 100));
+    if (fail) throw new Error('speech service down');
+    return { mp3: Buffer.from('ID3 test episode'), seconds: 1080, title: 'Training Camp or Golden Cage', script: {} };
+  };
+  const waitPod = async (id, status) => {
+    for (let i = 0; i < 400; i++) {
+      const m = await store.getJson('reports/' + id + '/meta.json');
+      if (m && m.podcast && m.podcast.status === status && m.emailedAt) return m;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    throw new Error('podcast never reached ' + status);
+  };
+
+  try {
+    const form = {
+      name: 'Alex Rivera', links: [], pasted: '', resumeName: 'resume.txt', resumeBase64: RESUME, share: true,
+    };
+    await jobs.touchMember('mp_pod', 'pod@example.com');
+    const meta = await jobs.createReport({ memberId: 'mp_pod', email: 'pod@example.com', form });
+    await waitFor(meta.id, 'ready');
+    /* The documents are readable while the episode is recorded, and the
+       report cannot be deleted from under it. */
+    assert.ok(await jobs.readDoc('mp_pod', meta.id, 'narrative'));
+    const ready = await waitPod(meta.id, 'ready');
+    assert.strictEqual(ready.podcast.seconds, 1080);
+    assert.ok(ready.emailedAt, 'emailed once all three are in');
+    assert.strictEqual(sent.length, 1);
+    assert.strictEqual(sent[0].podcastTitle, 'Training Camp or Golden Cage');
+
+    assert.strictEqual(String(await jobs.readDoc('mp_pod', meta.id, 'podcast')), 'ID3 test episode');
+    assert.strictEqual(await jobs.readDoc('mp_stranger', meta.id, 'podcast'), null);
+    const mine = (await jobs.listMine('mp_pod')).reports[0];
+    assert.deepStrictEqual(mine.podcast, { status: 'ready', title: 'Training Camp or Golden Cage', seconds: 1080 });
+    const lib = await jobs.listLibrary('mp_pod');
+    assert.deepStrictEqual(lib.reports.find((e) => e.id === meta.id).podcast, { title: 'Training Camp or Golden Cage', seconds: 1080 });
+
+    /* A failed podcast leaves the documents alone, still emails, and retries. */
+    fail = true;
+    const second = await jobs.createReport({ memberId: 'mp_pod', email: 'pod@example.com', form });
+    await waitPod(second.id, 'failed');
+    const failed = await store.getJson('reports/' + second.id + '/meta.json');
+    assert.strictEqual(failed.status, 'ready');
+    assert.strictEqual(await jobs.readDoc('mp_pod', second.id, 'podcast'), null);
+    assert.ok(failed.emailedAt);
+    assert.strictEqual(sent[1].podcastTitle, '');
+    fail = false;
+    await jobs.retry('mp_pod', second.id);
+    await waitPod(second.id, 'ready');
+    assert.strictEqual(sent.length, 2, 'a retried podcast does not email again');
+
+    assert.strictEqual(await jobs.remove('mp_pod', meta.id), true);
+    assert.strictEqual(await store.get('reports/' + meta.id + '/podcast.mp3'), null);
+  } finally {
+    mailer.sendReady = realSend;
+  }
+});
+
 test('the lint catches names and dashes', () => {
   const writer = require('../writer');
   assert.strictEqual(writer.cleanup('A — B, 5–10 *x* **y**'), 'A, B, 5 to 10 ¤x¤ **y**');

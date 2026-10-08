@@ -73,8 +73,19 @@ const config = {
   globalPerDay: int('MP_GLOBAL_PER_DAY', 40),
   concurrency: int('MP_CONCURRENCY', 1),
 
-  /* Brand line in every PDF footer, as on Kris AI. */
-  brandLine: str('MP_BRAND_LINE', 'FIRMSconsulting  ·  Michael.ai  ·  StrategyTraining.com'),
+  /* The third output: the two-host debate podcast (podcast.js). Needs the
+     OpenRouter provider, which carries the speech model. */
+  podcast: {
+    enabled: bool('MP_PODCAST', true),
+    model: str('MP_PODCAST_MODEL', 'openai/gpt-audio'),
+    voiceA: str('MP_PODCAST_VOICE_A', 'ash'),
+    voiceB: str('MP_PODCAST_VOICE_B', 'coral'),
+    parallel: int('MP_PODCAST_PARALLEL', 4),
+  },
+
+  /* Brand line in every PDF footer, as the client asked: "Produced on
+     strategytraining.com" and "with Michael AI". */
+  brandLine: str('MP_BRAND_LINE', 'Produced on StrategyTraining.com with Michael AI'),
   preparedBy: str('MP_PREPARED_BY', 'Prepared by FIRMSconsulting / StrategyTraining.com'),
 
   /* Local development: the email used when the gate is open. */

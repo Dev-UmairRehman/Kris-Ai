@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.1",
+    "@breezystack/lamejs": "^1.2.7",
     "express": "^4.21.2",
     "pdfjs-dist": "^6.4.299",
     "pdfmake": "^0.3.11"

@@ -35,6 +35,7 @@
         <li><strong>A portrait of who you are across four pillars</strong> — health, wealth, purpose, relationships</li>
         <li><strong>An analysis of the tradeoffs and blindspots in your current path</strong></li>
         <li><strong>A working MasterPlan</strong> — your nine questions answered, with a wealth strategy and annual review checklist</li>
+        <li><strong>A leadership case study and a podcast</strong> — your dilemma as a case, and two hosts debating where your career goes next</li>
       </ol>
     </div>
   </div>
@@ -71,6 +72,7 @@
             <li><strong>A portrait of who you are across four pillars</strong> — health, wealth, purpose, relationships</li>
             <li><strong>An analysis of the tradeoffs and blindspots in your current path</strong></li>
             <li><strong>A working MasterPlan</strong> — your nine questions answered, with a wealth strategy and annual review checklist</li>
+            <li><strong>A leadership case study and a podcast</strong> — your dilemma as a case, and two hosts debating where your career goes next</li>
           </ol>
         </div>
       </div>
@@ -111,12 +113,14 @@
       <div class="mp-gen-view" id="gen-view" hidden>
         <p class="mp-kicker">Your MasterPlan</p>
         <h2 class="mp-title mp-title-sm" id="g-title">Generating your MasterPlan</h2>
-        <p class="mp-lede" id="g-sub">This takes about ten minutes. You can leave this page; we will email <span id="g-email">you</span> when it is ready.</p>
+        <p class="mp-lede" id="g-sub">This takes about twenty minutes: the documents first, then the podcast. You can leave this page; we will email <span id="g-email">you</span> when it is ready.</p>
+        <p class="mp-lede" id="g-pod" hidden>Read them now. Your podcast is being recorded and appears here in about ten minutes; we will email you when all three are ready.</p>
         <ol class="mp-gen" id="g-stages">
           <li data-stage="reading">Reading your resume and profiles</li>
           <li data-stage="researching">Researching living costs where you live</li>
           <li data-stage="writing">Writing your MasterPlan and your leadership case study</li>
           <li data-stage="rendering">Preparing your documents</li>
+          <li data-stage="podcast">Recording your podcast</li>
         </ol>
         <div class="mp-progress mp-progress-lg"><span id="g-bar" style="width:4%"></span></div>
         <p class="mp-error" id="g-error" role="alert" hidden></p>
@@ -145,7 +149,7 @@
     <div class="mp-panel" id="panel-library" data-panel="library" hidden>
       <div class="mp-optin" id="lib-optin" hidden>
         <h2>The Library</h2>
-        <p>The Library holds the MasterPlans of members who chose to share. Share yours and you can read theirs. Your MasterPlan, your case study and, later, your podcast become visible to other sharing members.</p>
+        <p>The Library holds the MasterPlans of members who chose to share. Share yours and you can read theirs. Your MasterPlan, your case study and your podcast become visible to other sharing members.</p>
         <button class="mp-btn" id="lib-share-on">Share mine and open the Library</button>
       </div>
       <div id="lib-body" hidden>
@@ -171,6 +175,24 @@
       </div>
     </div>
     <div class="mp-vpages" id="v-pages"></div>
+  </div>
+  <!-- ===== podcast player ===== -->
+  <div class="mp-player" id="mp-player" hidden role="dialog" aria-modal="true" aria-labelledby="p-title">
+    <div class="mp-pcard">
+      <button class="mp-link mp-pclose" id="p-close" aria-label="Close">← Back</button>
+      <p class="mp-kicker">The Debate · Podcast</p>
+      <h2 class="mp-ptitle" id="p-title"></h2>
+      <p class="mp-pwho" id="p-who"></p>
+      <div class="mp-pmain">
+        <button class="mp-pskip" id="p-back" aria-label="Back 15 seconds" disabled>−15</button>
+        <button class="mp-pplay" id="p-play" aria-label="Play" disabled><span class="mp-picon" aria-hidden="true"></span></button>
+        <button class="mp-pskip" id="p-fwd" aria-label="Forward 15 seconds" disabled>+15</button>
+      </div>
+      <input class="mp-pseek" id="p-seek" type="range" min="0" max="1000" step="1" value="0" aria-label="Position" disabled>
+      <div class="mp-ptimes"><span id="p-now">0:00</span><button class="mp-link mp-prate" id="p-rate" aria-label="Playback speed" disabled>1×</button><span id="p-len">0:00</span></div>
+      <p class="mp-pmsg" id="p-msg" role="status"></p>
+      <p class="mp-pnote">Two hosts debate the MasterPlan and the case study, like analysts breaking down a promising prospect. It plays here on StrategyTraining.com only.</p>
+    </div>
   </div>
 </div>
 

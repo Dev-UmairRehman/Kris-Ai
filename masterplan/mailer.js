@@ -23,10 +23,13 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }
 
-function readyMessage({ to, name, articleTitle, reportId }) {
+function readyMessage({ to, name, articleTitle, podcastTitle, reportId }) {
   const first = String(name || '').split(/\s+/)[0] || 'there';
   const link = config.pageUrl + (config.pageUrl.includes('?') ? '&' : '?') + 'report=' + encodeURIComponent(reportId);
   const subject = 'Your MasterPlan is ready';
+  const podcastLine = podcastTitle
+    ? `The Debate: ${podcastTitle} - a podcast in which two hosts debate your career and where it goes next.`
+    : '';
   const text = [
     `Hi ${first},`,
     '',
@@ -34,6 +37,9 @@ function readyMessage({ to, name, articleTitle, reportId }) {
     '',
     '  1. The MasterPlan - your answers to the nine questions, the four exercises and chapters eleven to twenty, drafted from your resume and profiles.',
     `  2. ${articleTitle || 'Your leadership case study'} - a case study in leadership psychology.`,
+    ...(podcastLine ? ['  3. ' + podcastLine] : []),
+    '',
+    'All of them are on the MasterPlan page, under My MasterPlans.',
     '',
     'Read them here (sign in first):',
     link,
@@ -51,7 +57,8 @@ function readyMessage({ to, name, articleTitle, reportId }) {
 <ol style="font-size:16px;line-height:1.55;padding-left:20px">
 <li><strong>The MasterPlan</strong> - the nine questions, the four exercises and chapters eleven to twenty, drafted from your resume and profiles.</li>
 <li><strong>${escapeHtml(articleTitle || 'Your leadership case study')}</strong> - a case study in leadership psychology.</li>
-</ol>
+${podcastTitle ? `<li><strong>The Debate: ${escapeHtml(podcastTitle)}</strong> - a podcast in which two hosts debate your career and where it goes next.</li>\n` : ''}</ol>
+<p style="font-size:16px;line-height:1.55">All of them are on the MasterPlan page, under My MasterPlans.</p>
 <p style="margin:28px 0"><a href="${escapeHtml(link)}" style="background:#111;color:#fff;text-decoration:none;padding:12px 22px;font-family:Arial,sans-serif;font-size:15px">Read your MasterPlan</a></p>
 <p style="font-size:15px;line-height:1.55;color:#444">Everything marked with an asterisk is an inference for you to confirm, correct or reject. The draft exists to start a conversation; where it is wrong, the correction is the point.</p>
 <p style="font-size:13px;color:#777;margin-top:32px">FIRMSconsulting · StrategyTraining.com</p>

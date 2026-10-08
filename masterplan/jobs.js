@@ -28,12 +28,13 @@ const costs = require('./costs');
 const render = require('./render');
 const mailer = require('./mailer');
 const llm = require('./llm');
+const podcast = require('./podcast');
 
 const MEMBER = (id) => 'members/' + id + '.json';
 const META = (id) => 'reports/' + id + '/meta.json';
 const FILE = (id, name) => 'reports/' + id + '/' + name;
 
-const DOCS = { narrative: 'narrative.pdf', article: 'article.pdf' };
+const DOCS = { narrative: 'narrative.pdf', article: 'article.pdf', podcast: 'podcast.mp3' };
 
 /* ---- members ------------------------------------------------------------- */
 
@@ -160,6 +161,7 @@ function libraryEntry(meta) {
     memberId: meta.memberId,
     name: meta.name,
     articleTitle: meta.docs.article ? meta.docs.article.title : '',
+    podcast: meta.podcast && meta.podcast.status === 'ready' ? { title: meta.podcast.title, seconds: meta.podcast.seconds } : null,
     createdAt: meta.createdAt,
   };
 }
@@ -368,8 +370,15 @@ async function write(id, inputs, meta, now, usage, log) {
 async function run(id) {
   const started = Date.now();
   const meta = await store.getJson(META(id));
-  if (!meta || meta.status === 'ready' || meta.status === 'deleted') {
+  if (!meta || meta.status === 'deleted' || (meta.status === 'ready' && !podcastPending(meta))) {
     await store.update('active.json', [], (l) => l.filter((x) => x !== id));
+    return;
+  }
+  if (meta.status === 'ready') {
+    /* The documents are done; only the podcast is left (a retry, or a restart
+       in the middle of recording). */
+    await recordPodcast(id, meta).catch((err) => console.error('[masterplan] %s podcast: %s', id, err.message));
+    await store.update('active.json', [], (l) => l.filter((x) => x !== id)).catch(() => {});
     return;
   }
   const inputs = await store.getJson(FILE(id, 'inputs.json'));
@@ -418,6 +427,7 @@ async function run(id) {
     const done = await setMeta(id, {
       status: 'ready',
       stage: 'ready',
+      podcast: podcast.available() ? { status: 'queued' } : null,
       name: profile.name || meta.name,
       docs: {
         narrative: { title: 'The MasterPlan', pages: narrativePdf.pages, bytes: narrativePdf.buffer.length },
@@ -437,17 +447,11 @@ async function run(id) {
       done.costEstimateUsd,
     );
 
-    const member = await getMember(done.memberId);
-    if (member && member.sharing) {
-      await store.update('shared.json', [], (list) => [libraryEntry(done)].concat(list.filter((e) => e.id !== id)));
-    }
-    if (member && member.email) {
-      try {
-        await mailer.sendReady({ to: member.email, name: done.name, articleTitle: docs.articleTitle, reportId: id });
-      } catch (err) {
-        console.error('[masterplan] %s email failed: %s', id, err.message);
-      }
-    }
+    await syncLibrary(done);
+    /* The documents can be read from here on; the podcast follows, and the
+       email goes out once all three outputs are in. */
+    if (done.podcast) await recordPodcast(id, done, work);
+    else await sendEmail(id);
   } catch (err) {
     console.error('[masterplan] %s failed: %s', id, err.stack || err);
     /* Recording the failure is retried once; if storage is down both times the
@@ -473,11 +477,83 @@ async function run(id) {
   await store.update('active.json', [], (l) => l.filter((x) => x !== id)).catch(() => {});
 }
 
+function podcastPending(meta) {
+  return !!(meta.podcast && (meta.podcast.status === 'queued' || meta.podcast.status === 'running'));
+}
+
+async function syncLibrary(meta) {
+  const member = await getMember(meta.memberId);
+  if (member && member.sharing) {
+    await store.update('shared.json', [], (list) => [libraryEntry(meta)].concat(list.filter((e) => e.id !== meta.id)));
+  }
+}
+
+/* The ready email, once per report, listing whatever is ready. */
+async function sendEmail(id) {
+  const meta = await store.getJson(META(id));
+  if (!meta || meta.emailedAt) return;
+  const member = await getMember(meta.memberId);
+  if (!member || !member.email) return;
+  try {
+    await mailer.sendReady({
+      to: member.email,
+      name: meta.name,
+      articleTitle: meta.docs && meta.docs.article ? meta.docs.article.title : '',
+      podcastTitle: meta.podcast && meta.podcast.status === 'ready' ? meta.podcast.title : '',
+      reportId: id,
+    });
+    await setMeta(id, { emailedAt: new Date().toISOString() });
+  } catch (err) {
+    console.error('[masterplan] %s email failed: %s', id, err.message);
+  }
+}
+
+/* The third output. Its failure never takes the documents with it: the report
+   stays ready, the podcast shows as failed and can be tried again. */
+async function recordPodcast(id, meta, work) {
+  const started = Date.now();
+  const usage = {};
+  try {
+    if (!work) work = await store.getJson(FILE(id, 'work.json'));
+    if (!(work && work.narrative && work.article)) throw new Error('the drafts are missing');
+    await setMeta(id, { podcast: { status: 'running' } });
+    const ep = await podcast.makePodcast({
+      name: (work.profile && work.profile.name) || meta.name,
+      narrative: work.narrative,
+      article: work.article,
+      usage,
+      log: (m) => console.log('[masterplan] %s %s', id, m),
+    });
+    await store.put(FILE(id, DOCS.podcast), ep.mp3, 'audio/mpeg');
+    const cost = Math.round(llm.estimateCost(usage) * 100) / 100;
+    const done = await setMeta(id, {
+      podcast: { status: 'ready', title: ep.title, seconds: ep.seconds, bytes: ep.mp3.length, costEstimateUsd: cost },
+      costEstimateUsd: Math.round(((meta.costEstimateUsd || 0) + cost) * 100) / 100,
+    });
+    console.log(
+      '[masterplan] %s podcast ready: %ds of audio in %ds, ~$%s',
+      id,
+      ep.seconds,
+      Math.round((Date.now() - started) / 1000),
+      cost,
+    );
+    await syncLibrary(done);
+  } catch (err) {
+    console.error('[masterplan] %s podcast failed: %s', id, err.stack || err);
+    await setMeta(id, { podcast: { status: 'failed' } }).catch(() => {});
+  }
+  await sendEmail(id);
+}
+
 /* A report that says running but that this process is not working on was
-   interrupted. Show it as failed, so the member can retry or delete it. */
+   interrupted. Show it as failed, so the member can retry or delete it. The
+   same for a podcast that was being recorded. */
 function effectiveStatus(meta) {
   if (meta && meta.status === 'running' && !inFlight.has(meta.id)) {
     return { ...meta, status: 'failed', error: 'This MasterPlan was interrupted. You can try again.' };
+  }
+  if (meta && podcastPending(meta) && !inFlight.has(meta.id) && !queue.includes(meta.id)) {
+    return { ...meta, podcast: { status: 'failed' } };
   }
   return meta;
 }
@@ -485,9 +561,15 @@ function effectiveStatus(meta) {
 async function retry(memberId, id) {
   const meta = effectiveStatus(await store.getJson(META(id)));
   if (!meta || meta.memberId !== memberId) return null;
-  if (meta.status !== 'failed') return meta;
   if (queue.includes(id) || inFlight.has(id)) return meta;
-  const updated = await setMeta(id, { status: 'queued', stage: 'queued', error: null });
+  let updated;
+  if (meta.status === 'failed') {
+    updated = await setMeta(id, { status: 'queued', stage: 'queued', error: null });
+  } else if (meta.status === 'ready' && meta.podcast && meta.podcast.status === 'failed' && podcast.available()) {
+    updated = await setMeta(id, { podcast: { status: 'queued' } });
+  } else {
+    return meta;
+  }
   await store.update('active.json', [], (list) => (list.includes(id) ? list : list.concat(id)));
   enqueue(id);
   return updated;
@@ -505,7 +587,9 @@ function publicMeta(meta, viewerId) {
     error: meta.status === 'failed' ? meta.error : null,
     createdAt: meta.createdAt,
     docs: meta.docs,
-    podcast: meta.podcast ? { ready: true } : null,
+    podcast: meta.podcast
+      ? { status: meta.podcast.status, title: meta.podcast.title || '', seconds: meta.podcast.seconds || 0 }
+      : null,
   };
 }
 
@@ -549,13 +633,14 @@ async function readDoc(memberId, id, doc) {
   if (!DOCS[doc]) return null;
   const meta = await canView(memberId, id);
   if (!meta) return null;
+  if (doc === 'podcast' && !(meta.podcast && meta.podcast.status === 'ready')) return null;
   return store.get(FILE(id, DOCS[doc]));
 }
 
 async function remove(memberId, id) {
   const meta = effectiveStatus(await store.getJson(META(id)));
   if (!meta || meta.memberId !== memberId) return false;
-  if (meta.status === 'running' || inFlight.has(id)) {
+  if (meta.status === 'running' || inFlight.has(id) || podcastPending(meta)) {
     throw Object.assign(new Error('This MasterPlan is still being written. Delete it once it finishes.'), {
       userFacing: true,
       status: 409,
@@ -569,7 +654,7 @@ async function remove(memberId, id) {
   await store.update('active.json', [], (l) => l.filter((x) => x !== id));
   const i = queue.indexOf(id);
   if (i >= 0) queue.splice(i, 1);
-  for (const name of ['narrative.pdf', 'article.pdf', 'work.json', 'inputs.json', 'meta.json']) {
+  for (const name of ['narrative.pdf', 'article.pdf', 'podcast.mp3', 'work.json', 'inputs.json', 'meta.json']) {
     await store.del(FILE(id, name));
   }
   return true;
@@ -581,8 +666,13 @@ async function resumeActive() {
   const active = await store.getJson('active.json', []);
   for (const id of active) {
     const meta = await store.getJson(META(id));
-    if (!meta || meta.status === 'ready') continue;
-    if (meta.status === 'running') await setMeta(id, { status: 'queued', stage: 'queued' });
+    if (!meta) continue;
+    if (meta.status === 'ready') {
+      if (!podcastPending(meta)) continue;
+      await setMeta(id, { podcast: { status: 'queued' } });
+    } else if (meta.status === 'running') {
+      await setMeta(id, { status: 'queued', stage: 'queued' });
+    }
     enqueue(id);
   }
   if (active.length) console.log('[masterplan] resumed %d report(s) after restart', active.length);

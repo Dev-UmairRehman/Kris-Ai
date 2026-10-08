@@ -49,9 +49,22 @@ const disk = {
        PUT is atomic in the same way). */
     const file = diskPath(key);
     await fs.promises.mkdir(path.dirname(file), { recursive: true });
-    const tmp = file + '.' + process.pid + '.' + Date.now() + '.tmp';
+    const tmp = file + '.' + process.pid + '.' + Date.now() + '.' + Math.random().toString(36).slice(2) + '.tmp';
     await fs.promises.writeFile(tmp, body);
-    await fs.promises.rename(tmp, file);
+    /* Windows refuses the rename while another request has the file open for
+       reading; that lasts milliseconds, so wait and try again. */
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await fs.promises.rename(tmp, file);
+        return;
+      } catch (err) {
+        if (!(err.code === 'EPERM' || err.code === 'EBUSY' || err.code === 'EACCES') || attempt >= 8) {
+          await fs.promises.unlink(tmp).catch(() => {});
+          throw err;
+        }
+        await new Promise((r) => setTimeout(r, 15 * (attempt + 1)));
+      }
+    }
   },
   async del(key) {
     try {

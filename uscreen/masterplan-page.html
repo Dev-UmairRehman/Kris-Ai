@@ -233,6 +233,55 @@
 .mp-page canvas { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .mp-vmsg { padding: 60px 20px; text-align: center; color: var(--ink-2); }
 
+/* ---- podcast ---- */
+.mp-doc.is-busy small::after { content: ''; display: inline-block; width: 6px; height: 6px; margin-left: 7px; border-radius: 50%; background: var(--navy); vertical-align: 1px; animation: mp-pulse 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .mp-doc.is-busy small::after { animation: none; } }
+
+.mp-player {
+  position: fixed; inset: 0; z-index: 2147483000; display: flex; align-items: center; justify-content: center;
+  padding: 20px; background: rgba(22, 24, 29, .55); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+}
+.mp-pcard {
+  position: relative; width: 100%; max-width: 520px; max-height: 100%; overflow: auto;
+  padding: 30px 34px 26px; background: #fff; border-top: 3px solid var(--navy); box-shadow: 0 18px 50px rgba(0,0,0,.25);
+  text-align: center; user-select: none; -webkit-user-select: none;
+}
+.mp-pclose { position: absolute; top: 14px; left: 18px; }
+.mp-pcard .mp-kicker { margin: 18px 0 12px; }
+.mp-ptitle { margin: 0 0 8px; font: 500 30px/1.15 var(--serif); color: var(--ink); }
+.mp-pwho { margin: 0 0 26px; font-size: 13.5px; color: var(--ink-3); }
+.mp-pmain { display: flex; align-items: center; justify-content: center; gap: 26px; margin: 0 0 24px; }
+.mp-pplay {
+  position: relative; width: 72px; height: 72px; padding: 0; border: 0; border-radius: 50%; background: var(--navy); cursor: pointer;
+  box-shadow: 0 6px 18px rgba(28, 37, 65, .28); transition: transform .15s, background .15s;
+}
+.mp-pplay:hover:not([disabled]) { background: var(--navy-2); transform: scale(1.04); }
+.mp-pplay[disabled] { background: var(--field); box-shadow: none; cursor: default; }
+.mp-picon { position: absolute; left: 50%; top: 50%; width: 0; height: 0; margin: -11px 0 0 -7px; border-style: solid; border-width: 11px 0 11px 19px; border-color: transparent transparent transparent #fff; }
+.mp-player.is-playing .mp-picon { width: 20px; height: 22px; margin: -11px 0 0 -10px; border: 0; border-left: 6px solid #fff; border-right: 6px solid #fff; }
+.mp-pskip {
+  appearance: none; width: 46px; height: 46px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: #fff;
+  font: 500 12.5px/1 var(--sans); color: var(--ink-2); cursor: pointer;
+}
+.mp-pskip:hover:not([disabled]) { border-color: var(--navy); color: var(--navy); }
+.mp-pskip[disabled] { color: var(--field); cursor: default; }
+.mp-pseek {
+  --at: 0%;
+  appearance: none; -webkit-appearance: none; display: block; width: 100%; height: 4px; margin: 0; padding: 0; border: 0; border-radius: 2px; cursor: pointer;
+  background: linear-gradient(to right, var(--navy) var(--at), var(--line) var(--at));
+}
+.mp-pseek:focus { outline: none; }
+.mp-pseek:focus-visible { outline: 2px solid var(--navy); outline-offset: 6px; }
+.mp-pseek::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border: 0; border-radius: 50%; background: var(--navy); }
+.mp-pseek::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: var(--navy); }
+.mp-pseek[disabled] { cursor: default; }
+.mp-pseek[disabled]::-webkit-slider-thumb { background: var(--field); }
+.mp-ptimes { display: flex; justify-content: space-between; align-items: center; margin: 10px 0 0; font: 12.5px/1 var(--sans); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.mp-prate { text-decoration: none; padding: 4px 10px; border: 1px solid var(--line); font-size: 12px; }
+.mp-prate[disabled] { color: var(--field); cursor: default; }
+.mp-pmsg { min-height: 20px; margin: 16px 0 0; font-size: 13px; color: var(--ink-2); }
+.mp-pnote { margin: 14px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12px; line-height: 1.6; color: var(--ink-3); }
+
 @media (max-width: 640px) {
   .mp { padding: 26px 18px 48px; }
   .mp-title { font-size: 36px; }
@@ -241,6 +290,9 @@
   .mp-tabs { justify-content: flex-start; margin-top: 0; overflow-x: auto; }
   .mp-doc { min-width: 0; width: 100%; }
   .mp-item-top { flex-direction: column; gap: 4px; }
+  .mp-player { padding: 0; align-items: stretch; }
+  .mp-pcard { max-width: none; display: flex; flex-direction: column; justify-content: center; padding: 56px 22px 28px; border-top: 0; }
+  .mp-ptitle { font-size: 26px; }
 }
 
 @media print { .mp { display: none !important; } }
@@ -267,6 +319,7 @@
         <li><strong>A portrait of who you are across four pillars</strong> — health, wealth, purpose, relationships</li>
         <li><strong>An analysis of the tradeoffs and blindspots in your current path</strong></li>
         <li><strong>A working MasterPlan</strong> — your nine questions answered, with a wealth strategy and annual review checklist</li>
+        <li><strong>A leadership case study and a podcast</strong> — your dilemma as a case, and two hosts debating where your career goes next</li>
       </ol>
     </div>
   </div>
@@ -303,6 +356,7 @@
             <li><strong>A portrait of who you are across four pillars</strong> — health, wealth, purpose, relationships</li>
             <li><strong>An analysis of the tradeoffs and blindspots in your current path</strong></li>
             <li><strong>A working MasterPlan</strong> — your nine questions answered, with a wealth strategy and annual review checklist</li>
+            <li><strong>A leadership case study and a podcast</strong> — your dilemma as a case, and two hosts debating where your career goes next</li>
           </ol>
         </div>
       </div>
@@ -343,12 +397,14 @@
       <div class="mp-gen-view" id="gen-view" hidden>
         <p class="mp-kicker">Your MasterPlan</p>
         <h2 class="mp-title mp-title-sm" id="g-title">Generating your MasterPlan</h2>
-        <p class="mp-lede" id="g-sub">This takes about ten minutes. You can leave this page; we will email <span id="g-email">you</span> when it is ready.</p>
+        <p class="mp-lede" id="g-sub">This takes about twenty minutes: the documents first, then the podcast. You can leave this page; we will email <span id="g-email">you</span> when it is ready.</p>
+        <p class="mp-lede" id="g-pod" hidden>Read them now. Your podcast is being recorded and appears here in about ten minutes; we will email you when all three are ready.</p>
         <ol class="mp-gen" id="g-stages">
           <li data-stage="reading">Reading your resume and profiles</li>
           <li data-stage="researching">Researching living costs where you live</li>
           <li data-stage="writing">Writing your MasterPlan and your leadership case study</li>
           <li data-stage="rendering">Preparing your documents</li>
+          <li data-stage="podcast">Recording your podcast</li>
         </ol>
         <div class="mp-progress mp-progress-lg"><span id="g-bar" style="width:4%"></span></div>
         <p class="mp-error" id="g-error" role="alert" hidden></p>
@@ -377,7 +433,7 @@
     <div class="mp-panel" id="panel-library" data-panel="library" hidden>
       <div class="mp-optin" id="lib-optin" hidden>
         <h2>The Library</h2>
-        <p>The Library holds the MasterPlans of members who chose to share. Share yours and you can read theirs. Your MasterPlan, your case study and, later, your podcast become visible to other sharing members.</p>
+        <p>The Library holds the MasterPlans of members who chose to share. Share yours and you can read theirs. Your MasterPlan, your case study and your podcast become visible to other sharing members.</p>
         <button class="mp-btn" id="lib-share-on">Share mine and open the Library</button>
       </div>
       <div id="lib-body" hidden>
@@ -403,6 +459,24 @@
       </div>
     </div>
     <div class="mp-vpages" id="v-pages"></div>
+  </div>
+  <!-- ===== podcast player ===== -->
+  <div class="mp-player" id="mp-player" hidden role="dialog" aria-modal="true" aria-labelledby="p-title">
+    <div class="mp-pcard">
+      <button class="mp-link mp-pclose" id="p-close" aria-label="Close">← Back</button>
+      <p class="mp-kicker">The Debate · Podcast</p>
+      <h2 class="mp-ptitle" id="p-title"></h2>
+      <p class="mp-pwho" id="p-who"></p>
+      <div class="mp-pmain">
+        <button class="mp-pskip" id="p-back" aria-label="Back 15 seconds" disabled>−15</button>
+        <button class="mp-pplay" id="p-play" aria-label="Play" disabled><span class="mp-picon" aria-hidden="true"></span></button>
+        <button class="mp-pskip" id="p-fwd" aria-label="Forward 15 seconds" disabled>+15</button>
+      </div>
+      <input class="mp-pseek" id="p-seek" type="range" min="0" max="1000" step="1" value="0" aria-label="Position" disabled>
+      <div class="mp-ptimes"><span id="p-now">0:00</span><button class="mp-link mp-prate" id="p-rate" aria-label="Playback speed" disabled>1×</button><span id="p-len">0:00</span></div>
+      <p class="mp-pmsg" id="p-msg" role="status"></p>
+      <p class="mp-pnote">Two hosts debate the MasterPlan and the case study, like analysts breaking down a promising prospect. It plays here on StrategyTraining.com only.</p>
+    </div>
   </div>
 </div>
 
@@ -896,8 +970,12 @@
 
   /* The progress view: watch it being written. */
 
-  var ORDER = ['queued', 'reading', 'researching', 'writing', 'rendering', 'ready'];
-  var BAR = { queued: 4, reading: 14, researching: 32, writing: 58, rendering: 92, ready: 100 };
+  var ORDER = ['queued', 'reading', 'researching', 'writing', 'rendering', 'podcast', 'ready'];
+  var BAR = { queued: 4, reading: 10, researching: 24, writing: 46, rendering: 62, podcast: 78, ready: 100 };
+
+  function podcastPending(r) {
+    return !!(r.podcast && (r.podcast.status === 'queued' || r.podcast.status === 'running'));
+  }
   var tracking = null;
   var trackTimer = null;
 
@@ -905,9 +983,11 @@
     tracking = id;
     $('g-title').textContent = 'Generating your MasterPlan';
     $('g-sub').hidden = false;
+    $('g-pod').hidden = true;
     $('g-docs').hidden = true;
     $('g-docs').textContent = '';
     showError('g-error', '');
+    $('g-stages').querySelector('[data-stage="podcast"]').hidden = false;
     paintStage('queued');
     showProgress();
     pollTrack();
@@ -950,12 +1030,26 @@
         return;
       }
       if (r.status === 'ready') {
-        paintStage('ready');
-        $('g-title').textContent = 'Your MasterPlan is ready';
-        $('g-sub').hidden = true;
+        /* The documents open as soon as they exist; the podcast follows. */
         var docs = docButtons(r);
         $('g-docs').replaceWith(docs);
         docs.id = 'g-docs';
+        $('g-stages').querySelector('[data-stage="podcast"]').hidden = !r.podcast;
+        if (podcastPending(r)) {
+          paintStage('podcast');
+          $('g-title').textContent = 'Your documents are ready';
+          $('g-sub').hidden = true;
+          $('g-pod').hidden = false;
+          trackTimer = setTimeout(pollTrack, 8000);
+          return;
+        }
+        paintStage('ready');
+        $('g-title').textContent = 'Your MasterPlan is ready';
+        $('g-sub').hidden = true;
+        $('g-pod').hidden = true;
+        if (r.podcast && r.podcast.status === 'failed') {
+          showError('g-error', 'Your documents are ready, but the podcast did not finish. Use "Try the podcast again" under My MasterPlans.');
+        }
         tracking = null;
         renderMine();
         return;
@@ -1016,12 +1110,24 @@
       b.addEventListener('click', function () { openViewer(r.id, d[0], who + ', ' + (d[1] || '')); });
       wrap.appendChild(b);
     });
-    var pod = el('button', 'mp-doc');
-    pod.type = 'button';
-    pod.disabled = true;
-    pod.appendChild(document.createTextNode('Podcast'));
-    pod.appendChild(el('small', null, r.podcast ? 'Ready' : 'Coming soon'));
-    wrap.appendChild(pod);
+    var p = r.podcast;
+    if (p) {
+      var pod = el('button', 'mp-doc mp-doc-pod');
+      pod.type = 'button';
+      pod.appendChild(document.createTextNode(p.status === 'ready' && p.title ? 'The Debate: ' + p.title : 'The Debate'));
+      var note = 'Podcast';
+      if (p.status === 'ready') note += p.seconds ? ' · ' + Math.max(1, Math.round(p.seconds / 60)) + ' min' : '';
+      else if (p.status === 'failed') note += ' · not finished';
+      else note += ' · recording…';
+      pod.appendChild(el('small', null, note));
+      if (p.status === 'ready') {
+        pod.addEventListener('click', function () { openPlayer(r.id, p, who); });
+      } else {
+        pod.disabled = true;
+        if (p.status !== 'failed') pod.classList.add('is-busy');
+      }
+      wrap.appendChild(pod);
+    }
     return wrap;
   }
 
@@ -1041,7 +1147,11 @@
 
       var status = el('span', 'mp-status');
       status.appendChild(el('span', 'dot'));
-      if (r.status === 'ready') {
+      if (r.status === 'ready' && podcastPending(r)) {
+        busy++;
+        status.classList.add('is-busy');
+        status.appendChild(document.createTextNode('Recording the podcast'));
+      } else if (r.status === 'ready') {
         status.appendChild(document.createTextNode('Ready'));
       } else if (r.status === 'failed') {
         status.classList.add('is-failed');
@@ -1074,7 +1184,15 @@
         });
         foot.appendChild(retry);
       }
-      if (r.status !== 'running') {
+      if (r.status === 'ready' && r.podcast && r.podcast.status === 'failed') {
+        var again = el('button', 'mp-link', 'Try the podcast again');
+        again.addEventListener('click', function () {
+          again.disabled = true;
+          api('POST', '/api/reports/' + r.id + '/retry').then(refreshMine);
+        });
+        foot.appendChild(again);
+      }
+      if (r.status !== 'running' && !podcastPending(r)) {
         var del = el('button', 'mp-link', 'Delete');
         del.addEventListener('click', function () {
           if (!window.confirm('Delete this MasterPlan? This cannot be undone.')) return;
@@ -1099,7 +1217,7 @@
     return api('GET', '/api/reports').then(function (r) {
       if (!r.ok) {
         /* Keep checking while anything was still being written. */
-        var busy = state.mine.some(function (x) { return x.status === 'queued' || x.status === 'running'; });
+        var busy = state.mine.some(function (x) { return x.status === 'queued' || x.status === 'running' || podcastPending(x); });
         schedulePoll(busy, POLL_MS * 3);
         return;
       }
@@ -1141,7 +1259,12 @@
         left.appendChild(el('p', 'mp-sub', fmtDate(e.createdAt)));
         top.appendChild(left);
         li.appendChild(top);
-        li.appendChild(docButtons({ id: e.id, name: e.name, docs: { narrative: { pages: '' }, article: { title: e.articleTitle, pages: '' } }, podcast: null }));
+        li.appendChild(docButtons({
+          id: e.id,
+          name: e.name,
+          docs: { narrative: { pages: '' }, article: { title: e.articleTitle, pages: '' } },
+          podcast: e.podcast ? { status: 'ready', title: e.podcast.title, seconds: e.podcast.seconds } : null,
+        }));
         Array.prototype.forEach.call(li.querySelectorAll('.mp-doc small'), function (s) {
           s.textContent = s.textContent.replace(/ · +pages$/, '');
         });
@@ -1353,6 +1476,181 @@
     if ($('mp-viewer').hidden) return;
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(layoutPages, 200);
+  });
+
+  /* ---- podcast player -------------------------------------------------------- */
+
+  /* The episode plays on the site only: it is fetched with the member's token
+     into memory and played from there, through our own controls. There is no
+     file link, no native player menu and no save button. */
+  var player = { audio: null, url: null, load: 0, opener: null, seeking: false };
+  var RATES = [1, 1.25, 1.5, 0.75];
+
+  function clock(s) {
+    s = Math.max(0, Math.floor(s || 0));
+    var m = Math.floor(s / 60);
+    var h = Math.floor(m / 60);
+    var ss = ('0' + (s % 60)).slice(-2);
+    return h ? h + ':' + ('0' + (m % 60)).slice(-2) + ':' + ss : m + ':' + ss;
+  }
+
+  function playerControls(on) {
+    ['p-play', 'p-back', 'p-fwd', 'p-seek', 'p-rate'].forEach(function (k) { $(k).disabled = !on; });
+  }
+
+  function paintPlayer() {
+    var a = player.audio;
+    var playing = !!(a && !a.paused);
+    $('mp-player').classList.toggle('is-playing', playing);
+    $('p-play').setAttribute('aria-label', playing ? 'Pause' : 'Play');
+    if (!a) return;
+    var len = isFinite(a.duration) ? a.duration : 0;
+    $('p-now').textContent = clock(a.currentTime);
+    $('p-len').textContent = clock(len);
+    if (!player.seeking && len) $('p-seek').value = Math.round((a.currentTime / len) * 1000);
+    $('p-seek').style.setProperty('--at', ($('p-seek').value / 10) + '%');
+  }
+
+  function releasePlayer() {
+    if (player.audio) {
+      player.audio.pause();
+      player.audio.removeAttribute('src');
+      player.audio.load();
+    }
+    player.audio = null;
+    if (player.url) URL.revokeObjectURL(player.url);
+    player.url = null;
+  }
+
+  function openPlayer(id, p, who) {
+    var load = ++player.load;
+    releasePlayer();
+    player.opener = document.activeElement;
+    $('p-title').textContent = p.title || 'The Debate';
+    $('p-who').textContent = who || '';
+    $('p-now').textContent = '0:00';
+    $('p-len').textContent = clock(p.seconds);
+    $('p-seek').value = 0;
+    $('p-seek').style.setProperty('--at', '0%');
+    $('p-rate').textContent = '1×';
+    $('p-msg').textContent = 'Loading the episode…';
+    playerControls(false);
+    $('mp-player').classList.remove('is-playing');
+    $('mp-player').hidden = false;
+    document.body.style.overflow = 'hidden';
+    $('p-close').focus();
+
+    fetch(BASE + '/api/reports/' + encodeURIComponent(id) + '/podcast', { headers: { Authorization: 'Bearer ' + token } })
+      .then(function (res) {
+        if (!res.ok) throw new Error('not available');
+        var total = Number(res.headers.get('content-length')) || 0;
+        if (!res.body || !res.body.getReader || !total) return res.arrayBuffer().then(function (b) { return [b]; });
+        /* Read it in pieces to show how far the download is. */
+        var reader = res.body.getReader();
+        var parts = [];
+        var got = 0;
+        function pump() {
+          return reader.read().then(function (r) {
+            if (load !== player.load) {
+              reader.cancel();
+              return null;
+            }
+            if (r.done) return parts;
+            parts.push(r.value);
+            got += r.value.length;
+            $('p-msg').textContent = 'Loading the episode… ' + Math.min(99, Math.round((got / total) * 100)) + '%';
+            return pump();
+          });
+        }
+        return pump();
+      })
+      .then(function (parts) {
+        if (!parts || load !== player.load) return;
+        player.url = URL.createObjectURL(new Blob(parts, { type: 'audio/mpeg' }));
+        var a = new Audio();
+        a.preload = 'auto';
+        a.src = player.url;
+        player.audio = a;
+        ['timeupdate', 'play', 'pause', 'durationchange', 'loadedmetadata', 'ratechange'].forEach(function (ev) {
+          a.addEventListener(ev, paintPlayer);
+        });
+        a.addEventListener('ended', function () {
+          paintPlayer();
+          $('p-msg').textContent = 'That is the episode. Next: the conversation with Kris AI.';
+        });
+        a.addEventListener('error', function () {
+          if (load === player.load) $('p-msg').textContent = 'This browser could not play the episode. Please try Chrome, Edge, Safari or Firefox.';
+        });
+        $('p-msg').textContent = '';
+        playerControls(true);
+        $('p-play').focus();
+      })
+      .catch(function () {
+        if (load === player.load) $('p-msg').textContent = 'The episode could not be loaded. Please try again.';
+      });
+  }
+
+  function closePlayer() {
+    player.load++;
+    releasePlayer();
+    $('mp-player').hidden = true;
+    document.body.style.overflow = '';
+    if (player.opener && player.opener.focus) player.opener.focus();
+  }
+
+  function togglePlay() {
+    var a = player.audio;
+    if (!a) return;
+    if (a.paused) {
+      var pr = a.play();
+      if (pr && pr.catch) pr.catch(function () { $('p-msg').textContent = 'Press play again to start the episode.'; });
+    } else {
+      a.pause();
+    }
+  }
+
+  function skip(by) {
+    var a = player.audio;
+    if (!a || !isFinite(a.duration)) return;
+    a.currentTime = Math.max(0, Math.min(a.duration - 0.25, a.currentTime + by));
+    paintPlayer();
+  }
+
+  $('p-close').addEventListener('click', closePlayer);
+  $('p-play').addEventListener('click', togglePlay);
+  $('p-back').addEventListener('click', function () { skip(-15); });
+  $('p-fwd').addEventListener('click', function () { skip(15); });
+  $('p-rate').addEventListener('click', function () {
+    var a = player.audio;
+    if (!a) return;
+    var next = RATES[(RATES.indexOf(a.playbackRate) + 1) % RATES.length] || 1;
+    a.playbackRate = next;
+    $('p-rate').textContent = next + '×';
+  });
+  $('p-seek').addEventListener('input', function () {
+    var a = player.audio;
+    player.seeking = true;
+    $('p-seek').style.setProperty('--at', ($('p-seek').value / 10) + '%');
+    if (a && isFinite(a.duration)) $('p-now').textContent = clock((a.duration * $('p-seek').value) / 1000);
+  });
+  $('p-seek').addEventListener('change', function () {
+    var a = player.audio;
+    player.seeking = false;
+    if (a && isFinite(a.duration)) a.currentTime = (a.duration * $('p-seek').value) / 1000;
+    paintPlayer();
+  });
+  $('mp-player').addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  $('mp-player').addEventListener('click', function (e) {
+    if (e.target === $('mp-player')) closePlayer();
+  });
+  document.addEventListener('keydown', function (e) {
+    if ($('mp-player').hidden) return;
+    if (e.key === 'Escape') closePlayer();
+    else if ((e.ctrlKey || e.metaKey) && /^[sp]$/i.test(e.key)) e.preventDefault();
+    else if (e.key === ' ' && e.target && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
+      e.preventDefault();
+      togglePlay();
+    }
   });
 
   /* ---- boot ------------------------------------------------------------------ */
