@@ -32,6 +32,9 @@ const REGISTRY = process.env.DO_REGISTRY || 'strategytraining-apps';
 const REPO = 'kris-ai';
 const BASE = 'node:22-alpine';
 const isWin = process.platform === 'win32';
+/* On Windows use the built-in bsdtar: the GNU tar that Git ships reads C: as
+   a remote host. */
+const TAR = isWin ? path.join(process.env.SystemRoot || 'C:\Windows', 'System32', 'tar.exe') : 'tar';
 
 function run(cmd, args, opts = {}) {
   const r = spawnSync(cmd, args, { stdio: opts.capture ? ['ignore', 'pipe', 'pipe'] : 'inherit', encoding: 'utf8', shell: false, ...opts });
@@ -67,7 +70,7 @@ async function main() {
   step('Exporting commit ' + sha);
   const archive = path.join(work, 'src.tar');
   run('git', ['archive', '--format=tar', '-o', archive, 'HEAD'], { cwd: ROOT });
-  run('tar', ['-xf', archive, '-C', app]);
+  run(TAR, ['-xf', archive, '-C', app]);
 
   step('Installing production dependencies');
   run(isWin ? 'npm.cmd' : 'npm', ['ci', '--omit=dev', '--omit=optional', '--no-audit', '--no-fund', '--ignore-scripts'], {
@@ -79,7 +82,7 @@ async function main() {
 
   step('Packing the layer');
   const layer = path.join(work, 'layer.tar');
-  run('tar', ['-cf', layer, '-C', work, 'app']);
+  run(TAR, ['-cf', layer, '-C', work, 'app']);
   console.log('  layer: ' + Math.round(fs.statSync(layer).size / 1024 / 1024) + ' MB (uncompressed)');
 
   step('Pushing ' + ref);
