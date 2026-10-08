@@ -351,7 +351,7 @@ router.post('/api/reports', requireSession, wrap(async (req, res) => {
   const b = req.body || {};
   const form = {
     name: clip(b.name, 120),
-    pronouns: ['she/her', 'he/him', 'they/them'].includes(b.pronouns) ? b.pronouns : 'they/them',
+    pronouns: ['she/her', 'he/him', 'they/them'].includes(b.pronouns) ? b.pronouns : '',
     city: clip(b.city, 80),
     region: clip(b.region, 80),
     postalCode: clip(b.postalCode, 20),
@@ -366,9 +366,8 @@ router.post('/api/reports', requireSession, wrap(async (req, res) => {
     share: b.share === true,
   };
   const missing = [];
-  /* The name is optional: the profile step reads it from the resume. */
-  if (!form.city) missing.push('your city');
-  if (!form.country) missing.push('your country');
+  /* Name and location are read from the resume (the page asks for a resume
+     that carries both); the form fields, when sent, take precedence. */
   if (!form.resumeBase64) missing.push('your resume');
   if (missing.length) return res.status(400).json({ error: 'Please add ' + missing.join(', ') + '.' });
   if (b.confirm !== true) return res.status(400).json({ error: 'Please confirm the resume and profiles are yours.' });

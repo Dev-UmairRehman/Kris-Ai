@@ -30,241 +30,215 @@
      "npm run build:masterplan-page".
      ========================================================================== -->
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600&display=swap">
+
 <style>
-/* MasterPlan Digital - black on white, as the client asked: no colour, no
-   chrome. Georgia for the voice of the documents, the system sans for the UI. */
+/* MasterPlan Digital - the look the client showed: an editorial page on
+   white, a light serif headline (Cormorant Garamond), Inter for everything
+   else, small spaced-out grey labels, underline-only fields and one navy
+   button. Everything is scoped under .mp so it can sit inside the
+   StrategyTraining page without touching the store's header and footer. */
 
 .mp {
-  --ink: #111;
-  --ink-2: #444;
-  --ink-3: #767676;
-  --line: #d9d9d9;
-  --soft: #f5f5f5;
+  --ink: #16181d;
+  --ink-2: #3d414b;
+  --ink-3: #6e727c;
+  --line: #dcdee4;
+  --field: #cfd2da;
+  --soft: #f4f5f8;
   --paper: #fff;
-  --serif: Georgia, 'Times New Roman', serif;
-  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --navy: #1c2541;
+  --navy-2: #2a355a;
+  --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --sans: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* Everything is scoped under .mp, so the same styles can sit inside the
-   StrategyTraining page without touching the store's own header and footer. */
 .mp, .mp *, .mp *::before, .mp *::after { box-sizing: border-box; }
-.mp { font: 16px/1.55 var(--sans); color: var(--ink); background: var(--paper); -webkit-font-smoothing: antialiased; text-align: left; }
+.mp { font: 15px/1.6 var(--sans); color: var(--ink); background: var(--paper); -webkit-font-smoothing: antialiased; text-align: left; }
 /* :where() keeps these resets at the lowest priority, under every .mp-* rule. */
-:where(.mp) :where(h1, h2, h3, p) { letter-spacing: normal; text-transform: none; color: inherit; }
+:where(.mp) :where(h1, h2, h3, p, ol, ul) { letter-spacing: normal; text-transform: none; color: inherit; margin: 0; padding: 0; }
 :where(.mp) :where(button, input, select, textarea) { font-family: var(--sans); }
+:where(.mp) a { color: inherit; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 .mp [hidden], .mp[hidden] { display: none !important; }
-.mp-preview { margin: 0 0 22px; padding: 10px 14px; border: 1px dashed var(--ink-3); font-size: 14px; color: var(--ink-2); }
+.mp-preview { margin: 0 0 22px; padding: 10px 14px; border: 1px dashed var(--ink-3); font-size: 13px; color: var(--ink-2); }
 
-.mp { max-width: 860px; margin: 0 auto; padding: 32px 24px 64px; }
+.mp { max-width: 680px; margin: 0 auto; padding: 40px 24px 64px; }
 /* On the store page the white runs the full width and fills the space between
    the store's header and footer. Sideways shadows (no blur, no spread) paint
    white copies of the column to its left and right: they never change the
-   layout, catch no clicks and cannot add a horizontal scrollbar, and they stay
-   exactly as tall as the column, so the store's header and footer show. */
+   layout, catch no clicks and cannot add a horizontal scrollbar. */
 .mp.is-page {
   min-height: calc(100vh - 210px);
   box-shadow:
-    -700px 0 0 var(--paper), 700px 0 0 var(--paper),
-    -1400px 0 0 var(--paper), 1400px 0 0 var(--paper),
-    -2100px 0 0 var(--paper), 2100px 0 0 var(--paper);
+    -600px 0 0 var(--paper), 600px 0 0 var(--paper),
+    -1200px 0 0 var(--paper), 1200px 0 0 var(--paper),
+    -1800px 0 0 var(--paper), 1800px 0 0 var(--paper),
+    -2400px 0 0 var(--paper), 2400px 0 0 var(--paper);
 }
 
 .mp-boot { padding: 80px 0; text-align: center; color: var(--ink-3); }
 .mp:not(.is-booting) .mp-boot { display: none; }
 
-.mp-kicker { margin: 0 0 6px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
-.mp-title { margin: 0 0 10px; font: 700 40px/1.1 var(--serif); letter-spacing: -.01em; }
-.mp-lede { margin: 0 0 26px; max-width: 640px; font: 18px/1.55 var(--serif); color: var(--ink-2); }
+/* ---- type ---- */
+.mp-kicker { margin: 0 0 18px; font: 500 11.5px/1.4 var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); }
+.mp-title { margin: 0 0 22px; font: 500 46px/1.08 var(--serif); letter-spacing: -.005em; color: var(--ink); }
+.mp-title-sm { font-size: 36px; }
+.mp-lede { margin: 0 0 30px; font: 15.5px/1.7 var(--sans); color: var(--ink-2); }
+.mp-label { margin: 0 0 12px; font: 500 11px/1.4 var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); }
+.mp-optional { letter-spacing: 0; text-transform: none; font-size: 11px; color: var(--ink-3); }
+.mp-help { margin: 10px 0 30px; font-size: 12.5px; line-height: 1.6; color: var(--ink-3); }
+.mp-hint { margin: 6px 0 12px; font-size: 13px; color: var(--ink-3); }
+.mp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-.mp-gate { padding: 56px 0 40px; }
-.mp-gate .mp-title { font-size: 46px; }
-.mp-gate .mp-lede { max-width: 620px; }
-.mp-gate .mp-actions { margin-top: 6px; }
-.mp-gate-what { list-style: none; margin: 44px 0 0; padding: 26px 0 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
-.mp-gate-what li { font-size: 15px; line-height: 1.55; color: var(--ink-2); }
-.mp-gate-what strong { display: block; margin-bottom: 4px; font: 700 18px/1.3 var(--serif); color: var(--ink); }
-@media (max-width: 640px) { .mp-gate .mp-title { font-size: 34px; } .mp-gate-what { grid-template-columns: 1fr; gap: 18px; } }
-/* Line up with the page around it (.mpx__wrap: 1040px, same gutter). */
-.mp.is-bare { max-width: none; padding: 8px clamp(20px, 5vw, 48px) 48px; }
-.mp.is-bare .mp-head .mp-kicker,
-.mp.is-bare .mp-head .mp-title,
-.mp.is-bare .mp-head .mp-lede { display: none; }
+/* ---- what you receive ---- */
+.mp-receive { margin: 8px 0 0; }
+.mp-receive-list { list-style: none; margin: 0; padding: 0; counter-reset: rcv; }
+.mp-receive-list li { position: relative; counter-increment: rcv; padding: 0 0 12px 24px; font-size: 14px; line-height: 1.55; color: var(--ink-2); }
+.mp-receive-list li::before { content: counter(rcv); position: absolute; left: 0; top: 3px; font: 500 10px/1 var(--sans); color: var(--ink-3); }
+.mp-receive-list strong { font-weight: 500; color: var(--ink); }
 
-/* ---- tabs ---- */
-.mp-tabs { display: flex; gap: 28px; border-bottom: 1px solid var(--line); margin-bottom: 32px; overflow-x: auto; }
-.mp-tabs button {
-  appearance: none; border: 0; background: none; padding: 10px 0 12px; margin-bottom: -1px;
-  font: 600 15px var(--sans); color: var(--ink-3); cursor: pointer; white-space: nowrap;
-  border-bottom: 2px solid transparent;
-}
-.mp-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
-.mp-tabs button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.mp-count { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 4px; border-radius: 10px; background: var(--ink); color: #fff; font-size: 12px; line-height: 20px; text-align: center; }
-
-/* ---- the three steps ---- */
-.mp-stepper { display: flex; gap: 0; list-style: none; margin: 0 0 34px; padding: 0; }
-.mp-stepper li {
-  flex: 1; display: flex; align-items: center; gap: 10px; padding: 0 0 12px;
-  border-bottom: 2px solid var(--line); font-size: 14px; font-weight: 600; color: var(--ink-3);
-}
-.mp-stepper li span {
-  width: 26px; height: 26px; border-radius: 50%; border: 1px solid currentColor;
-  display: inline-flex; align-items: center; justify-content: center; font-size: 13px; flex: none;
-}
-.mp-stepper li.is-current { color: var(--ink); border-bottom-color: var(--ink); }
-.mp-stepper li.is-current span { background: var(--ink); border-color: var(--ink); color: #fff; }
-.mp-stepper li.is-done { color: var(--ink); border-bottom-color: var(--ink); }
-.mp-stepper li.is-done span { font-size: 0; }
-.mp-stepper li.is-done span::after { content: '✓'; font-size: 13px; }
-
-.mp-wiz { max-width: 720px; }
-.mp-wiz-title { margin: 0 0 6px; font: 700 28px/1.2 var(--serif); }
-.mp-wiz-sub { margin: 0 0 22px; font: 17px/1.55 var(--serif); color: var(--ink-2); }
-.mp-wiz-h3 { margin: 30px 0 4px; font: 700 18px/1.3 var(--serif); }
-.mp-wiz-nav { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--line); }
-.mp-grid.mp-grid-4 { grid-template-columns: 1.4fr 1fr 1fr 1.2fr; }
-.mp-field em { font-style: normal; font-weight: 400; color: var(--ink-3); }
-.mp-checks { margin-top: 28px; }
-
-.mp-drop-lg { min-height: 230px; gap: 8px; }
-.mp-drop-icon { width: 44px; height: 44px; border: 1px solid var(--ink); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 6px; }
-.mp-drop.has-file .mp-drop-icon { background: var(--ink); color: #fff; }
-.mp-drop.has-file .mp-drop-icon::before { content: '✓'; }
-.mp-drop.has-file .mp-drop-icon { font-size: 0; }
-.mp-drop.has-file .mp-drop-icon::before { font-size: 18px; }
-
-.mp-gen { list-style: none; margin: 8px 0 22px; padding: 0; }
-.mp-gen li { position: relative; padding: 11px 0 11px 34px; border-bottom: 1px solid var(--line); color: var(--ink-3); font-size: 16px; }
-.mp-gen li::before {
-  content: ''; position: absolute; left: 0; top: 13px; width: 18px; height: 18px;
-  border: 1px solid var(--line); border-radius: 50%;
-}
-.mp-gen li.is-current { color: var(--ink); font-weight: 600; }
-.mp-gen li.is-current::before { border: 2px solid var(--ink); border-right-color: transparent; animation: mp-spin 0.9s linear infinite; }
-.mp-gen li.is-done { color: var(--ink); }
-.mp-gen li.is-done::before { content: '✓'; background: var(--ink); border-color: var(--ink); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
-@keyframes mp-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .mp-gen li.is-current::before { animation: none; } }
-.mp-progress-lg { height: 4px; margin: 0 0 8px; }
-
-/* ---- form ---- */
-.mp-steps { list-style: none; margin: 0; padding: 0; counter-reset: step; }
-.mp-step { position: relative; padding: 0 0 30px 48px; counter-increment: step; }
-.mp-step::before {
-  content: counter(step); position: absolute; left: 0; top: 0;
-  width: 30px; height: 30px; border: 1px solid var(--ink); border-radius: 50%;
-  font: 600 14px/28px var(--sans); text-align: center;
-}
-.mp-step h2 { margin: 2px 0 12px; font: 700 21px/1.3 var(--serif); }
-.mp-hint { margin: 6px 0 12px; font-size: 14px; color: var(--ink-3); }
-
+/* ---- the form ---- */
+.mp-intro { padding-bottom: 34px; margin-bottom: 34px; border-bottom: 1px solid var(--line); }
+.mp-form { margin: 0; }
 .mp-drop {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  min-height: 132px; padding: 20px; border: 1px dashed #999; cursor: pointer; text-align: center;
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  min-height: 88px; padding: 18px; background: var(--soft); border: 1px solid var(--field); cursor: pointer; text-align: center;
   transition: background .15s, border-color .15s;
 }
-.mp-drop:hover, .mp-drop.is-over { background: var(--soft); border-color: var(--ink); }
-.mp-drop.has-file { border-style: solid; border-color: var(--ink); }
+.mp-drop:hover, .mp-drop.is-over { background: #eceef4; border-color: var(--navy); }
+.mp-drop.has-file { background: #fff; border-color: var(--navy); }
 .mp-drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-.mp-drop-main { font-weight: 600; }
-.mp-drop-sub { font-size: 13px; color: var(--ink-3); }
+.mp-drop-main { font-size: 13.5px; color: var(--ink); }
+.mp-drop-sub { font-size: 11.5px; color: var(--ink-3); }
+.mp-drop.has-file .mp-drop-main { font-weight: 500; }
 
-.mp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
-.mp-span { grid-column: 1 / -1; }
-.mp-field { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; }
-.mp-field input, .mp-field select, .mp-more textarea {
-  width: 100%; padding: 11px 12px; border: 1px solid #bdbdbd; border-radius: 0; background: #fff;
-  font: 16px var(--sans); color: var(--ink);
+.mp-profiles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 26px; }
+.mp-line input {
+  width: 100%; padding: 10px 0 8px; border: 0; border-bottom: 1px solid var(--field); border-radius: 0; background: transparent;
+  font: 14px var(--sans); color: var(--ink);
 }
-.mp-field input:focus, .mp-field select:focus, .mp-more textarea:focus { outline: 2px solid var(--ink); outline-offset: -1px; border-color: var(--ink); }
-.mp-field input[aria-invalid="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.mp-line input::placeholder { color: var(--ink-3); }
+.mp-line input:focus { outline: none; border-bottom-color: var(--navy); box-shadow: 0 1px 0 0 var(--navy); }
+.mp-line input[aria-invalid="true"] { border-bottom-color: #b42318; }
 
-.mp-more { margin-top: 14px; }
-.mp-more summary { cursor: pointer; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
-.mp-more textarea { margin-top: 10px; resize: vertical; }
+.mp-more { margin: 16px 0 0; }
+.mp-more summary { cursor: pointer; font-size: 12.5px; color: var(--ink-3); text-decoration: underline; text-underline-offset: 3px; }
+.mp-more textarea {
+  width: 100%; margin-top: 10px; padding: 10px 12px; border: 1px solid var(--field); border-radius: 0; resize: vertical;
+  font: 13.5px/1.5 var(--sans); color: var(--ink);
+}
+.mp-more textarea:focus { outline: 1px solid var(--navy); border-color: var(--navy); }
 
-.mp-check { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 12px; font-size: 15px; cursor: pointer; }
-.mp-check input { width: 18px; height: 18px; margin: 3px 0 0; accent-color: var(--ink); flex: none; }
+.mp-check { display: flex; gap: 10px; align-items: flex-start; margin: 28px 0 0; font-size: 13px; line-height: 1.55; color: var(--ink-2); cursor: pointer; }
+.mp-check input { width: 15px; height: 15px; margin: 2px 0 0; accent-color: var(--navy); flex: none; }
+.mp-note { margin: 22px 0 26px; font-size: 12.5px; line-height: 1.65; color: var(--ink-2); }
+.mp-foot { margin: 40px 0 0; font-size: 11.5px; color: var(--ink-3); }
+.mp-foot a { color: var(--ink-3); }
 
-.mp-submit { padding-left: 48px; }
-.mp-error { margin: 12px 0 0; padding: 10px 12px; border-left: 3px solid var(--ink); background: var(--soft); font-size: 14px; }
+.mp-error { margin: 0 0 18px; padding: 10px 12px; border-left: 2px solid #b42318; background: #fdf3f2; font-size: 13px; color: #6c1d16; }
 
 /* ---- buttons ---- */
 .mp-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 13px 24px; border: 1px solid var(--ink); background: var(--ink); color: #fff;
-  font: 600 15px var(--sans); text-decoration: none; cursor: pointer;
+  padding: 12px 26px; border: 1px solid var(--navy); border-radius: 0; background: var(--navy); color: #fff !important;
+  font: 500 13.5px var(--sans); text-decoration: none !important; cursor: pointer;
 }
-.mp-btn:hover { background: #333; }
-.mp-btn:disabled { opacity: .45; cursor: default; }
-.mp-btn-ghost { background: #fff; color: var(--ink); }
+.mp-btn:hover { background: var(--navy-2); }
+.mp-btn:disabled { opacity: .5; cursor: default; }
+.mp-btn-ghost { background: #fff; color: var(--navy) !important; }
 .mp-btn-ghost:hover { background: var(--soft); }
-.mp-btn-sm { padding: 8px 14px; font-size: 14px; }
-.mp-actions { display: flex; gap: 12px; flex-wrap: wrap; }
-.mp-link { appearance: none; border: 0; background: none; padding: 0; font: inherit; font-size: 14px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-.mp-icon { appearance: none; width: 34px; height: 34px; border: 1px solid var(--line); background: #fff; font-size: 18px; cursor: pointer; }
+.mp-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 40px; }
+.mp-link { appearance: none; border: 0; background: none; padding: 0; font: inherit; font-size: 13px; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.mp-link:hover { color: var(--ink); }
+.mp-icon { appearance: none; width: 32px; height: 32px; border: 1px solid var(--line); background: #fff; font-size: 17px; cursor: pointer; }
+
+/* ---- the three views of the tool ---- */
+.mp-tabs { display: flex; justify-content: flex-end; gap: 22px; margin: -14px 0 30px; }
+.mp-tabs button {
+  appearance: none; border: 0; background: none; padding: 4px 0; border-bottom: 1px solid transparent;
+  font: 500 11px/1.4 var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); cursor: pointer; white-space: nowrap;
+}
+.mp-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.mp-tabs button:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+.mp-count { display: inline-block; min-width: 16px; padding: 0 5px; margin-left: 4px; border-radius: 8px; background: var(--navy); color: #fff; font-size: 10px; line-height: 16px; letter-spacing: 0; text-align: center; }
+
+/* ---- signed out / link ---- */
+.mp-gate { padding: 8px 0 0; }
+.mp-gate-text { margin: 0 0 22px; font-size: 15px; color: var(--ink); }
+.mp-linkform { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; max-width: 460px; margin-top: 8px; }
+.mp-linkform .mp-field { flex: 1; min-width: 200px; display: flex; flex-direction: column; }
+.mp-linkform input { padding: 10px 0 8px; border: 0; border-bottom: 1px solid var(--field); font: 16px var(--sans); letter-spacing: .12em; text-transform: uppercase; background: transparent; }
+.mp-linkform input:focus { outline: none; border-bottom-color: var(--navy); }
+.mp-linkform + .mp-error { margin-top: 16px; }
+
+/* ---- generating ---- */
+.mp-gen { list-style: none; margin: 4px 0 22px; padding: 0; }
+.mp-gen li { position: relative; padding: 11px 0 11px 32px; border-bottom: 1px solid var(--line); color: var(--ink-3); font-size: 14px; }
+.mp-gen li::before { content: ''; position: absolute; left: 0; top: 13px; width: 16px; height: 16px; border: 1px solid var(--field); border-radius: 50%; }
+.mp-gen li.is-current { color: var(--ink); font-weight: 500; }
+.mp-gen li.is-current::before { border: 2px solid var(--navy); border-right-color: transparent; animation: mp-spin 0.9s linear infinite; }
+.mp-gen li.is-done { color: var(--ink); }
+.mp-gen li.is-done::before { content: '✓'; background: var(--navy); border-color: var(--navy); color: #fff; font-size: 10px; line-height: 16px; text-align: center; }
+@keyframes mp-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .mp-gen li.is-current::before { animation: none; } }
+.mp-progress { height: 2px; margin-top: 14px; background: var(--line); overflow: hidden; }
+.mp-progress span { display: block; height: 100%; background: var(--navy); transition: width .6s; }
+.mp-progress-lg { height: 3px; margin: 0 0 18px; }
+.mp-gen-view .mp-error { margin-top: 4px; }
+.mp-gen-nav { display: flex; gap: 22px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
 
 /* ---- lists ---- */
 .mp-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
 .mp-item { padding: 20px 0; border-bottom: 1px solid var(--line); }
 .mp-item-top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
-.mp-item h3 { margin: 0; font: 700 20px/1.3 var(--serif); }
-.mp-item .mp-sub { margin: 2px 0 0; font-size: 14px; color: var(--ink-3); }
+.mp-item h3 { margin: 0; font: 500 24px/1.2 var(--serif); }
+.mp-item .mp-sub { margin: 4px 0 0; font-size: 13px; color: var(--ink-3); }
 .mp-docs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 .mp-doc {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 210px;
-  padding: 12px 16px; border: 1px solid var(--ink); background: #fff; color: var(--ink);
-  font: 600 15px/1.3 var(--sans); text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 196px;
+  padding: 12px 16px; border: 1px solid var(--navy); background: #fff; color: var(--ink);
+  font: 500 14px/1.3 var(--sans); text-align: left; cursor: pointer;
 }
 .mp-doc:hover { background: var(--soft); }
-.mp-doc small { font-weight: 400; color: var(--ink-3); font-size: 13px; }
+.mp-doc small { font-weight: 400; color: var(--ink-3); font-size: 12px; }
 .mp-doc[disabled] { border-color: var(--line); color: var(--ink-3); cursor: default; background: #fff; }
 
-.mp-status { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); white-space: nowrap; }
-.mp-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink); }
+.mp-status { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); white-space: nowrap; }
+.mp-status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--navy); }
 .mp-status.is-busy .dot { animation: mp-pulse 1.2s ease-in-out infinite; }
-.mp-status.is-failed .dot { background: #fff; border: 1.5px solid var(--ink); }
+.mp-status.is-failed .dot { background: #fff; border: 1.5px solid var(--ink-2); }
 @keyframes mp-pulse { 50% { opacity: .2; } }
 @media (prefers-reduced-motion: reduce) { .mp-status.is-busy .dot { animation: none; } }
-.mp-progress { height: 2px; margin-top: 14px; background: var(--line); overflow: hidden; }
-.mp-progress span { display: block; height: 100%; background: var(--ink); transition: width .6s; }
 .mp-item-foot { display: flex; gap: 18px; margin-top: 12px; }
 
-.mp-empty, .mp-optin { padding: 36px 0; }
-.mp-linkform { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; max-width: 520px; }
-.mp-linkform .mp-field { flex: 1; min-width: 200px; }
-.mp-linkform input { letter-spacing: .12em; text-transform: uppercase; }
-.mp-devbar { display: flex; justify-content: flex-end; align-items: center; gap: 14px; flex-wrap: wrap; margin: -14px 0 14px; }
-.mp-devcode { margin: 0; padding: 10px 14px; border: 1px solid var(--ink); font-size: 14px; }
-.mp-devcode strong { font: 700 20px/1 var(--sans); letter-spacing: .14em; margin: 0 6px; }
-.mp-empty p, .mp-optin p { max-width: 560px; font: 17px/1.55 var(--serif); color: var(--ink-2); }
-.mp-optin h2 { margin: 0 0 8px; font: 700 24px var(--serif); }
+.mp-empty, .mp-optin { padding: 12px 0 36px; }
+.mp-empty p, .mp-optin p { max-width: 560px; margin: 0 0 18px; font-size: 15px; line-height: 1.65; color: var(--ink-2); }
+.mp-optin h2 { margin: 0 0 10px; font: 500 32px/1.15 var(--serif); }
 .mp-libbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
-.mp-empty-line { color: var(--ink-3); }
+.mp-empty-line { color: var(--ink-3); padding: 16px 0; }
+.mp-devbar { display: flex; justify-content: flex-end; align-items: center; gap: 14px; flex-wrap: wrap; margin: 0 0 14px; }
+.mp-devcode { margin: 0; padding: 10px 14px; border: 1px solid var(--navy); font-size: 13px; }
+.mp-devcode strong { font: 600 18px/1 var(--sans); letter-spacing: .14em; margin: 0 6px; }
 
 /* ---- viewer ---- */
-.mp-viewer { position: fixed; inset: 0; z-index: 2147483000; display: flex; flex-direction: column; background: #e9e9e9; }
+.mp-viewer { position: fixed; inset: 0; z-index: 2147483000; display: flex; flex-direction: column; background: #e9eaee; }
 .mp-vbar { display: flex; align-items: center; gap: 16px; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--line); }
-.mp-vtitle { flex: 1; margin: 0; font: 700 16px var(--serif); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-vtitle { flex: 1; margin: 0; font: 500 19px var(--serif); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mp-vtools { display: flex; align-items: center; gap: 6px; }
-.mp-vpage { min-width: 80px; text-align: right; font-size: 13px; color: var(--ink-3); }
+.mp-vpage { min-width: 80px; text-align: right; font-size: 12.5px; color: var(--ink-3); }
 .mp-vpages { flex: 1; overflow: auto; padding: 20px 12px 40px; -webkit-overflow-scrolling: touch; }
 .mp-page { position: relative; margin: 0 auto 16px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
 .mp-page canvas { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .mp-vmsg { padding: 60px 20px; text-align: center; color: var(--ink-2); }
 
-@media (max-width: 860px) and (min-width: 641px) {
-  .mp-grid.mp-grid-4 { grid-template-columns: 1fr 1fr; }
-}
-
 @media (max-width: 640px) {
-  .mp { padding: 22px 16px 48px; }
-  .mp-title { font-size: 30px; }
-  .mp-lede { font-size: 16px; }
-  .mp-grid, .mp-grid.mp-grid-4 { grid-template-columns: 1fr; }
-  .mp-step { padding-left: 0; }
-  .mp-step::before { position: static; display: inline-block; margin-bottom: 8px; }
-  .mp-submit { padding-left: 0; }
+  .mp { padding: 26px 18px 48px; }
+  .mp-title { font-size: 36px; }
+  .mp-title-sm { font-size: 30px; }
+  .mp-profiles { grid-template-columns: 1fr; }
+  .mp-tabs { justify-content: flex-start; margin-top: 0; overflow-x: auto; }
   .mp-doc { min-width: 0; width: 100%; }
   .mp-item-top { flex-direction: column; gap: 4px; }
 }
@@ -276,123 +250,100 @@
 
   <div class="mp-boot" id="mp-boot" role="status">Loading the MasterPlan…</div>
 
-  <section class="mp-gate" id="mp-gate" hidden>
-    <p class="mp-kicker">StrategyTraining.com</p>
-    <h1 class="mp-title">The MasterPlan Digital</h1>
-    <p class="mp-lede">Drop in your resume and your social profiles. We read them against the MasterPlan and draft two documents for you: your MasterPlan, and a case study of you as a leader.</p>
-    <p class="mp-lede" id="mp-gate-text">Sign in to your StrategyTraining account to use the MasterPlan.</p>
+  <!-- ===== signed out, or the service is unavailable ===== -->
+  <div class="mp-gate" id="mp-gate" hidden>
+    <p class="mp-kicker">From Kris and Michael — MasterPlan</p>
+    <h1 class="mp-title">Your life, examined carefully.</h1>
+    <p class="mp-lede">The MasterPlan is a framework Kris and Michael built through the <a href="/" target="_top">MasterPlan book, programs, and coaching</a>. This draws on the most advanced version of the book, which has not been published. Share your resume and public profiles and we will generate your analysis.</p>
+    <p class="mp-gate-text" id="mp-gate-text">Sign in to your StrategyTraining account to use the MasterPlan.</p>
     <div class="mp-actions">
       <a class="mp-btn" id="mp-signin" target="_top" href="#">Sign in</a>
       <a class="mp-btn mp-btn-ghost" id="mp-join" target="_top" href="#">Join</a>
       <button type="button" class="mp-btn" id="mp-retry" hidden>Try again</button>
     </div>
-    <ul class="mp-gate-what">
-      <li><strong>Your MasterPlan</strong>The nine questions, the four exercises and chapters eleven to twenty, answered from your own record.</li>
-      <li><strong>Your case study</strong>A case study in leadership psychology: the patterns in your career and the tensions they hide.</li>
-      <li><strong>Every guess marked</strong>Facts are plain; anything inferred carries an asterisk, for you to confirm or correct.</li>
-    </ul>
-  </section>
+    <div class="mp-receive">
+      <p class="mp-label">What you receive</p>
+      <ol class="mp-receive-list">
+        <li><strong>A portrait of who you are across four pillars</strong> — health, wealth, purpose, relationships</li>
+        <li><strong>An analysis of the tradeoffs and blindspots in your current path</strong></li>
+        <li><strong>A working MasterPlan</strong> — your nine questions answered, with a wealth strategy for your city and career stage</li>
+      </ol>
+    </div>
+  </div>
 
-  <!-- An account with MasterPlans opened in a browser it has not seen before. -->
-  <section class="mp-gate" id="mp-link" hidden>
-    <h1 class="mp-title">Link this browser</h1>
-    <p class="mp-lede">Your MasterPlans are private to the browsers you use them in. To open them here, go to the MasterPlan page in a browser where you already use it, choose <strong>My MasterPlans</strong> &rsaquo; <strong>Use on another device</strong>, and enter the code it shows.</p>
+  <!-- ===== an account with MasterPlans, in a browser it has not seen ===== -->
+  <div class="mp-gate" id="mp-link" hidden>
+    <p class="mp-kicker">From Kris and Michael — MasterPlan</p>
+    <h1 class="mp-title">Link this browser.</h1>
+    <p class="mp-lede">Your MasterPlans are private to the browsers you use them in. To open them here, go to this page in a browser where you already use it, choose <strong>My MasterPlans</strong> &rsaquo; <strong>Use on another device</strong>, and enter the code it shows.</p>
     <form class="mp-linkform" id="link-form" novalidate>
-      <label class="mp-field"><span>Code</span><input type="text" id="link-code" placeholder="ABCD-1234" autocomplete="one-time-code" maxlength="12" spellcheck="false"></label>
+      <label class="mp-field"><span class="mp-label">Code</span><input type="text" id="link-code" placeholder="ABCD-1234" autocomplete="one-time-code" maxlength="12" spellcheck="false"></label>
       <button type="submit" class="mp-btn" id="link-go">Link this browser</button>
     </form>
     <p class="mp-error" id="link-err" role="alert" hidden></p>
-  </section>
+  </div>
 
-  <section class="mp-app" id="mp-app" hidden>
-    <div class="mp-head">
-      <p class="mp-kicker">StrategyTraining.com</p>
-      <h1 class="mp-title">The MasterPlan Digital</h1>
-      <p class="mp-lede">Drop in your resume and your social profiles. We read them against the MasterPlan and draft two documents for you: your MasterPlan, and a case study of you as a leader. Every guess is marked, so you can correct it.</p>
-      <div class="mp-tabs" role="tablist">
-        <button role="tab" data-tab="new" aria-selected="true">New MasterPlan</button>
-        <button role="tab" data-tab="mine" aria-selected="false">My MasterPlans <span class="mp-count" id="mp-mine-count" hidden></span></button>
-        <button role="tab" data-tab="library" aria-selected="false">Library</button>
-      </div>
+  <!-- ===== the tool ===== -->
+  <div class="mp-app" id="mp-app" hidden>
+    <div class="mp-tabs" role="tablist">
+      <button role="tab" data-tab="new" aria-selected="true">New MasterPlan</button>
+      <button role="tab" data-tab="mine" aria-selected="false">My MasterPlans <span class="mp-count" id="mp-mine-count" hidden></span></button>
+      <button role="tab" data-tab="library" aria-selected="false">Library</button>
     </div>
 
     <!-- ===== new ===== -->
-    <section class="mp-panel" id="panel-new" data-panel="new">
-      <!-- three steps: resume -> social profiles -> generating -->
-      <ol class="mp-stepper" aria-label="Progress">
-        <li data-for="1" class="is-current"><span>1</span>Resume</li>
-        <li data-for="2"><span>2</span>Social profiles</li>
-        <li data-for="3"><span>3</span>Your MasterPlan</li>
-      </ol>
-
-      <!-- step 1: resume -->
-      <div class="mp-wiz" data-step="1">
-        <h2 class="mp-wiz-title">Upload your resume</h2>
-        <p class="mp-wiz-sub">Your resume is the main source. Every fact in your MasterPlan traces back to a line in it.</p>
-        <label class="mp-drop mp-drop-lg" id="mp-drop">
-          <input type="file" id="f-resume" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
-          <span class="mp-drop-icon" aria-hidden="true">↑</span>
-          <span class="mp-drop-main" id="mp-drop-main">Drop your resume here, or <u>choose a file</u></span>
-          <span class="mp-drop-sub" id="mp-drop-sub">PDF, Word (.docx) or text. Up to 8 MB.</span>
-        </label>
-        <p class="mp-error" id="e-1" role="alert" hidden></p>
-        <div class="mp-wiz-nav">
-          <span></span>
-          <button type="button" class="mp-btn" id="to-2" disabled>Continue</button>
+    <div class="mp-panel" id="panel-new" data-panel="new">
+      <div class="mp-intro">
+        <p class="mp-kicker">From Kris and Michael — MasterPlan</p>
+        <h1 class="mp-title">Your life, examined carefully.</h1>
+        <p class="mp-lede">The MasterPlan is a framework Kris and Michael built through the <a href="/" target="_top">MasterPlan book, programs, and coaching</a>. This draws on the most advanced version of the book, which has not been published. Share your resume and public profiles and we will generate your analysis.</p>
+        <div class="mp-receive">
+          <p class="mp-label">What you receive</p>
+          <ol class="mp-receive-list">
+            <li><strong>A portrait of who you are across four pillars</strong> — health, wealth, purpose, relationships</li>
+            <li><strong>An analysis of the tradeoffs and blindspots in your current path</strong></li>
+            <li><strong>A working MasterPlan</strong> — your nine questions answered, with a wealth strategy for your city and career stage</li>
+          </ol>
         </div>
       </div>
 
-      <!-- step 2: social profiles -->
-      <form class="mp-wiz" data-step="2" id="f-step2" novalidate hidden>
-        <h2 class="mp-wiz-title">Add your social profiles</h2>
-        <p class="mp-wiz-sub">Public links only. We read what the public page shows. Add at least one, or paste your bio below.</p>
-        <div class="mp-grid">
-          <label class="mp-field"><span>LinkedIn</span><input type="url" id="f-link-1" placeholder="https://www.linkedin.com/in/…" inputmode="url"></label>
-          <label class="mp-field"><span>Instagram</span><input type="url" id="f-link-2" placeholder="https://www.instagram.com/…" inputmode="url"></label>
-          <label class="mp-field mp-span"><span>Other (X, YouTube, TikTok, a website)</span><input type="url" id="f-link-3" placeholder="https://…" inputmode="url"></label>
+      <!-- the form -->
+      <form class="mp-form" id="f-new" novalidate>
+        <p class="mp-label">Resume or CV</p>
+        <label class="mp-drop" id="mp-drop">
+          <input type="file" id="f-resume" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
+          <span class="mp-drop-main" id="mp-drop-main">Drop your file here, or click to browse</span>
+          <span class="mp-drop-sub" id="mp-drop-sub">PDF or Word</span>
+        </label>
+        <p class="mp-help">Your resume should include your name and location. We use these to personalise your analysis and estimate wealth benchmarks for your city and career stage.</p>
+
+        <p class="mp-label">Public profiles <span class="mp-optional">(optional)</span></p>
+        <div class="mp-profiles">
+          <label class="mp-line"><span class="mp-sr">LinkedIn</span><input type="url" id="f-link-1" placeholder="LinkedIn" inputmode="url" autocomplete="off"></label>
+          <label class="mp-line"><span class="mp-sr">YouTube</span><input type="url" id="f-link-2" placeholder="YouTube" inputmode="url" autocomplete="off"></label>
+          <label class="mp-line"><span class="mp-sr">Instagram</span><input type="url" id="f-link-3" placeholder="Instagram" inputmode="url" autocomplete="off"></label>
+          <label class="mp-line"><span class="mp-sr">Other</span><input type="url" id="f-link-4" placeholder="Other" inputmode="url" autocomplete="off"></label>
         </div>
         <details class="mp-more">
-          <summary>Profile private or hard to read? Paste your bio and recent post titles</summary>
+          <summary>Profile private? Paste your bio and recent post titles instead</summary>
           <textarea id="f-pasted" rows="4" maxlength="8000" placeholder="Bio, follower count, the titles of your recent posts…"></textarea>
         </details>
 
-        <h3 class="mp-wiz-h3">Where you live</h3>
-        <p class="mp-hint">Sets the living costs in your plan. Your street address is never needed.</p>
-        <div class="mp-grid mp-grid-4">
-          <label class="mp-field"><span>City</span><input type="text" id="f-city" autocomplete="address-level2" required></label>
-          <label class="mp-field"><span>State or region</span><input type="text" id="f-region" autocomplete="address-level1"></label>
-          <label class="mp-field"><span>ZIP / postal code</span><input type="text" id="f-postal" autocomplete="postal-code"></label>
-          <label class="mp-field"><span>Country</span><input type="text" id="f-country" autocomplete="country-name" value="United States" required></label>
-        </div>
+        <label class="mp-check"><input type="checkbox" id="f-share"><span>Share my MasterPlan with other members in the Library. Members who share read each other's; you can change this at any time.</span></label>
 
-        <h3 class="mp-wiz-h3">About you</h3>
-        <div class="mp-grid">
-          <label class="mp-field"><span>Name <em>(optional, taken from your resume)</em></span><input type="text" id="f-name" autocomplete="name"></label>
-          <label class="mp-field"><span>Pronouns</span>
-            <select id="f-pronouns">
-              <option value="they/them">they/them</option>
-              <option value="she/her">she/her</option>
-              <option value="he/him">he/him</option>
-            </select>
-          </label>
-        </div>
-
-        <div class="mp-checks">
-          <label class="mp-check"><input type="checkbox" id="f-share"><span><strong>Share my MasterPlan with other members.</strong> Members who share can read each other's MasterPlans in the Library. If you do not share, only you see yours.</span></label>
-          <label class="mp-check"><input type="checkbox" id="f-confirm"><span>This is my resume and these are my profiles.</span></label>
-        </div>
+        <p class="mp-note">Everything you share here is already public. Your resume and these profiles are information you have already made available. We use them only to generate your MasterPlan analysis.</p>
 
         <p class="mp-error" id="f-error" role="alert" hidden></p>
-        <div class="mp-wiz-nav">
-          <button type="button" class="mp-btn mp-btn-ghost" id="back-1">Back</button>
-          <button type="submit" class="mp-btn" id="f-submit">Generate my MasterPlan</button>
-        </div>
+        <button type="submit" class="mp-btn" id="f-submit">Generate my MasterPlan</button>
+
+        <p class="mp-foot">Part of the <a href="/" target="_top">MasterPlan suite</a> at StrategyTraining.com</p>
       </form>
 
-      <!-- step 3: generating -->
-      <div class="mp-wiz" data-step="3" hidden>
-        <h2 class="mp-wiz-title" id="g-title">Generating your MasterPlan</h2>
-        <p class="mp-wiz-sub" id="g-sub">This takes about ten minutes. You can leave this page; we will email <span id="g-email">you</span> when it is ready.</p>
+      <!-- generating, then the documents -->
+      <div class="mp-gen-view" id="gen-view" hidden>
+        <p class="mp-kicker">Your MasterPlan</p>
+        <h2 class="mp-title mp-title-sm" id="g-title">Generating your MasterPlan</h2>
+        <p class="mp-lede" id="g-sub">This takes about ten minutes. You can leave this page; we will email <span id="g-email">you</span> when it is ready.</p>
         <ol class="mp-gen" id="g-stages">
           <li data-stage="reading">Reading your resume and profiles</li>
           <li data-stage="researching">Researching living costs where you live</li>
@@ -402,15 +353,15 @@
         <div class="mp-progress mp-progress-lg"><span id="g-bar" style="width:4%"></span></div>
         <p class="mp-error" id="g-error" role="alert" hidden></p>
         <div class="mp-docs" id="g-docs" hidden></div>
-        <div class="mp-wiz-nav">
+        <div class="mp-gen-nav">
           <button type="button" class="mp-link" id="g-again">Start another MasterPlan</button>
           <button type="button" class="mp-link" data-goto="mine">See all my MasterPlans</button>
         </div>
       </div>
-    </section>
+    </div>
 
     <!-- ===== mine ===== -->
-    <section class="mp-panel" id="panel-mine" data-panel="mine" hidden>
+    <div class="mp-panel" id="panel-mine" data-panel="mine" hidden>
       <div class="mp-devbar">
         <button type="button" class="mp-link" id="dev-code-btn">Use on another device</button>
         <p class="mp-devcode" id="dev-code" hidden></p>
@@ -420,10 +371,10 @@
         <button class="mp-btn" data-goto="new">Create your first</button>
       </div>
       <ul class="mp-list" id="mine-list"></ul>
-    </section>
+    </div>
 
     <!-- ===== library ===== -->
-    <section class="mp-panel" id="panel-library" data-panel="library" hidden>
+    <div class="mp-panel" id="panel-library" data-panel="library" hidden>
       <div class="mp-optin" id="lib-optin" hidden>
         <h2>The Library</h2>
         <p>The Library holds the MasterPlans of members who chose to share. Share yours and you can read theirs. Your MasterPlan, your case study and, later, your podcast become visible to other sharing members.</p>
@@ -434,11 +385,11 @@
           <p class="mp-hint">You are sharing your MasterPlans with other members who share.</p>
           <button class="mp-link" id="lib-share-off">Stop sharing</button>
         </div>
-        <p class="mp-empty-line" id="lib-empty" hidden>No shared MasterPlans yet. Yours will appear here once it is ready.</p>
+        <p class="mp-empty-line" id="lib-empty" hidden>No shared MasterPlans yet.</p>
         <ul class="mp-list" id="lib-list"></ul>
       </div>
-    </section>
-  </section>
+    </div>
+  </div>
 
   <!-- ===== viewer ===== -->
   <div class="mp-viewer" id="mp-viewer" hidden role="dialog" aria-modal="true" aria-labelledby="v-title">
@@ -813,20 +764,22 @@
     if (go) selectTab(go.dataset.goto);
   });
 
-  /* ---- new: the three steps ------------------------------------------------ */
+  /* ---- new: one form, then the progress view ------------------------------ */
 
-  function showStep(n) {
-    Array.prototype.forEach.call(document.querySelectorAll('.mp-wiz'), function (w) {
-      w.hidden = w.dataset.step !== String(n);
-    });
-    Array.prototype.forEach.call(document.querySelectorAll('.mp-stepper li'), function (li) {
-      var k = Number(li.dataset.for);
-      li.classList.toggle('is-current', k === n);
-      li.classList.toggle('is-done', k < n);
-    });
+  /* The New MasterPlan tab shows either the form (intro, resume, profiles) or,
+     once a MasterPlan is being written, its progress and then its documents. */
+  function showForm() {
+    $('f-new').hidden = false;
+    document.querySelector('#panel-new .mp-intro').hidden = false;
+    $('gen-view').hidden = true;
     selectTab('new');
-    var top = document.querySelector('.mp-stepper');
-    if (top && top.scrollIntoView) top.scrollIntoView({ block: 'nearest' });
+  }
+  function showProgress() {
+    $('f-new').hidden = true;
+    document.querySelector('#panel-new .mp-intro').hidden = true;
+    $('gen-view').hidden = false;
+    selectTab('new');
+    if (root.scrollIntoView) root.scrollIntoView({ block: 'start' });
   }
 
   function showError(id, msg) {
@@ -835,22 +788,23 @@
     el.hidden = !msg;
   }
 
-  /* Step 1: the resume. */
+  /* The resume. */
 
   var file = null;
   var drop = $('mp-drop');
   var fileInput = $('f-resume');
+  var DROP_MAIN = 'Drop your file here, or click to browse';
+  var DROP_SUB = 'PDF or Word';
 
   function takeFile(f) {
     if (!f) return;
-    if (f.size > (BOOT.maxUploadBytes || 8388608)) return showError('e-1', 'That file is larger than 8 MB.');
-    if (!/\.(pdf|docx|txt)$/i.test(f.name)) return showError('e-1', 'Please use a PDF, Word (.docx) or text file.');
+    if (f.size > (BOOT.maxUploadBytes || 8388608)) return showError('f-error', 'That file is larger than 8 MB.');
+    if (!/\.(pdf|docx|txt)$/i.test(f.name)) return showError('f-error', 'Please use a PDF or Word (.docx) file.');
     file = f;
-    showError('e-1', '');
+    showError('f-error', '');
     drop.classList.add('has-file');
     $('mp-drop-main').textContent = f.name;
     $('mp-drop-sub').textContent = Math.max(1, Math.round(f.size / 1024)) + ' KB · click to choose a different file';
-    $('to-2').disabled = false;
   }
   fileInput.addEventListener('change', function () { takeFile(fileInput.files[0]); });
   ['dragenter', 'dragover'].forEach(function (ev) {
@@ -861,13 +815,6 @@
   });
   drop.addEventListener('drop', function (e) { takeFile(e.dataTransfer.files[0]); });
 
-  $('to-2').addEventListener('click', function () {
-    if (!file) return showError('e-1', 'Add your resume first.');
-    showStep(2);
-    $('f-link-1').focus();
-  });
-  $('back-1').addEventListener('click', function () { showStep(1); });
-
   function readBase64(f) {
     return new Promise(function (resolve, reject) {
       var r = new FileReader();
@@ -877,25 +824,36 @@
     });
   }
 
-  /* Step 2: social profiles and place, then generate. */
+  /* Profiles are optional. A bare handle or a link without https:// is turned
+     into a full link where the field says which site it is. */
+  var PROFILE_FIELDS = [
+    ['f-link-1', 'https://www.linkedin.com/in/'],
+    ['f-link-2', 'https://www.youtube.com/@'],
+    ['f-link-3', 'https://www.instagram.com/'],
+    ['f-link-4', ''],
+  ];
+  function profileLink(id, base) {
+    var raw = $(id).value.trim();
+    if (!raw) return '';
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (/^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(raw)) return 'https://' + raw;
+    if (base && /^@?[\w.-]{2,100}$/.test(raw)) return base + raw.replace(/^@/, '');
+    return null;
+  }
 
-  $('f-step2').addEventListener('submit', function (e) {
+  $('f-new').addEventListener('submit', function (e) {
     e.preventDefault();
-    var v = function (id) { return $(id).value.trim(); };
     var err = function (msg) { showError('f-error', msg); };
+    if (!file) return err('Add your resume first. It should include your name and location.');
 
-    var links = ['f-link-1', 'f-link-2', 'f-link-3'].map(v).filter(Boolean);
-    var badLink = links.filter(function (u) { return !/^https?:\/\/\S+\.\S+/i.test(u); });
-    if (badLink.length) return err('Profile links must start with https:// - check ' + badLink[0]);
-    if (!links.length && !v('f-pasted')) return err('Add at least one social profile link, or paste your bio.');
-    var missing = ['f-city', 'f-country'].filter(function (id) {
-      var bad = !v(id);
-      $(id).setAttribute('aria-invalid', String(bad));
-      return bad;
-    });
-    if (missing.length) return err('Please add your city and country.');
-    if (!$('f-confirm').checked) return err('Please confirm the resume and profiles are yours.');
-    if (!file) { showStep(1); return showError('e-1', 'Add your resume first.'); }
+    var links = [];
+    for (var i = 0; i < PROFILE_FIELDS.length; i++) {
+      var id = PROFILE_FIELDS[i][0];
+      var link = profileLink(id, PROFILE_FIELDS[i][1]);
+      $(id).setAttribute('aria-invalid', String(link === null));
+      if (link === null) return err('That profile link does not look right: ' + $(id).value.trim());
+      if (link) links.push(link);
+    }
 
     var btn = $('f-submit');
     btn.disabled = true;
@@ -904,17 +862,13 @@
 
     readBase64(file).then(function (b64) {
       return api('POST', '/api/reports', {
-        name: v('f-name'),
-        pronouns: $('f-pronouns').value,
-        city: v('f-city'),
-        region: v('f-region'),
-        postalCode: v('f-postal'),
-        country: v('f-country'),
         links: links,
         pasted: $('f-pasted').value.trim(),
         resumeName: file.name,
         resumeBase64: b64,
         share: $('f-share').checked,
+        /* Submitting under the note "Everything you share here is already
+           public..." is the member's confirmation. */
         confirm: true,
       });
     }).then(function (r) {
@@ -930,17 +884,17 @@
   });
 
   function resetForm() {
-    $('f-step2').reset();
+    $('f-new').reset();
     $('f-share').checked = state.sharing;
     fileInput.value = '';
     file = null;
     drop.classList.remove('has-file');
-    $('mp-drop-main').innerHTML = 'Drop your resume here, or <u>choose a file</u>';
-    $('mp-drop-sub').textContent = 'PDF, Word (.docx) or text. Up to 8 MB.';
-    $('to-2').disabled = true;
+    $('mp-drop-main').textContent = DROP_MAIN;
+    $('mp-drop-sub').textContent = DROP_SUB;
+    PROFILE_FIELDS.forEach(function (f) { $(f[0]).removeAttribute('aria-invalid'); });
   }
 
-  /* Step 3: watch it being written. */
+  /* The progress view: watch it being written. */
 
   var ORDER = ['queued', 'reading', 'researching', 'writing', 'rendering', 'ready'];
   var BAR = { queued: 4, reading: 14, researching: 32, writing: 58, rendering: 92, ready: 100 };
@@ -955,7 +909,7 @@
     $('g-docs').textContent = '';
     showError('g-error', '');
     paintStage('queued');
-    showStep(3);
+    showProgress();
     pollTrack();
   }
 
@@ -1021,7 +975,7 @@
   $('g-again').addEventListener('click', function () {
     tracking = null;
     clearTimeout(trackTimer);
-    showStep(1);
+    showForm();
   });
 
   /* ---- mine ------------------------------------------------------------------ */

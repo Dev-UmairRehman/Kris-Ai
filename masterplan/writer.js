@@ -76,7 +76,7 @@ Reply with one JSON object in a \`\`\`json fence:
 {
   "name": "full name as on the resume (or as the member typed it)",
   "first_name": "",
-  "pronouns": "she/her | he/him | they/them (use what the member chose)",
+  "pronouns": "she/her | he/him | they/them: what the member chose, else what the resume or feed states, else they/them",
   "resume_text": "a faithful plain-text transcription of the resume, every line, if the resume was given as a PDF; otherwise an empty string",
   "resume_date": "Month Year the resume is dated (e.g. 'July 2024'), or exactly 'undated' - nothing else",
   "age_estimate": {"low": 0, "high": 0, "basis": "e.g. bachelor's degree finished May 2007"},
@@ -105,7 +105,7 @@ function sourceBlock(input) {
   const parts = [];
   parts.push(`Member-entered details:
 Name: ${input.name || '(not given)'}
-Pronouns: ${input.pronouns}
+Pronouns: ${input.pronouns || "not given (use pronouns only if the resume or feed states them; otherwise they/them)"}
 City: ${input.city}${input.region ? ', ' + input.region : ''} ${input.postalCode || ''} ${input.country || ''}
 Today: ${input.today}`);
   if (input.resume.text) parts.push('<resume>\n' + input.resume.text + '\n</resume>');
@@ -129,7 +129,7 @@ async function extractProfile(input, usage) {
   const { text } = await llm.generate({ system: system(), content, effort: 'medium', maxTokens: 24000, usage });
   const profile = llm.parseJson(text);
   if (!profile.resume_text && input.resume.text) profile.resume_text = input.resume.text;
-  profile.pronouns = input.pronouns || profile.pronouns;
+  profile.pronouns = input.pronouns || profile.pronouns || "they/them";
   if (input.name) profile.name = input.name;
   if (!profile.first_name && profile.name) profile.first_name = String(profile.name).split(/\s+/)[0];
   return profile;

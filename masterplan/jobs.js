@@ -323,11 +323,18 @@ async function write(id, inputs, meta, now, usage, log) {
     profile.age_estimate && profile.age_estimate.low
       ? (Number(profile.age_estimate.low) + Number(profile.age_estimate.high || profile.age_estimate.low)) / 2
       : null;
-  const place = [inputs.city, inputs.region, inputs.postalCode].filter(Boolean).join(', ');
+  /* Where the member lives: the form, if it was given, otherwise the resume.
+     With neither, the costs fall back to national figures and the document
+     says so. */
+  const loc = profile.location || {};
+  let place = [inputs.city, inputs.region, inputs.postalCode].filter(Boolean).join(', ');
+  if (!place) place = [loc.city, loc.region, loc.postal_code].filter(Boolean).join(', ');
+  const country = inputs.country || loc.country || '';
+  if (!place) place = (country || 'United States') + ' (no city found in the resume: use national figures and say so)';
   const research = await costs.research(
     {
       place,
-      country: inputs.country,
+      country,
       today: longDate(now),
       role: profile.research_role || (profile.current_role && profile.current_role.title),
       employer: profile.current_role && profile.current_role.employer,

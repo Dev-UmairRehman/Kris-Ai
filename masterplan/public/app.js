@@ -354,20 +354,22 @@
     if (go) selectTab(go.dataset.goto);
   });
 
-  /* ---- new: the three steps ------------------------------------------------ */
+  /* ---- new: one form, then the progress view ------------------------------ */
 
-  function showStep(n) {
-    Array.prototype.forEach.call(document.querySelectorAll('.mp-wiz'), function (w) {
-      w.hidden = w.dataset.step !== String(n);
-    });
-    Array.prototype.forEach.call(document.querySelectorAll('.mp-stepper li'), function (li) {
-      var k = Number(li.dataset.for);
-      li.classList.toggle('is-current', k === n);
-      li.classList.toggle('is-done', k < n);
-    });
+  /* The New MasterPlan tab shows either the form (intro, resume, profiles) or,
+     once a MasterPlan is being written, its progress and then its documents. */
+  function showForm() {
+    $('f-new').hidden = false;
+    document.querySelector('#panel-new .mp-intro').hidden = false;
+    $('gen-view').hidden = true;
     selectTab('new');
-    var top = document.querySelector('.mp-stepper');
-    if (top && top.scrollIntoView) top.scrollIntoView({ block: 'nearest' });
+  }
+  function showProgress() {
+    $('f-new').hidden = true;
+    document.querySelector('#panel-new .mp-intro').hidden = true;
+    $('gen-view').hidden = false;
+    selectTab('new');
+    if (root.scrollIntoView) root.scrollIntoView({ block: 'start' });
   }
 
   function showError(id, msg) {
@@ -376,22 +378,23 @@
     el.hidden = !msg;
   }
 
-  /* Step 1: the resume. */
+  /* The resume. */
 
   var file = null;
   var drop = $('mp-drop');
   var fileInput = $('f-resume');
+  var DROP_MAIN = 'Drop your file here, or click to browse';
+  var DROP_SUB = 'PDF or Word';
 
   function takeFile(f) {
     if (!f) return;
-    if (f.size > (BOOT.maxUploadBytes || 8388608)) return showError('e-1', 'That file is larger than 8 MB.');
-    if (!/\.(pdf|docx|txt)$/i.test(f.name)) return showError('e-1', 'Please use a PDF, Word (.docx) or text file.');
+    if (f.size > (BOOT.maxUploadBytes || 8388608)) return showError('f-error', 'That file is larger than 8 MB.');
+    if (!/\.(pdf|docx|txt)$/i.test(f.name)) return showError('f-error', 'Please use a PDF or Word (.docx) file.');
     file = f;
-    showError('e-1', '');
+    showError('f-error', '');
     drop.classList.add('has-file');
     $('mp-drop-main').textContent = f.name;
     $('mp-drop-sub').textContent = Math.max(1, Math.round(f.size / 1024)) + ' KB · click to choose a different file';
-    $('to-2').disabled = false;
   }
   fileInput.addEventListener('change', function () { takeFile(fileInput.files[0]); });
   ['dragenter', 'dragover'].forEach(function (ev) {
@@ -402,13 +405,6 @@
   });
   drop.addEventListener('drop', function (e) { takeFile(e.dataTransfer.files[0]); });
 
-  $('to-2').addEventListener('click', function () {
-    if (!file) return showError('e-1', 'Add your resume first.');
-    showStep(2);
-    $('f-link-1').focus();
-  });
-  $('back-1').addEventListener('click', function () { showStep(1); });
-
   function readBase64(f) {
     return new Promise(function (resolve, reject) {
       var r = new FileReader();
@@ -418,25 +414,36 @@
     });
   }
 
-  /* Step 2: social profiles and place, then generate. */
+  /* Profiles are optional. A bare handle or a link without https:// is turned
+     into a full link where the field says which site it is. */
+  var PROFILE_FIELDS = [
+    ['f-link-1', 'https://www.linkedin.com/in/'],
+    ['f-link-2', 'https://www.youtube.com/@'],
+    ['f-link-3', 'https://www.instagram.com/'],
+    ['f-link-4', ''],
+  ];
+  function profileLink(id, base) {
+    var raw = $(id).value.trim();
+    if (!raw) return '';
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (/^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(raw)) return 'https://' + raw;
+    if (base && /^@?[\w.-]{2,100}$/.test(raw)) return base + raw.replace(/^@/, '');
+    return null;
+  }
 
-  $('f-step2').addEventListener('submit', function (e) {
+  $('f-new').addEventListener('submit', function (e) {
     e.preventDefault();
-    var v = function (id) { return $(id).value.trim(); };
     var err = function (msg) { showError('f-error', msg); };
+    if (!file) return err('Add your resume first. It should include your name and location.');
 
-    var links = ['f-link-1', 'f-link-2', 'f-link-3'].map(v).filter(Boolean);
-    var badLink = links.filter(function (u) { return !/^https?:\/\/\S+\.\S+/i.test(u); });
-    if (badLink.length) return err('Profile links must start with https:// - check ' + badLink[0]);
-    if (!links.length && !v('f-pasted')) return err('Add at least one social profile link, or paste your bio.');
-    var missing = ['f-city', 'f-country'].filter(function (id) {
-      var bad = !v(id);
-      $(id).setAttribute('aria-invalid', String(bad));
-      return bad;
-    });
-    if (missing.length) return err('Please add your city and country.');
-    if (!$('f-confirm').checked) return err('Please confirm the resume and profiles are yours.');
-    if (!file) { showStep(1); return showError('e-1', 'Add your resume first.'); }
+    var links = [];
+    for (var i = 0; i < PROFILE_FIELDS.length; i++) {
+      var id = PROFILE_FIELDS[i][0];
+      var link = profileLink(id, PROFILE_FIELDS[i][1]);
+      $(id).setAttribute('aria-invalid', String(link === null));
+      if (link === null) return err('That profile link does not look right: ' + $(id).value.trim());
+      if (link) links.push(link);
+    }
 
     var btn = $('f-submit');
     btn.disabled = true;
@@ -445,17 +452,13 @@
 
     readBase64(file).then(function (b64) {
       return api('POST', '/api/reports', {
-        name: v('f-name'),
-        pronouns: $('f-pronouns').value,
-        city: v('f-city'),
-        region: v('f-region'),
-        postalCode: v('f-postal'),
-        country: v('f-country'),
         links: links,
         pasted: $('f-pasted').value.trim(),
         resumeName: file.name,
         resumeBase64: b64,
         share: $('f-share').checked,
+        /* Submitting under the note "Everything you share here is already
+           public..." is the member's confirmation. */
         confirm: true,
       });
     }).then(function (r) {
@@ -471,17 +474,17 @@
   });
 
   function resetForm() {
-    $('f-step2').reset();
+    $('f-new').reset();
     $('f-share').checked = state.sharing;
     fileInput.value = '';
     file = null;
     drop.classList.remove('has-file');
-    $('mp-drop-main').innerHTML = 'Drop your resume here, or <u>choose a file</u>';
-    $('mp-drop-sub').textContent = 'PDF, Word (.docx) or text. Up to 8 MB.';
-    $('to-2').disabled = true;
+    $('mp-drop-main').textContent = DROP_MAIN;
+    $('mp-drop-sub').textContent = DROP_SUB;
+    PROFILE_FIELDS.forEach(function (f) { $(f[0]).removeAttribute('aria-invalid'); });
   }
 
-  /* Step 3: watch it being written. */
+  /* The progress view: watch it being written. */
 
   var ORDER = ['queued', 'reading', 'researching', 'writing', 'rendering', 'ready'];
   var BAR = { queued: 4, reading: 14, researching: 32, writing: 58, rendering: 92, ready: 100 };
@@ -496,7 +499,7 @@
     $('g-docs').textContent = '';
     showError('g-error', '');
     paintStage('queued');
-    showStep(3);
+    showProgress();
     pollTrack();
   }
 
@@ -562,7 +565,7 @@
   $('g-again').addEventListener('click', function () {
     tracking = null;
     clearTimeout(trackTimer);
-    showStep(1);
+    showForm();
   });
 
   /* ---- mine ------------------------------------------------------------------ */

@@ -6,6 +6,9 @@
 <meta name="robots" content="noindex">
 <title>The MasterPlan Digital</title>
 <link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/masterplan/static/app.css?v={{ASSET_V}}">
 <!-- No header or footer: Uscreen renders the StrategyTraining nav and footer
      around this page. -->
@@ -15,123 +18,100 @@
 
   <div class="mp-boot" id="mp-boot" role="status">Loading the MasterPlan…</div>
 
-  <section class="mp-gate" id="mp-gate" hidden>
-    <p class="mp-kicker">StrategyTraining.com</p>
-    <h1 class="mp-title">The MasterPlan Digital</h1>
-    <p class="mp-lede">Drop in your resume and your social profiles. We read them against the MasterPlan and draft two documents for you: your MasterPlan, and a case study of you as a leader.</p>
-    <p class="mp-lede" id="mp-gate-text">Sign in to your StrategyTraining account to use the MasterPlan.</p>
+  <!-- ===== signed out, or the service is unavailable ===== -->
+  <div class="mp-gate" id="mp-gate" hidden>
+    <p class="mp-kicker">From Kris and Michael — MasterPlan</p>
+    <h1 class="mp-title">Your life, examined carefully.</h1>
+    <p class="mp-lede">The MasterPlan is a framework Kris and Michael built through the <a href="/" target="_top">MasterPlan book, programs, and coaching</a>. This draws on the most advanced version of the book, which has not been published. Share your resume and public profiles and we will generate your analysis.</p>
+    <p class="mp-gate-text" id="mp-gate-text">Sign in to your StrategyTraining account to use the MasterPlan.</p>
     <div class="mp-actions">
       <a class="mp-btn" id="mp-signin" target="_top" href="#">Sign in</a>
       <a class="mp-btn mp-btn-ghost" id="mp-join" target="_top" href="#">Join</a>
       <button type="button" class="mp-btn" id="mp-retry" hidden>Try again</button>
     </div>
-    <ul class="mp-gate-what">
-      <li><strong>Your MasterPlan</strong>The nine questions, the four exercises and chapters eleven to twenty, answered from your own record.</li>
-      <li><strong>Your case study</strong>A case study in leadership psychology: the patterns in your career and the tensions they hide.</li>
-      <li><strong>Every guess marked</strong>Facts are plain; anything inferred carries an asterisk, for you to confirm or correct.</li>
-    </ul>
-  </section>
+    <div class="mp-receive">
+      <p class="mp-label">What you receive</p>
+      <ol class="mp-receive-list">
+        <li><strong>A portrait of who you are across four pillars</strong> — health, wealth, purpose, relationships</li>
+        <li><strong>An analysis of the tradeoffs and blindspots in your current path</strong></li>
+        <li><strong>A working MasterPlan</strong> — your nine questions answered, with a wealth strategy for your city and career stage</li>
+      </ol>
+    </div>
+  </div>
 
-  <!-- An account with MasterPlans opened in a browser it has not seen before. -->
-  <section class="mp-gate" id="mp-link" hidden>
-    <h1 class="mp-title">Link this browser</h1>
-    <p class="mp-lede">Your MasterPlans are private to the browsers you use them in. To open them here, go to the MasterPlan page in a browser where you already use it, choose <strong>My MasterPlans</strong> &rsaquo; <strong>Use on another device</strong>, and enter the code it shows.</p>
+  <!-- ===== an account with MasterPlans, in a browser it has not seen ===== -->
+  <div class="mp-gate" id="mp-link" hidden>
+    <p class="mp-kicker">From Kris and Michael — MasterPlan</p>
+    <h1 class="mp-title">Link this browser.</h1>
+    <p class="mp-lede">Your MasterPlans are private to the browsers you use them in. To open them here, go to this page in a browser where you already use it, choose <strong>My MasterPlans</strong> &rsaquo; <strong>Use on another device</strong>, and enter the code it shows.</p>
     <form class="mp-linkform" id="link-form" novalidate>
-      <label class="mp-field"><span>Code</span><input type="text" id="link-code" placeholder="ABCD-1234" autocomplete="one-time-code" maxlength="12" spellcheck="false"></label>
+      <label class="mp-field"><span class="mp-label">Code</span><input type="text" id="link-code" placeholder="ABCD-1234" autocomplete="one-time-code" maxlength="12" spellcheck="false"></label>
       <button type="submit" class="mp-btn" id="link-go">Link this browser</button>
     </form>
     <p class="mp-error" id="link-err" role="alert" hidden></p>
-  </section>
+  </div>
 
-  <section class="mp-app" id="mp-app" hidden>
-    <div class="mp-head">
-      <p class="mp-kicker">StrategyTraining.com</p>
-      <h1 class="mp-title">The MasterPlan Digital</h1>
-      <p class="mp-lede">Drop in your resume and your social profiles. We read them against the MasterPlan and draft two documents for you: your MasterPlan, and a case study of you as a leader. Every guess is marked, so you can correct it.</p>
-      <div class="mp-tabs" role="tablist">
-        <button role="tab" data-tab="new" aria-selected="true">New MasterPlan</button>
-        <button role="tab" data-tab="mine" aria-selected="false">My MasterPlans <span class="mp-count" id="mp-mine-count" hidden></span></button>
-        <button role="tab" data-tab="library" aria-selected="false">Library</button>
-      </div>
+  <!-- ===== the tool ===== -->
+  <div class="mp-app" id="mp-app" hidden>
+    <div class="mp-tabs" role="tablist">
+      <button role="tab" data-tab="new" aria-selected="true">New MasterPlan</button>
+      <button role="tab" data-tab="mine" aria-selected="false">My MasterPlans <span class="mp-count" id="mp-mine-count" hidden></span></button>
+      <button role="tab" data-tab="library" aria-selected="false">Library</button>
     </div>
 
     <!-- ===== new ===== -->
-    <section class="mp-panel" id="panel-new" data-panel="new">
-      <!-- three steps: resume -> social profiles -> generating -->
-      <ol class="mp-stepper" aria-label="Progress">
-        <li data-for="1" class="is-current"><span>1</span>Resume</li>
-        <li data-for="2"><span>2</span>Social profiles</li>
-        <li data-for="3"><span>3</span>Your MasterPlan</li>
-      </ol>
-
-      <!-- step 1: resume -->
-      <div class="mp-wiz" data-step="1">
-        <h2 class="mp-wiz-title">Upload your resume</h2>
-        <p class="mp-wiz-sub">Your resume is the main source. Every fact in your MasterPlan traces back to a line in it.</p>
-        <label class="mp-drop mp-drop-lg" id="mp-drop">
-          <input type="file" id="f-resume" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
-          <span class="mp-drop-icon" aria-hidden="true">↑</span>
-          <span class="mp-drop-main" id="mp-drop-main">Drop your resume here, or <u>choose a file</u></span>
-          <span class="mp-drop-sub" id="mp-drop-sub">PDF, Word (.docx) or text. Up to 8 MB.</span>
-        </label>
-        <p class="mp-error" id="e-1" role="alert" hidden></p>
-        <div class="mp-wiz-nav">
-          <span></span>
-          <button type="button" class="mp-btn" id="to-2" disabled>Continue</button>
+    <div class="mp-panel" id="panel-new" data-panel="new">
+      <div class="mp-intro">
+        <p class="mp-kicker">From Kris and Michael — MasterPlan</p>
+        <h1 class="mp-title">Your life, examined carefully.</h1>
+        <p class="mp-lede">The MasterPlan is a framework Kris and Michael built through the <a href="/" target="_top">MasterPlan book, programs, and coaching</a>. This draws on the most advanced version of the book, which has not been published. Share your resume and public profiles and we will generate your analysis.</p>
+        <div class="mp-receive">
+          <p class="mp-label">What you receive</p>
+          <ol class="mp-receive-list">
+            <li><strong>A portrait of who you are across four pillars</strong> — health, wealth, purpose, relationships</li>
+            <li><strong>An analysis of the tradeoffs and blindspots in your current path</strong></li>
+            <li><strong>A working MasterPlan</strong> — your nine questions answered, with a wealth strategy for your city and career stage</li>
+          </ol>
         </div>
       </div>
 
-      <!-- step 2: social profiles -->
-      <form class="mp-wiz" data-step="2" id="f-step2" novalidate hidden>
-        <h2 class="mp-wiz-title">Add your social profiles</h2>
-        <p class="mp-wiz-sub">Public links only. We read what the public page shows. Add at least one, or paste your bio below.</p>
-        <div class="mp-grid">
-          <label class="mp-field"><span>LinkedIn</span><input type="url" id="f-link-1" placeholder="https://www.linkedin.com/in/…" inputmode="url"></label>
-          <label class="mp-field"><span>Instagram</span><input type="url" id="f-link-2" placeholder="https://www.instagram.com/…" inputmode="url"></label>
-          <label class="mp-field mp-span"><span>Other (X, YouTube, TikTok, a website)</span><input type="url" id="f-link-3" placeholder="https://…" inputmode="url"></label>
+      <!-- the form -->
+      <form class="mp-form" id="f-new" novalidate>
+        <p class="mp-label">Resume or CV</p>
+        <label class="mp-drop" id="mp-drop">
+          <input type="file" id="f-resume" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
+          <span class="mp-drop-main" id="mp-drop-main">Drop your file here, or click to browse</span>
+          <span class="mp-drop-sub" id="mp-drop-sub">PDF or Word</span>
+        </label>
+        <p class="mp-help">Your resume should include your name and location. We use these to personalise your analysis and estimate wealth benchmarks for your city and career stage.</p>
+
+        <p class="mp-label">Public profiles <span class="mp-optional">(optional)</span></p>
+        <div class="mp-profiles">
+          <label class="mp-line"><span class="mp-sr">LinkedIn</span><input type="url" id="f-link-1" placeholder="LinkedIn" inputmode="url" autocomplete="off"></label>
+          <label class="mp-line"><span class="mp-sr">YouTube</span><input type="url" id="f-link-2" placeholder="YouTube" inputmode="url" autocomplete="off"></label>
+          <label class="mp-line"><span class="mp-sr">Instagram</span><input type="url" id="f-link-3" placeholder="Instagram" inputmode="url" autocomplete="off"></label>
+          <label class="mp-line"><span class="mp-sr">Other</span><input type="url" id="f-link-4" placeholder="Other" inputmode="url" autocomplete="off"></label>
         </div>
         <details class="mp-more">
-          <summary>Profile private or hard to read? Paste your bio and recent post titles</summary>
+          <summary>Profile private? Paste your bio and recent post titles instead</summary>
           <textarea id="f-pasted" rows="4" maxlength="8000" placeholder="Bio, follower count, the titles of your recent posts…"></textarea>
         </details>
 
-        <h3 class="mp-wiz-h3">Where you live</h3>
-        <p class="mp-hint">Sets the living costs in your plan. Your street address is never needed.</p>
-        <div class="mp-grid mp-grid-4">
-          <label class="mp-field"><span>City</span><input type="text" id="f-city" autocomplete="address-level2" required></label>
-          <label class="mp-field"><span>State or region</span><input type="text" id="f-region" autocomplete="address-level1"></label>
-          <label class="mp-field"><span>ZIP / postal code</span><input type="text" id="f-postal" autocomplete="postal-code"></label>
-          <label class="mp-field"><span>Country</span><input type="text" id="f-country" autocomplete="country-name" value="United States" required></label>
-        </div>
+        <label class="mp-check"><input type="checkbox" id="f-share"><span>Share my MasterPlan with other members in the Library. Members who share read each other's; you can change this at any time.</span></label>
 
-        <h3 class="mp-wiz-h3">About you</h3>
-        <div class="mp-grid">
-          <label class="mp-field"><span>Name <em>(optional, taken from your resume)</em></span><input type="text" id="f-name" autocomplete="name"></label>
-          <label class="mp-field"><span>Pronouns</span>
-            <select id="f-pronouns">
-              <option value="they/them">they/them</option>
-              <option value="she/her">she/her</option>
-              <option value="he/him">he/him</option>
-            </select>
-          </label>
-        </div>
-
-        <div class="mp-checks">
-          <label class="mp-check"><input type="checkbox" id="f-share"><span><strong>Share my MasterPlan with other members.</strong> Members who share can read each other's MasterPlans in the Library. If you do not share, only you see yours.</span></label>
-          <label class="mp-check"><input type="checkbox" id="f-confirm"><span>This is my resume and these are my profiles.</span></label>
-        </div>
+        <p class="mp-note">Everything you share here is already public. Your resume and these profiles are information you have already made available. We use them only to generate your MasterPlan analysis.</p>
 
         <p class="mp-error" id="f-error" role="alert" hidden></p>
-        <div class="mp-wiz-nav">
-          <button type="button" class="mp-btn mp-btn-ghost" id="back-1">Back</button>
-          <button type="submit" class="mp-btn" id="f-submit">Generate my MasterPlan</button>
-        </div>
+        <button type="submit" class="mp-btn" id="f-submit">Generate my MasterPlan</button>
+
+        <p class="mp-foot">Part of the <a href="/" target="_top">MasterPlan suite</a> at StrategyTraining.com</p>
       </form>
 
-      <!-- step 3: generating -->
-      <div class="mp-wiz" data-step="3" hidden>
-        <h2 class="mp-wiz-title" id="g-title">Generating your MasterPlan</h2>
-        <p class="mp-wiz-sub" id="g-sub">This takes about ten minutes. You can leave this page; we will email <span id="g-email">you</span> when it is ready.</p>
+      <!-- generating, then the documents -->
+      <div class="mp-gen-view" id="gen-view" hidden>
+        <p class="mp-kicker">Your MasterPlan</p>
+        <h2 class="mp-title mp-title-sm" id="g-title">Generating your MasterPlan</h2>
+        <p class="mp-lede" id="g-sub">This takes about ten minutes. You can leave this page; we will email <span id="g-email">you</span> when it is ready.</p>
         <ol class="mp-gen" id="g-stages">
           <li data-stage="reading">Reading your resume and profiles</li>
           <li data-stage="researching">Researching living costs where you live</li>
@@ -141,15 +121,15 @@
         <div class="mp-progress mp-progress-lg"><span id="g-bar" style="width:4%"></span></div>
         <p class="mp-error" id="g-error" role="alert" hidden></p>
         <div class="mp-docs" id="g-docs" hidden></div>
-        <div class="mp-wiz-nav">
+        <div class="mp-gen-nav">
           <button type="button" class="mp-link" id="g-again">Start another MasterPlan</button>
           <button type="button" class="mp-link" data-goto="mine">See all my MasterPlans</button>
         </div>
       </div>
-    </section>
+    </div>
 
     <!-- ===== mine ===== -->
-    <section class="mp-panel" id="panel-mine" data-panel="mine" hidden>
+    <div class="mp-panel" id="panel-mine" data-panel="mine" hidden>
       <div class="mp-devbar">
         <button type="button" class="mp-link" id="dev-code-btn">Use on another device</button>
         <p class="mp-devcode" id="dev-code" hidden></p>
@@ -159,10 +139,10 @@
         <button class="mp-btn" data-goto="new">Create your first</button>
       </div>
       <ul class="mp-list" id="mine-list"></ul>
-    </section>
+    </div>
 
     <!-- ===== library ===== -->
-    <section class="mp-panel" id="panel-library" data-panel="library" hidden>
+    <div class="mp-panel" id="panel-library" data-panel="library" hidden>
       <div class="mp-optin" id="lib-optin" hidden>
         <h2>The Library</h2>
         <p>The Library holds the MasterPlans of members who chose to share. Share yours and you can read theirs. Your MasterPlan, your case study and, later, your podcast become visible to other sharing members.</p>
@@ -173,11 +153,11 @@
           <p class="mp-hint">You are sharing your MasterPlans with other members who share.</p>
           <button class="mp-link" id="lib-share-off">Stop sharing</button>
         </div>
-        <p class="mp-empty-line" id="lib-empty" hidden>No shared MasterPlans yet. Yours will appear here once it is ready.</p>
+        <p class="mp-empty-line" id="lib-empty" hidden>No shared MasterPlans yet.</p>
         <ul class="mp-list" id="lib-list"></ul>
       </div>
-    </section>
-  </section>
+    </div>
+  </div>
 
   <!-- ===== viewer ===== -->
   <div class="mp-viewer" id="mp-viewer" hidden role="dialog" aria-modal="true" aria-labelledby="v-title">
