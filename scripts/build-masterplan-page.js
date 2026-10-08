@@ -30,7 +30,8 @@ const main = html.match(/<main id="mp"[\s\S]*?<\/main>/);
 if (!main) throw new Error('No <main id="mp"> in views/app.html');
 
 /* The store page has its own body; only the .mp rules travel. */
-const pageCss = css.replace(/^html, body \{[^}]*\}\n/m, '');
+const pageCss = css.replace(/^html, body \{[^}]*\}\r?\n/m, '');
+if (/^html, body/m.test(pageCss)) throw new Error('the html/body rule must not reach the store page');
 
 const boot = {
   mode: 'page',
