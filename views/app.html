@@ -48,9 +48,9 @@
 
   <!-- ===================== widget header ===================== -->
   <div class="chatbar">
-    <button class="chatbar__history" id="historyBtn" type="button">
+    <button class="chatbar__history" id="historyBtn" type="button" aria-label="Chat History">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 106 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
-      Chat History
+      <span class="chatbar__history-label">Chat History</span>
     </button>
 
     <div class="chatbar__who">
@@ -72,46 +72,9 @@
 
     <div class="wrap">
 
-      <!-- landing -->
-      <section class="intro" id="intro">
-        <div class="avatar">
-          <img src="/static/assets/kris.jpg" alt="Kristina Safarova" width="128" height="128">
-          <span class="avatar__dot" title="Online"></span>
-        </div>
-
-        <h1 class="name">
-          Kristina Safarova
-          <svg class="name__verified" width="22" height="22" viewBox="0 0 24 24" role="img" aria-label="Verified"><path fill="currentColor" d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81C14.67 2.63 13.43 1.75 12 1.75s-2.67.88-3.34 2.19c-1.39-.46-2.9-.2-3.91.81S3.48 7.27 3.94 8.66C2.63 9.33 1.75 10.57 1.75 12s.88 2.67 2.19 3.34c-.46 1.39-.2 2.9.81 3.91s2.52 1.27 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.67-.88 3.34-2.19c1.39.46 2.9.2 3.91-.81s1.27-2.52.81-3.91c1.31-.67 2.19-1.91 2.19-3.34z"/><path fill="#fff" d="M10.86 16.42 7.4 12.96l1.42-1.42 2.04 2.05 4.32-4.33 1.42 1.42z"/></svg>
-          <svg class="name__badge" viewBox="0 0 100 100" role="img" aria-label="StrategyTraining"><rect width="100" height="100" rx="18" fill="#111820"/><text x="50" y="46" text-anchor="middle" textLength="78" lengthAdjust="spacingAndGlyphs" font-family="Poppins, Arial, sans-serif" font-size="23" font-weight="700" fill="#ffffff">STRATEGY</text><text x="50" y="76" text-anchor="middle" textLength="78" lengthAdjust="spacingAndGlyphs" font-family="Poppins, Arial, sans-serif" font-size="23" font-weight="700" fill="#ffffff">TRAINING</text></svg>
-        </h1>
-
-        <!-- What makes this one different from the Delphi page: the
-             conversation carries over. Said plainly rather than as a feature
-             name, and it is accurate - BuddyPro keeps the thread server-side
-             against the member's own id. -->
-        <p class="tagline">
-          Ask Kris anything &mdash; she <strong>remembers</strong> your past conversations.
-        </p>
-
-        <div class="actions">
-          <button class="actionbtn" id="chatBtn" type="button">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 01-9 8.4 9.5 9.5 0 01-3.3-.6L3 21l1.8-5.2A8.2 8.2 0 013 11.5a8.4 8.4 0 019-8.4 8.4 8.4 0 019 8.4z"/></svg>
-            Chat
-          </button>
-          <button class="actionbtn" id="callBtn" type="button">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.5.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.4c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.5.1.4 0 .8-.2 1z"/></svg>
-            Call
-          </button>
-        </div>
-
-        <!-- On the landing the reference lists the questions in full, under the
-             Chat and Call buttons. Once a conversation is open they collapse to
-             the pill above the composer instead. -->
-        <section class="suggest">
-          <h2 class="suggest__title">Suggested Questions</h2>
-          <div class="suggest__list" id="suggestList"></div>
-        </section>
-      </section>
+      <!-- No landing/profile page: the widget opens straight into the
+           conversation, matching the Kris AI (Delphi) page. Suggested
+           questions live in the pill above the composer. -->
 
       <!-- conversation -->
       <section class="thread" id="thread" aria-live="polite" aria-label="Conversation with Kris"></section>

@@ -27,6 +27,10 @@
   --accent-soft: #d9f2fa;
   --on-accent: #ffffff;
   --navy: hsl(206, 35%, 16%);
+  /* The member's own bubbles and the send button: the storefront's header
+     navy (#1A2A36), as on the Kris AI (Delphi) page. Cyan stays the accent. */
+  --brand: var(--navy);
+  --brand-hover: hsl(206, 35%, 24%);
 
   --bg: #ffffff;
   --surface: hsl(206, 30%, 98%);
@@ -104,6 +108,11 @@ button {
   outline-offset: 2px;
   border-radius: 6px;
 }
+/* Selected text in the storefront cyan, matching the Kris AI page. */
+::selection {
+  background-color: rgba(43, 192, 227, 0.25);
+  color: inherit;
+}
 
 /* --- shell ---------------------------------------------------------------- */
 
@@ -180,6 +189,16 @@ button {
   color: var(--text);
   background: var(--surface-2);
 }
+/* The chat header is always showing the name now that there is no landing,
+   so on a phone the label would wrap onto two lines. Icon only there. */
+.chatbar__history-label {
+  white-space: nowrap;
+}
+@media (max-width: 480px) {
+  .chatbar__history-label {
+    display: none;
+  }
+}
 
 /* Centre identity and the call icon only exist once a conversation is open. */
 .chatbar__who {
@@ -240,120 +259,7 @@ button {
   text-overflow: ellipsis;
 }
 
-/* --- landing ------------------------------------------------------------- */
-
-.intro {
-  padding: clamp(16px, 4vh, 30px) 0 26px;
-}
-
-.avatar {
-  position: relative;
-  width: 128px;
-  height: 128px;
-  margin: 0 auto;
-}
-.avatar img {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
-  display: block;
-  background: var(--surface-2);
-}
-.avatar__dot {
-  position: absolute;
-  right: 6px;
-  bottom: 6px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--online);
-  border: 3px solid var(--bg);
-}
-
-.name {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  margin-top: 22px;
-  font-size: clamp(25px, 3.4vw, 31px);
-  font-weight: 500;
-  letter-spacing: -0.015em;
-  line-height: 1.2;
-}
-.name__verified {
-  flex: 0 0 auto;
-  color: var(--verified);
-}
-/* The FIRMSconsulting credential mark beside the verified tick. */
-/* The StrategyTraining mark beside the verified tick. Drawn as SVG so it
-   stays crisp and never clips - see views/app.html. */
-.name__badge {
-  flex: 0 0 auto;
-  width: 23px;
-  height: 23px;
-  border-radius: 5px;
-  display: block;
-}
-
-
-.tagline {
-  margin-top: 9px;
-  text-align: center;
-  font-size: 15px;
-  line-height: 1.5;
-  color: var(--muted);
-  max-width: 34ch;
-  margin-left: auto;
-  margin-right: auto;
-}
-/* The one word worth emphasising - this is the page with memory. */
-.tagline strong {
-  font-weight: 600;
-  color: var(--accent-deep);
-}
-
-.actions {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 22px;
-}
-.actionbtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--accent);
-  color: var(--on-accent);
-  font-size: 14px;
-  font-weight: 500;
-  padding: 9px 20px;
-  border-radius: var(--pill);
-  transition: background-color 0.15s ease, transform 0.15s ease;
-}
-.actionbtn:hover {
-  background: var(--accent-deep);
-  transform: translateY(-1px);
-}
-
 /* --- suggested questions ------------------------------------------------ */
-
-/* The landing list: a heading and full-width rows, as on the reference. */
-.suggest {
-  margin-top: clamp(26px, 4.5vh, 46px);
-}
-.suggest__title {
-  font-size: 18px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-}
-.suggest__list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 16px;
-}
 
 .chip {
   display: flex;
@@ -473,9 +379,6 @@ button {
 .app.in-thread .thread {
   display: flex;
 }
-.app.in-thread .intro {
-  display: none;
-}
 
 /* Consecutive bubbles from one turn sit close; a new turn gets air. */
 .turn {
@@ -506,7 +409,7 @@ button {
   color: var(--text);
 }
 .turn--me .bubble {
-  background: var(--accent);
+  background: var(--brand);
   color: var(--on-accent);
 }
 .turn--error .bubble {
@@ -713,12 +616,12 @@ button {
   color: var(--muted);
 }
 .send:hover:not(:disabled) {
-  background: var(--accent);
+  background: var(--brand-hover);
   color: var(--on-accent);
 }
 .field:focus-within .send,
 .send.is-armed {
-  background: var(--accent);
+  background: var(--brand);
   color: var(--on-accent);
 }
 
@@ -1387,7 +1290,7 @@ button {
 /* On the member's own cyan bubble the button inverts, so it stays visible. */
 .turn--me .voicebubble__play {
   background: #fff;
-  color: var(--accent);
+  color: var(--brand);
 }
 
 .voicebubble__body {
@@ -1491,7 +1394,7 @@ button {
   color: var(--text);
 }
 .rec__submit {
-  background: var(--accent);
+  background: var(--brand);
   color: var(--on-accent);
 }
 .rec__submit:hover {

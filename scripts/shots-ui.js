@@ -7,8 +7,7 @@
    send path - the same code a member runs - without spending a BuddyPro call.
 
    What it asserts:
-     - the landing carries no suggestion list (the reference has only the
-       question box there)
+     - there is no profile landing: it opens straight into the conversation
      - an empty conversation shows the suggestion panel above the composer
      - the panel is gone the moment there is a turn on screen, and does not
        come back
@@ -60,25 +59,9 @@ const state = () =>
     chipCount: document.querySelectorAll('#suggestDockList .chip').length,
     /* the old floating pill must be gone for good */
     oldDock: !!document.querySelector('.suggestdock'),
-    introSuggest: !!document.querySelector('.intro .suggest'),
-    introChips: document.querySelectorAll('#suggestList .chip').length,
-    introTitle: (function () {
-      var h = document.querySelector('.suggest__title');
-      return h ? h.textContent.trim() : '';
-    })(),
-    tagline: (function () {
-      var t = document.querySelector('.tagline');
-      return t ? t.textContent.replace(/\s+/g, ' ').trim() : '';
-    })(),
-    taglineEmphasis: (function () {
-      var e = document.querySelector('.tagline strong');
-      return e ? e.textContent.trim() : '';
-    })(),
-    /* full-width rows on the landing, not the columnar cards of the panel */
-    introChipDir: (function () {
-      var c = document.querySelector('#suggestList .chip');
-      return c ? getComputedStyle(c).flexDirection : '';
-    })(),
+    /* there is no landing any more - the widget opens in the chat */
+    hasLanding: !!document.getElementById('intro'),
+    inThread: document.getElementById('app').classList.contains('in-thread'),
     turns: document.querySelectorAll('#thread .turn').length,
     /* layout */
     hScroll: document.documentElement.scrollWidth > document.documentElement.clientWidth,
@@ -127,40 +110,20 @@ const state = () =>
     { timeout: 15000 }
   );
 
-  /* ---- the landing ----------------------------------------------------- */
-  console.log('\nlanding');
+  /* ---- opens straight into the chat ------------------------------------
+     No profile landing, as on the Kris AI (Delphi) page: the member lands in
+     an open conversation with Kris's greeting. */
+  console.log('\nopens in the chat');
   let s = await page.evaluate(state);
   check('the old floating suggestions pill is gone', !s.oldDock);
-  check('the landing lists the questions, as on the reference', s.introSuggest);
-  check('all three of them', s.introChips === 3, 'chips=' + s.introChips);
-  check(
-    'under a Suggested Questions heading',
-    s.introTitle === 'Suggested Questions',
-    JSON.stringify(s.introTitle)
-  );
-  check(
-    'as full-width rows, not the panel cards',
-    s.introChipDir === 'row',
-    'flex-direction=' + s.introChipDir
-  );
-  check('the in-chat pill is not showing yet', !s.panelVisible);
-  /* This is the page with memory, and the landing should say so. */
-  check(
-    'the tagline says the conversation carries over',
-    /remember/i.test(s.tagline),
-    JSON.stringify(s.tagline)
-  );
-  check(
-    '...with that word emphasised',
-    /remember/i.test(s.taglineEmphasis),
-    JSON.stringify(s.taglineEmphasis)
-  );
+  check('there is no profile landing', !s.hasLanding);
+  check('the conversation is already open', s.inThread);
+  check('with the greeting in it', s.turns === 1, 'turns=' + s.turns);
   check('no horizontal scroll', !s.hScroll);
   await page.screenshot({ path: path.join(OUT, 'ui-1-landing.png') });
 
   /* ---- an empty conversation ------------------------------------------- */
   console.log('\nempty conversation');
-  await page.click('#chatBtn');
   await page.waitForFunction(
     () => {
       const el = document.getElementById('suggestPanel');

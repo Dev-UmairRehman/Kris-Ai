@@ -67,7 +67,6 @@
   var gateSignIn = document.getElementById('gateSignIn');
 
   var scroll = document.getElementById('scroll');
-  var intro = document.getElementById('intro');
   var thread = document.getElementById('thread');
   var scrollDown = document.getElementById('scrollDown');
 
@@ -77,11 +76,8 @@
   var micBtn = document.getElementById('micBtn');
   var notice = document.getElementById('notice');
 
-  var chatBtn = document.getElementById('chatBtn');
-  var callBtn = document.getElementById('callBtn');
   var headerCallBtn = document.getElementById('headerCallBtn');
 
-  var suggestList = document.getElementById('suggestList');
   var suggestPanel = document.getElementById('suggestPanel');
   var suggestToggle = document.getElementById('suggestToggle');
   var suggestDockList = document.getElementById('suggestDockList');
@@ -385,18 +381,16 @@
   }
 
   /* Start a fresh conversation. The old one stays in history; this just clears
-     the view and lets the next message open a new thread - so BuddyPro's memory
-     of the member is untouched, only the visible conversation resets. */
+     the view and greets again - so BuddyPro's memory of the member is
+     untouched, only the visible conversation resets. There is no landing page
+     to go back to: the widget is always in the chat. */
   function startNewChat() {
     if (inCall) closeCallView();
 
     thread.textContent = '';
     inThread = false;
-    app.classList.remove('in-thread');
     currentConvId = null;
-
-    intro.hidden = false;
-    suggestPanel.hidden = true;
+    enterThread();
 
     input.value = '';
     armSend();
@@ -475,9 +469,12 @@
     postToParent({ type: 'kris-ai:gated', reason: reason || 'no_session' });
   }
 
+  /* Opens straight into the conversation - there is no profile landing, as on
+     the Kris AI (Delphi) page. */
   function openChat() {
     app.classList.remove('is-booting', 'is-gated');
     gate.hidden = true;
+    enterThread();
     input.focus({ preventScroll: true });
   }
 
@@ -622,10 +619,8 @@
     return btn;
   }
 
-  /* Two homes for the same questions: listed in full on the landing, and
-     behind the pill once a conversation is open. */
+  /* The questions live behind the pill above the composer. */
   SUGGESTIONS.forEach(function (question) {
-    suggestList.appendChild(buildChip(question));
     suggestDockList.appendChild(buildChip(question));
   });
 
@@ -1147,12 +1142,6 @@
     sendBtn.classList.toggle('is-armed', input.value.trim().length > 0);
   }
   input.addEventListener('input', armSend);
-
-  chatBtn.addEventListener('click', function () {
-    enterThread();
-    input.focus();
-    scrollToEnd();
-  });
 
   /* ---- speech engine ----------------------------------------------------
      Both the composer recorder and the call use the browser's speech engine.
@@ -1750,7 +1739,6 @@
     app.classList.remove('in-call');
   }
 
-  callBtn.addEventListener('click', openCallView);
   headerCallBtn.addEventListener('click', openCallView);
   callBack.addEventListener('click', closeCallView);
   callEnd.addEventListener('click', function () {
