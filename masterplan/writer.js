@@ -243,8 +243,8 @@ const NARRATIVE = [
   ),
   N(
     '## Part Four: The MasterPlan',
-    450,
-    'The synthesis: what the record proves, the open question, the questions the sessions will work through (bullets), the epilogue paragraph with an italic sample answer, then a paragraph that starts **What [first name] must confirm.** Do NOT write a Sources paragraph; code adds it. Restate the conversation purpose of the document in your own words near the end.'
+    650,
+    'The synthesis: what the record proves, the open question, the questions the sessions will work through (bullets), the epilogue paragraph with an italic sample answer. Then a "### Annual review checklist" (the member\'s page promises one): 8 to 10 numbered items to revisit each year, each one line, drawn from this member\'s own MasterPlan - the monthly cost of the chosen life against the given figures, the milestone rung, the filters, the twenty relationships and the loyalty ones, the primary skill and orbit, the settling signs, what to confirm. Then a paragraph that starts **What [first name] must confirm.** Do NOT write a Sources paragraph; code adds it. Restate the conversation purpose of the document in your own words near the end.'
   ),
 ];
 
