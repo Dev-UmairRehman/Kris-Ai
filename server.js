@@ -36,10 +36,26 @@ app.set('trust proxy', true);
 
 const TEMPLATE_PATH = path.join(__dirname, 'views', 'app.html');
 let template = fs.readFileSync(TEMPLATE_PATH, 'utf8');
+
+/* app.js and styles.css are cached for a week (see /static below), and the
+   HTML is not cached at all. Without a version in their URLs a deploy serves
+   new HTML beside last week's script - and when the markup changed, the old
+   script throws on elements that no longer exist. The version is a hash of
+   the two files, so it changes exactly when they do. */
+function assetVersion() {
+  const hash = crypto.createHash('sha1');
+  for (const name of ['app.js', 'styles.css']) {
+    hash.update(fs.readFileSync(path.join(__dirname, 'public', name)));
+  }
+  return hash.digest('hex').slice(0, 10);
+}
+let assetV = assetVersion();
+
 if (!config.isProd) {
   /* Pick up edits without a restart while developing. */
   app.use((req, res, next) => {
     template = fs.readFileSync(TEMPLATE_PATH, 'utf8');
+    assetV = assetVersion();
     next();
   });
 }
@@ -47,6 +63,7 @@ if (!config.isProd) {
 function render(mode, bootstrap) {
   return template
     .replace(/\{\{MODE\}\}/g, mode)
+    .replace(/\{\{ASSET_V\}\}/g, assetV)
     .replace(
       '{{BOOTSTRAP}}',
       /* Inlined as JSON. `<` is escaped so a value can never close the script. */
