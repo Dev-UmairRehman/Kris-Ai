@@ -5,12 +5,15 @@
      PASTE THIS WHOLE FILE, REPLACING THE ENTIRE CONTENTS OF THE BOX.
      It already contains everything that was in there before.
 
-     Contains FOUR active items. KEEP ALL FOUR.
+     Contains SEVEN active items. KEEP ALL SEVEN.
        1. Gift card "Custom Amount" hider     - pre-existing (Artchen, Feb 28)
        2. Kris page marker + link marker      - added Aug 2026, generalised Sep 2026
        3. Sub-nav hider + nav tab highlight   - added Sep 2026
        4. Kris link routing (join vs chat)    - added Sep 2026
        5. (the identity bridge moved out - see block 5 below)
+       6. Address-bar rewrite /delphi -> /kris-ai - added Sep 4 2026
+       7. Delphi user-avatar hider            - added Sep 23 2026
+       8. Delphi embed opens on Chat          - added Oct 5 2026
 
      TWO DIFFERENT PAGES, DO NOT CONFUSE THEM
        /delphi            "Kris AI"         - the existing page, powered by Delphi
@@ -19,6 +22,13 @@
      Blocks 2-4 style and route BOTH pages. The widget itself and its identity
      bridge live in the Kris AI Memory page's own Custom HTML block, NOT here -
      Uscreen does not inject Head Code into landing pages. See block 5.
+
+     THE /kris-ai ALIAS (added Sep 4 2026)
+       The Delphi integration owns the path /delphi and neither Uscreen nor
+       Delphi can rename it. Uscreen support instead added a 301:
+       /kris-ai -> /delphi. So /kris-ai is a real, shareable URL that serves the
+       Kris AI page, and block 6 makes the address bar display it. Both paths
+       therefore mean the same page, which is why ALIASES exists in block 2.
 
      IF YOUR NEW PAGE USES A DIFFERENT SLUG, change it in ONE place:
      PAGES.memory in block 2. Nothing else refers to the slug - the CSS keys on
@@ -63,9 +73,20 @@
     memory: '/pages/kris-ai-memory',  // new "Kris AI Memory" page (BuddyPro)
   };
 
-  /* Shared with blocks 4 and 5 so nothing is declared twice. */
+  /* Extra paths that mean the same page. /kris-ai is the 301 alias Uscreen
+     support added on Sep 4 2026, and it is also what the address bar reads
+     once block 6 has run - so it must resolve to 'delphi' or the tab
+     highlight and the sub-nav hider would switch off on their own page.
+     Keys are lower-case; the redirect is case-insensitive. */
+  var ALIASES = {
+    '/kris-ai': 'delphi',
+  };
+
+  /* Shared with blocks 4, 5, 6 and 8 so nothing is declared twice. */
   window.ST_KRIS = {
     pages: PAGES,
+    aliases: ALIASES,
+    vanity: '/kris-ai',           // what block 6 shows in the address bar
     widgetOrigin: 'https://kris-ai-memory-baefm.ondigitalocean.app',
     path: function () {
       return location.pathname.replace(/\/+$/, '') || '/';
@@ -82,6 +103,7 @@
       }
       if (p === PAGES.delphi) return 'delphi';
       if (p === PAGES.memory) return 'memory';
+      if (ALIASES[p.toLowerCase()]) return ALIASES[p.toLowerCase()];
       return '';
     },
   };
@@ -181,6 +203,9 @@
      within 12s, Uscreen rejected them and we send them to /join rather than
      dumping them on the homepage.
 
+     A link to /kris-ai counts as a Kris link too - block 2's ALIASES makes
+     pageOf() resolve it - so the nav item can point at either path.
+
      Note for /kris-ai-memory: it is a landing page, so it is PUBLIC and Uscreen
      will not bounce anyone from it. The click interception above is what keeps
      logged-out visitors out, and the widget itself refuses to open without a
@@ -279,3 +304,222 @@
 
      Nothing to paste here for it. Do not add it back.
      ---------------------------------------------------------------------- -->
+
+<!-- 6 ---------------------------------------------------------------------
+     Address-bar rewrite: show /kris-ai while sitting on /delphi.
+
+     The Delphi integration serves the Kris AI page at /delphi and that path
+     cannot be renamed - confirmed by both Delphi and Uscreen support. Uscreen
+     support added a 301 /kris-ai -> /delphi instead, so /kris-ai is a real,
+     shareable URL, but the browser still lands on /delphi and displays it.
+     This rewrites the DISPLAYED url only: no reload, no navigation, no effect
+     on the page, on Delphi SSO, or on Uscreen's member gate.
+
+     SAFE BECAUSE /kris-ai resolves server-side, so refresh, back/forward and
+     copy-paste of the visible URL all work. Both are single-segment root paths,
+     so relative link resolution is identical either way. Block 2's ALIASES
+     makes every other block treat the rewritten path as the same page.
+
+     DEPENDS ON that 301 staying in place. If the redirect is ever removed,
+     delete this block - otherwise a refresh would 404.
+
+     To undo: delete this sixth block only. Nothing else references it.
+     ---------------------------------------------------------------------- -->
+<script>
+(function () {
+  function rewrite() {
+    try {
+      if (!window.ST_KRIS || !window.history || !history.replaceState) return;
+      var from = window.ST_KRIS.pages.delphi;          // '/delphi'
+      var to   = window.ST_KRIS.vanity;                // '/kris-ai'
+      if (window.ST_KRIS.path().toLowerCase() !== from) return;
+      history.replaceState(history.state, '', to + location.search + location.hash);
+    } catch (e) { /* never break the page */ }
+  }
+
+  rewrite();
+  document.addEventListener('turbo:load', rewrite);
+  document.addEventListener('turbo:render', rewrite);
+})();
+</script>
+
+<!-- 7 ---------------------------------------------------------------------
+     Hide Delphi's user-profile avatar on the Kris AI page (added Sep 23 2026,
+     target narrowed Oct 5 2026).
+
+     Delphi renders its own account menu top-right of the chat, showing its
+     default placeholder image (clone-default.png) instead of the member's
+     photo - the gray circle. Members manage their account through Uscreen's
+     own avatar in the header, so Delphi's copy is redundant and looks broken.
+
+     TARGET: the account button itself, .delphi-auth-menu-trigger. It used to
+     target <div data-delphi-part="header-actions">, but Delphi now puts the
+     Call button in that same container, so hiding it would hide Call too.
+
+     NOTE (Oct 5 2026): Delphi's UI turned out to live in a cross-origin iframe
+     (embed.delphi.ai), which this script cannot reach. The live fix is the
+     same rule in Delphi Studio's own custom CSS for the embed. This block is
+     kept as a harmless second net.
+
+     WHY IT IS A SCRIPT, NOT JUST CSS: in case Delphi draws its UI inside a
+     shadow root, which CSS in <head> cannot reach. So the same rule is put
+     INSIDE every shadow root too:
+       - it wraps attachShadow (runs in <head>, before Delphi loads), so each
+         new shadow root gets the rule the moment it is created
+       - it also scans shadow roots / same-origin iframes that already exist
+       - and it hides the element directly as a last resort
+     Every step is wrapped in try/catch - it can never break the page.
+
+     To undo: delete this seventh block only. Nothing else references it.
+     ---------------------------------------------------------------------- -->
+<style id="st-hide-delphi-avatar">
+  .delphi-auth-menu-trigger,
+  .delphi-auth-menu-avatar,
+  .delphi-auth-menu-avatar-image {
+    display: none !important;
+  }
+</style>
+<script>
+(function () {
+  var ID = 'st-hide-delphi-avatar';
+  var CSS =
+    '.delphi-auth-menu-trigger,.delphi-auth-menu-avatar,.delphi-auth-menu-avatar-image{display:none !important;}';
+
+  function inject(root) {
+    try {
+      if (!root || root === document || root.querySelector('#' + ID)) return;
+      var s = document.createElement('style');
+      s.id = ID;
+      s.textContent = CSS;
+      (root.head || root).appendChild(s);
+    } catch (e) {}
+  }
+
+  /* 1. Every shadow root created from now on gets the rule immediately. */
+  try {
+    var orig = Element.prototype.attachShadow;
+    if (orig && !orig.__stWrapped) {
+      var wrapped = function () {
+        var root = orig.apply(this, arguments);
+        inject(root);
+        return root;
+      };
+      wrapped.__stWrapped = true;
+      Element.prototype.attachShadow = wrapped;
+    }
+  } catch (e) {}
+
+  /* 2. Existing shadow roots / same-origin iframes, plus a direct hide. */
+  function hide(el) {
+    try {
+      el.style.setProperty('display', 'none', 'important');
+    } catch (e) {}
+  }
+
+  function scan(root, depth) {
+    try {
+      if (!root || depth > 6) return;
+      inject(root);
+      var parts = root.querySelectorAll('.delphi-auth-menu-trigger');
+      for (var j = 0; j < parts.length; j++) hide(parts[j]);
+      var els = root.querySelectorAll('*');
+      for (var i = 0; i < els.length; i++) {
+        var el = els[i];
+        if (el.shadowRoot) scan(el.shadowRoot, depth + 1);
+        if (el.tagName === 'IFRAME') {
+          try { if (el.contentDocument) scan(el.contentDocument, depth + 1); } catch (e) {}
+        }
+      }
+    } catch (e) {}
+  }
+
+  var timer = null;
+  function schedule() {
+    if (timer) return;
+    timer = setTimeout(function () {
+      timer = null;
+      scan(document, 0);
+    }, 250);
+  }
+
+  function start() {
+    scan(document, 0);
+    try {
+      new MutationObserver(schedule).observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+      });
+    } catch (e) {}
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+  document.addEventListener('turbo:load', schedule);
+  document.addEventListener('turbo:render', schedule);
+})();
+</script>
+
+<!-- 8 ---------------------------------------------------------------------
+     Open the Kris AI (Delphi) embed on CHAT instead of the profile
+     (added Oct 5 2026).
+
+     Delphi's "Default View = Chat" setting is ignored here because the embed
+     address Uscreen builds carries its own landingPage value, and Delphi lets
+     the address win (console: panel_source 'url_query'). This finds the Delphi
+     embed frame - on the page or inside Uscreen's blank wrapper frame - and
+     sets landingPage=CHAT. If it is already CHAT it does nothing, so it never
+     loops. Sign-in is unaffected: Uscreen keeps re-sending the SSO token.
+
+     Website only - the mobile app does not run Head Code.
+
+     To undo: delete this eighth block only. Nothing else references it.
+     ---------------------------------------------------------------------- -->
+<script>
+(function () {
+  var VIEW = 'CHAT';
+
+  function fixFrame(f) {
+    try {
+      var src = f.getAttribute('src');
+      if (!src) return;
+      var u = new URL(src, location.href);
+      if (!/(^|\.)delphi\.ai$/.test(u.hostname) || u.pathname.indexOf('/embed/') !== 0) return;
+      if (u.searchParams.get('landingPage') === VIEW) return;
+      u.searchParams.set('landingPage', VIEW);
+      f.setAttribute('src', u.toString());
+    } catch (e) {}
+  }
+
+  function scan(doc, depth) {
+    try {
+      if (!doc || depth > 3) return;
+      var s = doc.querySelectorAll('script[data-channel]');
+      for (var i = 0; i < s.length; i++) s[i].setAttribute('data-landing-page', VIEW);
+      var frames = doc.querySelectorAll('iframe');
+      for (var j = 0; j < frames.length; j++) {
+        fixFrame(frames[j]);
+        try { scan(frames[j].contentDocument, depth + 1); } catch (e) {}
+      }
+    } catch (e) {}
+  }
+
+  var timer = null;
+  function start() {
+    if (timer) { clearInterval(timer); timer = null; }
+    if (!window.ST_KRIS || window.ST_KRIS.pageOf(location.href) !== 'delphi') return;
+    var ticks = 0;
+    scan(document, 0);
+    timer = setInterval(function () {
+      scan(document, 0);
+      if (++ticks > 60) { clearInterval(timer); timer = null; }
+    }, 250);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+  document.addEventListener('turbo:load', start);
+})();
+</script>
