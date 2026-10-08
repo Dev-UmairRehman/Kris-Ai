@@ -25,6 +25,17 @@
     </div>
   </section>
 
+  <!-- An account with MasterPlans opened in a browser it has not seen before. -->
+  <section class="mp-gate" id="mp-link" hidden>
+    <h1 class="mp-title">Link this browser</h1>
+    <p class="mp-lede">Your MasterPlans are private to the browsers you use them in. To open them here, go to the MasterPlan page in a browser where you already use it, choose <strong>My MasterPlans</strong> &rsaquo; <strong>Use on another device</strong>, and enter the code it shows.</p>
+    <form class="mp-linkform" id="link-form" novalidate>
+      <label class="mp-field"><span>Code</span><input type="text" id="link-code" placeholder="ABCD-1234" autocomplete="one-time-code" maxlength="12" spellcheck="false"></label>
+      <button type="submit" class="mp-btn" id="link-go">Link this browser</button>
+    </form>
+    <p class="mp-error" id="link-err" role="alert" hidden></p>
+  </section>
+
   <section class="mp-app" id="mp-app" hidden>
     <header class="mp-head">
       <p class="mp-kicker">StrategyTraining.com</p>
@@ -132,6 +143,10 @@
 
     <!-- ===== mine ===== -->
     <section class="mp-panel" id="panel-mine" data-panel="mine" hidden>
+      <div class="mp-devbar">
+        <button type="button" class="mp-link" id="dev-code-btn">Use on another device</button>
+        <p class="mp-devcode" id="dev-code" hidden></p>
+      </div>
       <div class="mp-empty" id="mine-empty" hidden>
         <p>You have no MasterPlans yet.</p>
         <button class="mp-btn" data-goto="new">Create your first</button>

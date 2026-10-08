@@ -185,11 +185,15 @@
   function startSession(identity) {
     attempts++;
     lastIdentity = identity || {};
-    return api('POST', '/api/session', identity).then(function (r) {
+    var claim = {};
+    for (var k in identity) claim[k] = identity[k];
+    claim.deviceKey = deviceKey();
+    return api('POST', '/api/session', claim).then(function (r) {
       if (r.ok && r.data.ok) {
         token = r.data.token;
         email = r.data.email || '';
-        openApp();
+        if (r.data.scope === 'link') showLink();
+        else openApp();
       } else {
         showGate((r.data && r.data.reason) || 'service_down');
       }
@@ -205,9 +209,62 @@
     startSession({ signedIn: true, email: d.email || '' });
   });
 
+  /* ---- this browser's device key --------------------------------------------
+     A random secret made once per browser and kept in its storage. The server
+     only ever sees it in requests from this page; it is what proves that a
+     MasterPlan account is this member's, so knowing someone's email is never
+     enough to read their documents. */
+  var DEVICE_STORE = 'mp_device_v1';
+  var memoryKey = null;
+  function newKey() {
+    var bytes = new Uint8Array(32);
+    (window.crypto || window.msCrypto).getRandomValues(bytes);
+    var s = '';
+    for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function deviceKey() {
+    try {
+      var k = window.localStorage.getItem(DEVICE_STORE);
+      if (k && /^[A-Za-z0-9_-]{32,128}$/.test(k)) return k;
+      k = newKey();
+      window.localStorage.setItem(DEVICE_STORE, k);
+      return k;
+    } catch (e) {
+      /* Storage blocked (private window): this visit only. */
+      if (!memoryKey) memoryKey = newKey();
+      return memoryKey;
+    }
+  }
+
+  function showLink() {
+    root.classList.remove('is-booting');
+    $('mp-app').hidden = true;
+    $('mp-gate').hidden = true;
+    $('mp-link').hidden = false;
+    showError('link-err', '');
+    $('link-code').focus();
+  }
+
+  $('link-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var code = $('link-code').value.trim();
+    if (!/^[A-Za-z0-9]{4}-?[A-Za-z0-9]{4}$/.test(code)) return showError('link-err', 'Enter the 8-character code, like ABCD-1234.');
+    var btn = $('link-go');
+    btn.disabled = true;
+    api('POST', '/api/devices/link', { code: code }).then(function (r) {
+      btn.disabled = false;
+      if (!r.ok || !r.data.ok) return showError('link-err', (r.data && r.data.error) || 'That did not work. Please try again.');
+      token = r.data.token;
+      $('mp-link').hidden = true;
+      openApp();
+    });
+  });
+
   function showGate(reason) {
     root.classList.remove('is-booting');
     $('mp-app').hidden = true;
+    $('mp-link').hidden = true;
     $('mp-gate').hidden = false;
     $('mp-signin').href = BOOT.signInUrl || '#';
     $('mp-join').href = BOOT.joinUrl || '#';
@@ -242,9 +299,26 @@
 
   /* ---- app ------------------------------------------------------------------ */
 
+  /* On a linked browser: a code to link another one. */
+  $('dev-code-btn').addEventListener('click', function () {
+    var out = $('dev-code');
+    api('POST', '/api/devices/code').then(function (r) {
+      out.hidden = false;
+      out.textContent = '';
+      if (!r.ok || !r.data.ok) {
+        out.textContent = (r.data && r.data.error) || 'Could not make a code. Please try again.';
+        return;
+      }
+      out.appendChild(document.createTextNode('On the other device, open this page and enter'));
+      out.appendChild(el('strong', null, r.data.code));
+      out.appendChild(document.createTextNode('within 15 minutes.'));
+    });
+  });
+
   function openApp() {
     root.classList.remove('is-booting');
     $('mp-gate').hidden = true;
+    $('mp-link').hidden = true;
     $('mp-app').hidden = false;
     $('g-email').textContent = email || 'you';
     refreshMine().then(function () {
@@ -639,6 +713,11 @@
       $('lib-body').hidden = !state.sharing;
       var list = $('lib-list');
       list.textContent = '';
+      /* The Library opens once one of the member's own MasterPlans is finished
+         and shared: share yours, read theirs. */
+      $('lib-empty').textContent = r.data.waiting
+        ? 'The Library opens when your own MasterPlan is finished. It is shared automatically, and then you can read the others.'
+        : 'No shared MasterPlans yet.';
       $('lib-empty').hidden = state.library.length > 0;
       state.library.forEach(function (e) {
         var li = el('li', 'mp-item');

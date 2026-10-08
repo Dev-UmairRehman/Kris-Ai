@@ -137,9 +137,15 @@ test('a report runs end to end and the library rules hold', async () => {
   assert.strictEqual(await jobs.readDoc('mp_other', meta.id, 'article'), null, 'viewer who does not share sees nothing');
   assert.deepStrictEqual((await jobs.listLibrary('mp_other')).reports, []);
   await jobs.setSharing('mp_other', true);
+  /* Sharing with nothing to share opens nothing: an empty account made up to
+     look around sees no one's MasterPlan. */
+  assert.strictEqual(await jobs.readDoc('mp_other', meta.id, 'article'), null, 'no own shared MasterPlan, no Library');
+  assert.strictEqual((await jobs.listLibrary('mp_other')).waiting, true);
+  const otherOwn = await jobs.createReport({ memberId: 'mp_other', email: 'other@example.com', form: { ...form, share: true } });
+  await waitFor(otherOwn.id, 'ready');
   assert.ok(await jobs.readDoc('mp_other', meta.id, 'article'));
   const lib = await jobs.listLibrary('mp_other');
-  assert.strictEqual(lib.reports.length, 1);
+  assert.strictEqual(lib.reports.length, 2, "alex's and other's own");
   assert.strictEqual(lib.reports[0].memberId, undefined, 'member ids are not exposed');
   await jobs.setSharing('mp_alex', false);
   assert.strictEqual(await jobs.readDoc('mp_other', meta.id, 'article'), null, 'unsharing withdraws access');

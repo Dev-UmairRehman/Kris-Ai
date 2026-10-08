@@ -22,7 +22,7 @@
     "make:greeting": "node scripts/make-greeting.js",
     "test:headcode": "node scripts/test-headcode.js",
     "shots:ui": "node scripts/shots-ui.js",
-    "test:masterplan": "node --test masterplan/test/costs.test.js masterplan/test/pipeline.test.js",
+    "test:masterplan": "node --test masterplan/test/costs.test.js masterplan/test/pipeline.test.js masterplan/test/security.test.js",
     "build:masterplan-page": "node scripts/build-masterplan-page.js",
     "seal:masterplan-knowledge": "node scripts/seal-masterplan-knowledge.js"
   },

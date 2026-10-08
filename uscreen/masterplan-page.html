@@ -47,6 +47,7 @@
 
 /* Everything is scoped under .mp, so the same styles can sit inside the
    StrategyTraining page without touching the store's own header and footer. */
+html, body { margin: 0; background: #fff; }
 .mp, .mp *, .mp *::before, .mp *::after { box-sizing: border-box; }
 .mp { font: 16px/1.55 var(--sans); color: var(--ink); background: var(--paper); -webkit-font-smoothing: antialiased; text-align: left; }
 /* :where() keeps these resets at the lowest priority, under every .mp-* rule. */
@@ -212,6 +213,12 @@
 .mp-item-foot { display: flex; gap: 18px; margin-top: 12px; }
 
 .mp-empty, .mp-optin { padding: 36px 0; }
+.mp-linkform { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; max-width: 520px; }
+.mp-linkform .mp-field { flex: 1; min-width: 200px; }
+.mp-linkform input { letter-spacing: .12em; text-transform: uppercase; }
+.mp-devbar { display: flex; justify-content: flex-end; align-items: center; gap: 14px; flex-wrap: wrap; margin: -14px 0 14px; }
+.mp-devcode { margin: 0; padding: 10px 14px; border: 1px solid var(--ink); font-size: 14px; }
+.mp-devcode strong { font: 700 20px/1 var(--sans); letter-spacing: .14em; margin: 0 6px; }
 .mp-empty p, .mp-optin p { max-width: 560px; font: 17px/1.55 var(--serif); color: var(--ink-2); }
 .mp-optin h2 { margin: 0 0 8px; font: 700 24px var(--serif); }
 .mp-libbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
@@ -259,6 +266,17 @@
       <a class="mp-btn mp-btn-ghost" id="mp-join" target="_top" href="#">Join</a>
       <button type="button" class="mp-btn" id="mp-retry" hidden>Try again</button>
     </div>
+  </section>
+
+  <!-- An account with MasterPlans opened in a browser it has not seen before. -->
+  <section class="mp-gate" id="mp-link" hidden>
+    <h1 class="mp-title">Link this browser</h1>
+    <p class="mp-lede">Your MasterPlans are private to the browsers you use them in. To open them here, go to the MasterPlan page in a browser where you already use it, choose <strong>My MasterPlans</strong> &rsaquo; <strong>Use on another device</strong>, and enter the code it shows.</p>
+    <form class="mp-linkform" id="link-form" novalidate>
+      <label class="mp-field"><span>Code</span><input type="text" id="link-code" placeholder="ABCD-1234" autocomplete="one-time-code" maxlength="12" spellcheck="false"></label>
+      <button type="submit" class="mp-btn" id="link-go">Link this browser</button>
+    </form>
+    <p class="mp-error" id="link-err" role="alert" hidden></p>
   </section>
 
   <section class="mp-app" id="mp-app" hidden>
@@ -368,6 +386,10 @@
 
     <!-- ===== mine ===== -->
     <section class="mp-panel" id="panel-mine" data-panel="mine" hidden>
+      <div class="mp-devbar">
+        <button type="button" class="mp-link" id="dev-code-btn">Use on another device</button>
+        <p class="mp-devcode" id="dev-code" hidden></p>
+      </div>
       <div class="mp-empty" id="mine-empty" hidden>
         <p>You have no MasterPlans yet.</p>
         <button class="mp-btn" data-goto="new">Create your first</button>
@@ -597,11 +619,15 @@
   function startSession(identity) {
     attempts++;
     lastIdentity = identity || {};
-    return api('POST', '/api/session', identity).then(function (r) {
+    var claim = {};
+    for (var k in identity) claim[k] = identity[k];
+    claim.deviceKey = deviceKey();
+    return api('POST', '/api/session', claim).then(function (r) {
       if (r.ok && r.data.ok) {
         token = r.data.token;
         email = r.data.email || '';
-        openApp();
+        if (r.data.scope === 'link') showLink();
+        else openApp();
       } else {
         showGate((r.data && r.data.reason) || 'service_down');
       }
@@ -617,9 +643,62 @@
     startSession({ signedIn: true, email: d.email || '' });
   });
 
+  /* ---- this browser's device key --------------------------------------------
+     A random secret made once per browser and kept in its storage. The server
+     only ever sees it in requests from this page; it is what proves that a
+     MasterPlan account is this member's, so knowing someone's email is never
+     enough to read their documents. */
+  var DEVICE_STORE = 'mp_device_v1';
+  var memoryKey = null;
+  function newKey() {
+    var bytes = new Uint8Array(32);
+    (window.crypto || window.msCrypto).getRandomValues(bytes);
+    var s = '';
+    for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function deviceKey() {
+    try {
+      var k = window.localStorage.getItem(DEVICE_STORE);
+      if (k && /^[A-Za-z0-9_-]{32,128}$/.test(k)) return k;
+      k = newKey();
+      window.localStorage.setItem(DEVICE_STORE, k);
+      return k;
+    } catch (e) {
+      /* Storage blocked (private window): this visit only. */
+      if (!memoryKey) memoryKey = newKey();
+      return memoryKey;
+    }
+  }
+
+  function showLink() {
+    root.classList.remove('is-booting');
+    $('mp-app').hidden = true;
+    $('mp-gate').hidden = true;
+    $('mp-link').hidden = false;
+    showError('link-err', '');
+    $('link-code').focus();
+  }
+
+  $('link-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var code = $('link-code').value.trim();
+    if (!/^[A-Za-z0-9]{4}-?[A-Za-z0-9]{4}$/.test(code)) return showError('link-err', 'Enter the 8-character code, like ABCD-1234.');
+    var btn = $('link-go');
+    btn.disabled = true;
+    api('POST', '/api/devices/link', { code: code }).then(function (r) {
+      btn.disabled = false;
+      if (!r.ok || !r.data.ok) return showError('link-err', (r.data && r.data.error) || 'That did not work. Please try again.');
+      token = r.data.token;
+      $('mp-link').hidden = true;
+      openApp();
+    });
+  });
+
   function showGate(reason) {
     root.classList.remove('is-booting');
     $('mp-app').hidden = true;
+    $('mp-link').hidden = true;
     $('mp-gate').hidden = false;
     $('mp-signin').href = BOOT.signInUrl || '#';
     $('mp-join').href = BOOT.joinUrl || '#';
@@ -654,9 +733,26 @@
 
   /* ---- app ------------------------------------------------------------------ */
 
+  /* On a linked browser: a code to link another one. */
+  $('dev-code-btn').addEventListener('click', function () {
+    var out = $('dev-code');
+    api('POST', '/api/devices/code').then(function (r) {
+      out.hidden = false;
+      out.textContent = '';
+      if (!r.ok || !r.data.ok) {
+        out.textContent = (r.data && r.data.error) || 'Could not make a code. Please try again.';
+        return;
+      }
+      out.appendChild(document.createTextNode('On the other device, open this page and enter'));
+      out.appendChild(el('strong', null, r.data.code));
+      out.appendChild(document.createTextNode('within 15 minutes.'));
+    });
+  });
+
   function openApp() {
     root.classList.remove('is-booting');
     $('mp-gate').hidden = true;
+    $('mp-link').hidden = true;
     $('mp-app').hidden = false;
     $('g-email').textContent = email || 'you';
     refreshMine().then(function () {
@@ -1051,6 +1147,11 @@
       $('lib-body').hidden = !state.sharing;
       var list = $('lib-list');
       list.textContent = '';
+      /* The Library opens once one of the member's own MasterPlans is finished
+         and shared: share yours, read theirs. */
+      $('lib-empty').textContent = r.data.waiting
+        ? 'The Library opens when your own MasterPlan is finished. It is shared automatically, and then you can read the others.'
+        : 'No shared MasterPlans yet.';
       $('lib-empty').hidden = state.library.length > 0;
       state.library.forEach(function (e) {
         var li = el('li', 'mp-item');

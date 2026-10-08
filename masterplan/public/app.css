@@ -180,6 +180,12 @@ html, body { margin: 0; background: #fff; }
 .mp-item-foot { display: flex; gap: 18px; margin-top: 12px; }
 
 .mp-empty, .mp-optin { padding: 36px 0; }
+.mp-linkform { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; max-width: 520px; }
+.mp-linkform .mp-field { flex: 1; min-width: 200px; }
+.mp-linkform input { letter-spacing: .12em; text-transform: uppercase; }
+.mp-devbar { display: flex; justify-content: flex-end; align-items: center; gap: 14px; flex-wrap: wrap; margin: -14px 0 14px; }
+.mp-devcode { margin: 0; padding: 10px 14px; border: 1px solid var(--ink); font-size: 14px; }
+.mp-devcode strong { font: 700 20px/1 var(--sans); letter-spacing: .14em; margin: 0 6px; }
 .mp-empty p, .mp-optin p { max-width: 560px; font: 17px/1.55 var(--serif); color: var(--ink-2); }
 .mp-optin h2 { margin: 0 0 8px; font: 700 24px var(--serif); }
 .mp-libbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
