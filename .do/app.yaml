@@ -78,6 +78,11 @@ services:
         scope: RUN_TIME
         type: SECRET
         value: REPLACE_WITH_32_BYTE_HEX
+      # Bearer token Michael AI uses for POST /api/memory (= its KRIS_MEMORY_SECRET).
+      - key: MEMORY_INGEST_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_WITH_32_BYTE_HEX
 
       - key: SESSION_SECRET
         scope: RUN_TIME

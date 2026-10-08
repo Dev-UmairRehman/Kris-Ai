@@ -10,6 +10,7 @@
      GET  /api/session    current session state, used to boot the page.
      POST /api/session    exchange a store identity claim for a session cookie.
      POST /api/chat       ask Kris one question.
+     POST /api/memory     Michael AI writes a member's finished work into memory.
 
    The BuddyPro key and the Uscreen key exist only in this process. Nothing
    secret is ever written into the page.
@@ -251,6 +252,63 @@ function mask(email) {
   const at = email.indexOf('@');
   return at > 1 ? email[0] + '***' + email.slice(at) : '***';
 }
+
+/* ---- memory ingest (Michael AI) ------------------------------------------
+   Server to server. When a member finishes something in Michael AI
+   (workwithmichael.ai), Michael AI posts it here and it is written into that
+   member's Kris AI Memory profile - the same profile the widget uses, derived
+   from their email exactly as /api/session does in frame mode - so Kris knows
+   their Michael AI work when they chat here.
+
+   Auth: Bearer MEMORY_INGEST_SECRET. Off (404) while the secret is unset.
+   Body: { email: string, text: string }
+   Writes share the global BuddyPro budget with the widget and are capped
+   separately, so a burst of memory never crowds out members' questions. */
+
+const MEMORY_SLOT = 'memory-ingest';
+const INGEST_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function memoryAuthorized(req) {
+  const got = Buffer.from(auth.readBearer(req) || '');
+  const want = Buffer.from(config.memoryIngestSecret);
+  return got.length === want.length && crypto.timingSafeEqual(got, want);
+}
+
+app.post('/api/memory', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  if (!config.memoryIngestSecret) return res.status(404).json({ ok: false, reason: 'not_found' });
+  if (!memoryAuthorized(req)) return res.status(401).json({ ok: false, reason: 'unauthorized' });
+
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const text = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
+  if (email.length > 320 || !INGEST_EMAIL_RE.test(email)) {
+    return res.status(400).json({ ok: false, reason: 'invalid_email' });
+  }
+  /* Leave room for the language line buddypro.ask prefixes. */
+  if (!text || text.length > buddypro.MAX_TEXT_CHARS - 500) {
+    return res.status(400).json({ ok: false, reason: 'invalid_text' });
+  }
+
+  const slot = ratelimit.claim(MEMORY_SLOT);
+  if (!slot.allowed) {
+    res.setHeader('Retry-After', String(slot.retryAfter));
+    return res.status(429).json({ ok: false, reason: 'rate_limited', retryAfter: slot.retryAfter });
+  }
+
+  try {
+    await buddypro.ask({ text, profileId: auth.profileIdFor(email), saveHistory: true });
+    console.log('[memory] written for %s (%d chars)', mask(email), text.length);
+    res.json({ ok: true });
+  } catch (err) {
+    if (err instanceof buddypro.BuddyProError && (err.status === 502 || err.status === 503)) {
+      ratelimit.release(MEMORY_SLOT);
+    }
+    const status = err instanceof buddypro.BuddyProError ? err.status : 500;
+    if (err.retryAfter) res.setHeader('Retry-After', String(err.retryAfter));
+    console.error('[memory] failed for %s: %s', mask(email), err.message);
+    res.status(status).json({ ok: false, reason: err.code || 'failed' });
+  }
+});
 
 /* ---- pages -------------------------------------------------------------- */
 
