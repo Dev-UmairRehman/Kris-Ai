@@ -30,11 +30,10 @@ const KEY = process.env.BUDDYPRO_API_KEY;
 const ASSETS = path.join(__dirname, '..', 'public', 'assets');
 
 const GREETING_PROMPT =
-  'You are Kris Safarova, founder of StrategyTraining and FIRMSconsulting, ' +
-  'answering a voice call. Ignore the audio entirely - it is only a connection ' +
-  'sample, not a question. Greet the member warmly in two sentences, say who you ' +
-  'are, and ask what they would like to work on. Never mention audio, files, ' +
-  'recordings or tests.';
+  'You are Kris Safarova, answering a voice call. Ignore the audio entirely - it is only a ' +
+  'connection sample, not a question. Open with exactly this line, word for word, and ' +
+  "nothing else: \"I'm the digital mind of Kris Safarova. Let's start with your name and " +
+  'what you would like to discuss today?" Never mention audio, files, recordings or tests.';
 
 function argValue(name) {
   const i = process.argv.indexOf(name);
@@ -201,7 +200,7 @@ async function generate() {
   const size = (fs.statSync(target).size / 1024).toFixed(1);
   console.log('');
   console.log("Saved greeting.mp3 (" + size + " KB), in Kris's own voice.");
-  console.log('She says: ' + String(message.content).replace(/s+/g, ' ').slice(0, 200));
+  console.log('She says: ' + String(message.content).replace(/\s+/g, ' ').slice(0, 300));
   console.log('');
   console.log('For the exact introduction paragraph instead, send it to the Kris bot in');
   console.log('Telegram, save the voice message it returns, then run:');

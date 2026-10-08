@@ -41,11 +41,21 @@ let template = fs.readFileSync(TEMPLATE_PATH, 'utf8');
    HTML is not cached at all. Without a version in their URLs a deploy serves
    new HTML beside last week's script - and when the markup changed, the old
    script throws on elements that no longer exist. The version is a hash of
-   the two files, so it changes exactly when they do. */
+   the two files, so it changes exactly when they do.
+
+   The call's greeting recording is cached the same way, so it is hashed too
+   and app.js requests it with the same ?v= - replacing the recording reaches
+   callers on the next deploy, not a week later. */
+const GREETING_FILES = ['greeting.mp3', 'greeting.ogg', 'greeting.oga', 'greeting.m4a', 'greeting.wav'];
+
 function assetVersion() {
   const hash = crypto.createHash('sha1');
   for (const name of ['app.js', 'styles.css']) {
     hash.update(fs.readFileSync(path.join(__dirname, 'public', name)));
+  }
+  for (const name of GREETING_FILES) {
+    const file = path.join(__dirname, 'public', 'assets', name);
+    if (fs.existsSync(file)) hash.update(fs.readFileSync(file));
   }
   return hash.digest('hex').slice(0, 10);
 }

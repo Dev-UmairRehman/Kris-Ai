@@ -25,6 +25,17 @@
 
   var BOOT = JSON.parse(document.getElementById('bootstrap').textContent);
 
+  /* The ?v= this script was loaded with. Static files are cached for a week,
+     so the greeting recording is requested with it too - see assetVersion()
+     in server.js, which hashes the recording into it. */
+  var ASSET_V = (function () {
+    try {
+      return new URL(document.currentScript.src).searchParams.get('v') || '';
+    } catch (e) {
+      return '';
+    }
+  })();
+
   var SUGGESTIONS = [
     'Where do I start? Books, podcasts, studies, proposals, StrategyTraining or Kris/Michael AI?',
     'I am really struggling to get promoted, working in a Fortune 1000 company.',
@@ -1841,7 +1852,9 @@
     '/static/assets/greeting.oga',
     '/static/assets/greeting.m4a',
     '/static/assets/greeting.wav',
-  ];
+  ].map(function (url) {
+    return ASSET_V ? url + '?v=' + ASSET_V : url;
+  });
 
   /** Resolves true when a recorded greeting existed and started playing. */
   function tryGreetingFile(index) {
