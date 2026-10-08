@@ -31,12 +31,10 @@
     'What is the one thing you have noticed with all clients you mentor?',
   ];
 
+  /* Same opening line as the Kris AI (Delphi) page. */
   var WELCOME =
-    "Welcome to StrategyTraining. I'm Kris Safarova, Founder and CEO of StrategyTraining " +
-    "and FIRMSconsulting. I'm here to help you develop strategy, leadership, consulting, and " +
-    "critical thinking skills. Whether you're advancing your career, solving business " +
-    "challenges, or preparing for consulting, I'll guide you with practical insights and " +
-    'proven frameworks. How can I help you today?';
+    "I'm the digital mind of Kris Safarova. Let's start with your name and what you " +
+    'would like to discuss today?';
 
   /* How long to wait for the store page to say who is signed in. It may have
      to ask Uscreen, which is a network round trip, so 1200ms was too tight -

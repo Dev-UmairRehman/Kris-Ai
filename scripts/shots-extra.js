@@ -120,7 +120,7 @@ async function ready(page) {
   check('docked suggestions appear in chat', entered.dockVisible);
   check(
     'a welcome message opens the conversation',
-    /Welcome to StrategyTraining/.test(entered.welcome),
+    /digital mind of Kris Safarova/.test(entered.welcome),
     entered.welcome.slice(0, 60)
   );
 
