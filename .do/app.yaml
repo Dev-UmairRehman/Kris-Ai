@@ -176,30 +176,25 @@ services:
 
       - key: MP_STORAGE
         scope: RUN_TIME
-        value: spaces
+        value: supabase
 
-      - key: MP_SPACES_ENDPOINT
+      - key: MP_SUPABASE_URL
         scope: RUN_TIME
-        value: https://fra1.digitaloceanspaces.com
+        value: https://zsgprbkuocjmbnkemcvw.supabase.co
 
-      - key: MP_SPACES_BUCKET
-        scope: RUN_TIME
-        value: ""
-
-      - key: MP_SPACES_KEY
+      - key: MP_SUPABASE_SECRET_KEY
         scope: RUN_TIME
         type: SECRET
         value: ""
 
-      - key: MP_SPACES_SECRET
-        scope: RUN_TIME
-        type: SECRET
-        value: ""
-
-      # log until the email method is chosen; webhook posts the message as JSON.
       - key: MP_EMAIL_DRIVER
         scope: RUN_TIME
-        value: log
+        value: resend
+
+      - key: MP_RESEND_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
 
       - key: MP_EMAIL_WEBHOOK_URL
         scope: RUN_TIME

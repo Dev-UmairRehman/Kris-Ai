@@ -55,25 +55,37 @@ Library, and theirs are visible there. A member who does not share sees only
 their own. Turning sharing off removes theirs from the Library and closes it to
 them. Enforced on the server (`jobs.canView`), not in the page.
 
-## Storage (DigitalOcean Spaces)
+## Storage (Supabase)
 
-One private bucket. Objects under `MP_SPACES_PREFIX` (default `masterplan/`):
+Project `zsgprbkuocjmbnkemcvw` (eu-west-3, next to the app in Frankfurt).
+Records are rows in `public.mp_records` (key, jsonb value); files are in the
+private Storage bucket `masterplan`:
 
 ```
-members/<id>.json              email, sharing choice, report ids
-reports/<id>/meta.json         status, stage, page counts, cost
-reports/<id>/inputs.json       what the member submitted (deleted with the report)
-reports/<id>/work.json         profile, research, both drafts (re-render without re-writing)
-reports/<id>/narrative.pdf
-reports/<id>/article.pdf
-reports/<id>/podcast.mp3
-shared.json                    the Library
-active.json                    queued/running reports - resumed after a deploy
+members/<id>.json              record   email, sharing choice, devices, report ids
+reports/<id>/meta.json         record   status, stage, page counts, cost
+reports/<id>/work.json         record   profile, research, both drafts (re-render without re-writing)
+shared.json, active.json, usage.json    the Library, the queue, the daily counts
+reports/<id>/inputs.json       file     what the member submitted (deleted once the documents are ready)
+reports/<id>/narrative.pdf     file
+reports/<id>/article.pdf       file
+reports/<id>/podcast.mp3       file
 ```
 
-No database. Requests are signed in `store.js` (AWS Signature V4, no SDK).
-Set up: create a Spaces bucket (private, any region, e.g. `fra1`) and a Spaces
-access key, then set `MP_STORAGE=spaces` and the four `MP_SPACES_*` values.
+Only the server touches it, over Supabase's HTTPS APIs with the secret key
+(`MP_SUPABASE_SECRET_KEY`): no database driver and no open connection. Row
+level security is on with no policies and the bucket is private, so the
+publishable key reads nothing. The database password is not used at runtime;
+it was needed once to apply `sql/001_storage.sql`.
+
+Lean by design: records are cached in memory and written through (the page's
+polling costs no database call), PDFs and podcasts are cached on the server's
+disk up to `MP_FILE_CACHE_MB` (a re-open is not a re-download), and the
+uploaded resume is deleted as soon as the drafts are saved. Rough size per
+report: ~0.3 MB of records and ~11 MB of files, nearly all of it the podcast.
+
+Live test of the driver (writes a throwaway key and removes it):
+`MP_TEST_SUPABASE=1 node --env-file=.env --test masterplan/test/supabase.test.js`
 
 ## Uscreen page
 
@@ -88,16 +100,17 @@ from the email link through to the page.
 ## Settings
 
 See the `MP_*` block in `.env.example` and `.do/app.yaml`. Needed to switch on:
-`MP_ENABLED=true`, `MP_OPENROUTER_API_KEY` (or `MP_LLM_PROVIDER=anthropic` with `MP_ANTHROPIC_API_KEY`), and the Spaces settings.
+`MP_ENABLED=true`, `MP_OPENROUTER_API_KEY` (or `MP_LLM_PROVIDER=anthropic` with `MP_ANTHROPIC_API_KEY`), and the Supabase settings.
 
 The model is Claude Opus 5.5 either way. Through OpenRouter (`llm.js`) the request is pinned to
 Anthropic as the provider, the cached system prompt, the PDF resume and Anthropic's native web
 search all pass through, and the exact charge per report comes back in `costEstimateUsd`.
 `GET /masterplan/healthz` lists anything missing.
 
-The email method is still to be chosen. Until then `MP_EMAIL_DRIVER=log` writes
-each email to the app log. `MP_EMAIL_DRIVER=webhook` POSTs it as JSON to any URL.
-A provider is one more driver in `mailer.js`.
+Email goes through Resend (`MP_EMAIL_DRIVER=resend`, `MP_RESEND_API_KEY`). The
+domain of `MP_EMAIL_FROM` must be verified in that Resend account. A message
+Resend refuses is written to the app log instead, so it is never lost.
+`MP_EMAIL_DRIVER=log` (development) only logs.
 
 ## Local development
 

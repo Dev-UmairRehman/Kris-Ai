@@ -45,21 +45,29 @@ const config = {
   },
 
   storage: {
-    /* spaces | disk. disk is for local development only: App Platform's
-       filesystem is wiped on every deploy. */
+    /* supabase | disk. disk is for local development and the tests only:
+       App Platform's filesystem is wiped on every deploy. disk stays the
+       default so a laptop with the keys in .env never writes to production. */
     driver: str('MP_STORAGE', 'disk'),
     diskRoot: str('MP_DISK_ROOT', path.join(__dirname, '..', '.data')),
-    endpoint: str('MP_SPACES_ENDPOINT', '').replace(/\/+$/, ''), // https://fra1.digitaloceanspaces.com
-    bucket: str('MP_SPACES_BUCKET', ''),
-    key: str('MP_SPACES_KEY', ''),
-    secret: str('MP_SPACES_SECRET', ''),
-    prefix: str('MP_SPACES_PREFIX', 'masterplan'),
+    prefix: 'masterplan',
+    /* Supabase (schema: masterplan/sql/001_storage.sql). The secret key never
+       leaves the server; the publishable key is not used at all. */
+    supabaseUrl: str('MP_SUPABASE_URL', '').replace(/\/+$/, ''),
+    supabaseKey: str('MP_SUPABASE_SECRET_KEY', ''),
+    bucket: str('MP_SUPABASE_BUCKET', 'masterplan'),
+    table: str('MP_SUPABASE_TABLE', 'mp_records'),
+    /* Local copies of PDFs and podcasts, so a re-open is not a re-download. */
+    cacheMb: int('MP_FILE_CACHE_MB', 256),
   },
 
   email: {
-    /* log | webhook. The delivery method is still to be supplied; until then
-       the email is written to the log so nothing is lost. */
+    /* resend | webhook | log. log writes the email to the app log, for
+       development. resend needs a key from StrategyTraining's own Resend
+       account (not Michael AI's) with strategytraining.com verified. */
     driver: str('MP_EMAIL_DRIVER', 'log'),
+    resendKey: str('MP_RESEND_API_KEY', ''),
+    replyTo: str('MP_EMAIL_REPLY_TO', ''),
     webhookUrl: str('MP_EMAIL_WEBHOOK_URL', ''),
     webhookSecret: str('MP_EMAIL_WEBHOOK_SECRET', ''),
     from: str('MP_EMAIL_FROM', 'StrategyTraining <no-reply@strategytraining.com>'),
@@ -110,17 +118,12 @@ if (config.anthropic.provider === 'openrouter') {
 } else {
   config.problems.push('MP_LLM_PROVIDER must be openrouter or anthropic.');
 }
-if (config.storage.driver === 'spaces') {
-  for (const [k, v] of [
-    ['MP_SPACES_ENDPOINT', config.storage.endpoint],
-    ['MP_SPACES_BUCKET', config.storage.bucket],
-    ['MP_SPACES_KEY', config.storage.key],
-    ['MP_SPACES_SECRET', config.storage.secret],
-  ]) {
-    if (!v) config.problems.push(k + ' is not set.');
-  }
+if (config.storage.driver === 'supabase') {
+  if (!config.storage.supabaseUrl) config.problems.push('MP_SUPABASE_URL is not set.');
+  if (!config.storage.supabaseKey) config.problems.push('MP_SUPABASE_SECRET_KEY is not set.');
 } else if (config.storage.driver !== 'disk') {
-  config.problems.push('MP_STORAGE must be spaces or disk.');
+  config.problems.push('MP_STORAGE must be supabase or disk.');
 }
+if (config.email.driver === 'resend' && !config.email.resendKey) config.problems.push('MP_RESEND_API_KEY is not set.');
 
 module.exports = config;

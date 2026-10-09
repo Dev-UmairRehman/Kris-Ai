@@ -119,9 +119,9 @@ html, body { margin: 0; background: #fff; }
 .mp-icon { appearance: none; width: 32px; height: 32px; border: 1px solid var(--line); background: #fff; font-size: 17px; cursor: pointer; }
 
 /* ---- the three views of the tool ---- */
-.mp-tabs { display: flex; justify-content: flex-end; gap: 22px; margin: -14px 0 30px; }
+.mp-tabs { display: flex; justify-content: center; justify-content: safe center; gap: 28px; margin: 0 0 34px; padding-bottom: 0; border-bottom: 1px solid var(--line); }
 .mp-tabs button {
-  appearance: none; border: 0; background: none; padding: 4px 0; border-bottom: 1px solid transparent;
+  appearance: none; border: 0; background: none; padding: 4px 0 12px; margin-bottom: -1px; border-bottom: 2px solid transparent;
   font: 500 11px/1.4 var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); cursor: pointer; white-space: nowrap;
 }
 .mp-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
@@ -251,7 +251,7 @@ html, body { margin: 0; background: #fff; }
   .mp-title { font-size: 36px; }
   .mp-title-sm { font-size: 30px; }
   .mp-profiles { grid-template-columns: 1fr; }
-  .mp-tabs { justify-content: flex-start; margin-top: 0; overflow-x: auto; }
+  .mp-tabs { gap: 20px; overflow-x: auto; }
   .mp-doc { min-width: 0; width: 100%; }
   .mp-item-top { flex-direction: column; gap: 4px; }
   .mp-player { padding: 0; align-items: stretch; }

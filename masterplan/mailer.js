@@ -3,10 +3,10 @@
 /* ---------------------------------------------------------------------------
    The "your MasterPlan is ready" email.
 
-   The delivery method is still to be supplied, so this file has one job:
-   build the message and hand it to a driver.
-     log      (default) prints the message. Nothing is lost while the real
-              method is being decided.
+   This file builds the message and hands it to a driver (MP_EMAIL_DRIVER):
+     resend   production: the Resend API with MP_RESEND_API_KEY. The From
+              domain (MP_EMAIL_FROM) must be verified in that Resend account.
+     log      (default) prints the message, for development.
      webhook  POSTs { to, from, subject, html, text } as JSON to
               MP_EMAIL_WEBHOOK_URL, with MP_EMAIL_WEBHOOK_SECRET as a Bearer
               token. Fits most senders (an n8n flow, a Zapier hook, a small
@@ -64,7 +64,7 @@ ${podcastTitle ? `<li><strong>The Debate: ${escapeHtml(podcastTitle)}</strong> -
 <p style="font-size:13px;color:#777;margin-top:32px">FIRMSconsulting · StrategyTraining.com</p>
 </div></body></html>`;
 
-  return { to, from: config.email.from, subject, text, html };
+  return { id: 'masterplan-ready/' + reportId, to, from: config.email.from, subject, text, html };
 }
 
 const drivers = {
@@ -84,11 +84,40 @@ const drivers = {
     });
     if (!res.ok) throw new Error('email webhook answered ' + res.status);
   },
+  async resend(msg) {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer ' + config.email.resendKey,
+        'content-type': 'application/json',
+        /* A retry of the same report's email is sent once, not twice. */
+        'idempotency-key': msg.id,
+      },
+      body: JSON.stringify({
+        from: msg.from,
+        to: [msg.to],
+        subject: msg.subject,
+        html: msg.html,
+        text: msg.text,
+        ...(config.email.replyTo ? { reply_to: config.email.replyTo } : {}),
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) throw new Error('Resend answered ' + res.status + ': ' + (await res.text()).slice(0, 200));
+  },
 };
 
 async function sendReady(details) {
   const driver = drivers[config.email.driver] || drivers.log;
-  await driver(readyMessage(details));
+  const msg = readyMessage(details);
+  try {
+    await driver(msg);
+  } catch (err) {
+    /* Never lose the message: it goes to the log, from where it can be sent
+       by hand, and the caller still hears about the failure. */
+    if (driver !== drivers.log) await drivers.log(msg);
+    throw err;
+  }
 }
 
 module.exports = { sendReady, readyMessage };

@@ -448,6 +448,9 @@ async function run(id) {
     );
 
     await syncLibrary(done);
+    /* The submitted resume is only needed to write the drafts, which are
+       saved; keeping it longer would cost space and privacy for nothing. */
+    await store.del(FILE(id, 'inputs.json')).catch(() => {});
     /* The documents can be read from here on; the podcast follows, and the
        email goes out once all three outputs are in. */
     if (done.podcast) await recordPodcast(id, done, work);

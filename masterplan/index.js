@@ -429,7 +429,7 @@ function boot() {
     return;
   }
   if (config.storage.driver === 'disk' && rootConfig.isProd) {
-    console.warn('[masterplan] storage=disk in production: reports are lost on every deploy. Set MP_STORAGE=spaces.');
+    console.warn('[masterplan] storage=disk in production: reports are lost on every deploy. Set MP_STORAGE=supabase.');
   }
   console.log('[masterplan] ready  storage=%s  model=%s  email=%s', config.storage.driver, config.anthropic.model, config.email.driver);
   jobs.resumeActive().catch((err) => console.error('[masterplan] could not resume active reports:', err.message));
