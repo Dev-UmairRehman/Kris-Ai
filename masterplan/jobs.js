@@ -46,97 +46,11 @@ async function touchMember(memberId, email) {
   return store.update(MEMBER(memberId), null, (m) => {
     if (!m) return { email, sharing: false, reports: [], createdAt: new Date().toISOString() };
     if (email && m.email !== email) m.email = email;
+    /* Left over from the removed device linking. */
+    delete m.devices;
+    delete m.linkCode;
     return m;
   });
-}
-
-/* ---- devices ----------------------------------------------------------------
-   The email only says which account; it is not proof. Proof is a device key:
-   a random secret the member's own browser creates the first time and keeps.
-   Only its hash is stored here.
-
-     - an account with no reports yet: the browser that arrives becomes its
-       one device (any earlier device is dropped - there is nothing to protect
-       yet, and the real owner can always take an empty account back);
-     - an account with reports: only a linked device gets in. A new browser is
-       added with a short-lived code shown on a linked one (linkDevice).
-
-   So knowing - or faking - someone's email never shows their MasterPlans. */
-
-const MAX_DEVICES = 10;
-const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const CODE_TTL_MS = 15 * 60 * 1000;
-const CODE_TRIES = 5;
-
-function hashCode(code) {
-  return crypto.createHash('sha256').update('mp-link:' + String(code).toUpperCase().replace(/[^A-Z0-9]/g, '')).digest('hex');
-}
-
-/** Which access does this device get? 'full' or 'link' (must link first). */
-async function claimDevice(memberId, email, deviceHash) {
-  let scope = 'link';
-  await store.update(MEMBER(memberId), null, (m) => {
-    m = m || { email, sharing: false, reports: [], createdAt: new Date().toISOString() };
-    if (email && m.email !== email) m.email = email;
-    const devices = m.devices || [];
-    const known = devices.find((d) => d.h === deviceHash);
-    if (known) {
-      known.seen = new Date().toISOString();
-      scope = 'full';
-    } else if (!(m.reports || []).length) {
-      m.devices = [{ h: deviceHash, at: new Date().toISOString() }];
-      scope = 'full';
-    }
-    if (scope === 'full' && !m.devices) m.devices = devices;
-    return m;
-  });
-  return scope;
-}
-
-async function hasDevice(memberId, deviceHash) {
-  const m = await getMember(memberId);
-  return !!(m && (m.devices || []).some((d) => d.h === deviceHash));
-}
-
-/** A one-time code, shown on a linked device, to add another one. */
-async function newLinkCode(memberId) {
-  const bytes = crypto.randomBytes(8);
-  let code = '';
-  for (const b of bytes) code += CODE_ALPHABET[b % CODE_ALPHABET.length];
-  const expiresAt = Date.now() + CODE_TTL_MS;
-  await store.update(MEMBER(memberId), null, (m) => {
-    if (!m) throw new Error('unknown member');
-    m.linkCode = { h: hashCode(code), exp: expiresAt, tries: 0 };
-    return m;
-  });
-  return { code: code.slice(0, 4) + '-' + code.slice(4), expiresAt: new Date(expiresAt).toISOString() };
-}
-
-/** Add this device with a code from a linked one. Returns true on success. */
-async function linkDevice(memberId, deviceHash, code) {
-  let ok = false;
-  await store.update(MEMBER(memberId), null, (m) => {
-    if (!m || !m.linkCode) return m;
-    const lc = m.linkCode;
-    if (Date.now() > lc.exp || lc.tries >= CODE_TRIES) {
-      delete m.linkCode;
-      return m;
-    }
-    const a = Buffer.from(hashCode(code));
-    const b = Buffer.from(lc.h);
-    if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
-      const devices = (m.devices || []).filter((d) => d.h !== deviceHash);
-      devices.push({ h: deviceHash, at: new Date().toISOString() });
-      m.devices = devices.slice(-MAX_DEVICES);
-      delete m.linkCode;
-      ok = true;
-    } else {
-      lc.tries++;
-      if (lc.tries >= CODE_TRIES) delete m.linkCode;
-    }
-    return m;
-  });
-  return ok;
 }
 
 async function setSharing(memberId, sharing) {
@@ -684,10 +598,6 @@ async function resumeActive() {
 module.exports = {
   touchMember,
   getMember,
-  claimDevice,
-  hasDevice,
-  newLinkCode,
-  linkDevice,
   contributes,
   setSharing,
   createReport,

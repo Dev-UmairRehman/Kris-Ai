@@ -50,19 +50,12 @@ function sign(body) {
   return crypto.createHmac('sha256', rootConfig.session.secret).update('masterplan.' + body).digest('base64url');
 }
 
-/* scope 'full' opens the account; scope 'link' (an unrecognised browser on an
-   account that has MasterPlans) can only enter a link code. `dev` is the hash
-   of the device key, checked again on every request so removing a device
-   ends its access at once. */
-function mint(memberId, scope, dev) {
-  const body = Buffer.from(
-    JSON.stringify({ aud: 'mp', sub: memberId, scope, dev, exp: Math.floor(Date.now() / 1000) + TTL })
-  ).toString('base64url');
+/* The member is the account the store page says is signed in. */
+function mint(memberId) {
+  const body = Buffer.from(JSON.stringify({ aud: 'mp', sub: memberId, exp: Math.floor(Date.now() / 1000) + TTL })).toString(
+    'base64url'
+  );
   return body + '.' + sign(body);
-}
-
-function deviceHash(key) {
-  return crypto.createHmac('sha256', rootConfig.session.secret).update('masterplan.device.' + key).digest('hex');
 }
 
 function readToken(req) {
@@ -241,13 +234,16 @@ async function openSession(req, res) {
   /* Results are emailed and owned by the account, so an email is required.
      Strings that only look like emails are refused (NOT_A_MAILBOX). */
   if (!EMAIL_RE.test(useEmail) || useEmail.length > 320 || NOT_A_MAILBOX.test(useEmail)) {
+    /* Where the page looked, so a store page it cannot read shows in the log
+       (no email or other personal data in it). */
+    const via = typeof req.body?.via === 'string' ? req.body.via.replace(/[^\w ,./>-]/g, '').slice(0, 120) : '';
+    console.warn('[masterplan] session refused: no usable email (%s; looked in: %s)', useEmail ? 'not a mailbox' : 'none found', via || 'unknown');
     return deny('no_email', 401);
   }
 
   /* Where the store's Uscreen API is configured, the email must also belong to
      an active subscriber. Only a clear "no" from Uscreen refuses; a Uscreen
-     outage does not lock members out (the device key below still protects
-     every account). */
+     outage does not lock members out. */
   if (rootConfig.gateMode !== 'strict' && rootConfig.uscreen.apiBase && rootConfig.uscreen.apiKey) {
     try {
       const verdict = await uscreen.verifySubscriber(useEmail);
@@ -259,70 +255,25 @@ async function openSession(req, res) {
     }
   }
 
-  const deviceKey = typeof req.body?.deviceKey === 'string' ? req.body.deviceKey : '';
-  if (!/^[A-Za-z0-9_-]{32,128}$/.test(deviceKey)) return deny('no_device', 400);
-  const dev = deviceHash(deviceKey);
-
   const memberId = memberIdFor(useEmail);
   /* Express 4 does not catch a rejected promise, and an unhandled rejection
      ends the process - Kris AI included. Every await here is caught. */
-  let scope;
   try {
-    scope = await jobs.claimDevice(memberId, useEmail, dev);
+    await jobs.touchMember(memberId, useEmail);
   } catch (err) {
     console.error('[masterplan] session: storage failed:', err.message);
     return deny('verification_unavailable', 503);
   }
-  res.json({ ok: true, scope, token: mint(memberId, scope, dev), email: useEmail });
+  res.json({ ok: true, token: mint(memberId), email: useEmail });
 }
 
-/* Every data route needs a full session from a device still linked to the
-   account. The device check is one cached read. */
-async function checkSession(req, res, needFull) {
-  const s = readToken(req);
-  if (!s || !s.dev) {
-    res.status(401).json({ error: 'Your session has expired. Reload the page.', reason: 'no_session' });
-    return null;
-  }
-  if (needFull && s.scope !== 'full') {
-    res.status(403).json({ error: 'Link this browser to your account first.', reason: 'needs_link' });
-    return null;
-  }
-  if (s.scope === 'full' && !(await jobs.hasDevice(s.sub, s.dev))) {
-    res.status(401).json({ error: 'This browser is no longer linked to the account. Reload the page.', reason: 'no_session' });
-    return null;
-  }
-  return s;
-}
-
+/* Every data route needs a session token from /api/session. Tokens made
+   before device linking was removed carry the same member and still work. */
 function requireSession(req, res, next) {
-  checkSession(req, res, true).then(
-    (s) => {
-      if (!s) return;
-      req.memberId = s.sub;
-      req.device = s.dev;
-      next();
-    },
-    (err) => {
-      console.error('[masterplan] session check failed:', err.message);
-      if (!res.headersSent) res.status(503).json({ error: 'Please try again in a moment.', reason: 'service_down' });
-    }
-  );
-}
-
-function requireAnySession(req, res, next) {
-  checkSession(req, res, false).then(
-    (s) => {
-      if (!s) return;
-      req.memberId = s.sub;
-      req.device = s.dev;
-      next();
-    },
-    (err) => {
-      console.error('[masterplan] session check failed:', err.message);
-      if (!res.headersSent) res.status(503).json({ error: 'Please try again in a moment.', reason: 'service_down' });
-    }
-  );
+  const s = readToken(req);
+  if (!s) return res.status(401).json({ error: 'Your session has expired. Reload the page.', reason: 'no_session' });
+  req.memberId = s.sub;
+  next();
 }
 
 const wrap = (fn) => (req, res) =>
@@ -334,21 +285,6 @@ const wrap = (fn) => (req, res) =>
 
 router.get('/api/reports', requireSession, wrap(async (req, res) => {
   res.json(await jobs.listMine(req.memberId));
-}));
-
-/* ---- devices ---------------------------------------------------------------- */
-
-/* On a linked browser: a one-time code (15 minutes, 5 tries) to add another. */
-router.post('/api/devices/code', requireSession, wrap(async (req, res) => {
-  res.json({ ok: true, ...(await jobs.newLinkCode(req.memberId)) });
-}));
-
-/* On a new browser: enter that code to be linked. */
-router.post('/api/devices/link', requireAnySession, wrap(async (req, res) => {
-  const code = typeof req.body?.code === 'string' ? req.body.code.slice(0, 20) : '';
-  const ok = code && (await jobs.linkDevice(req.memberId, req.device, code));
-  if (!ok) return res.status(400).json({ error: 'That code is not right, it has expired, or it was made in a different account. Get a new code from a browser signed in to this same account.' });
-  res.json({ ok: true, scope: 'full', token: mint(req.memberId, 'full', req.device) });
 }));
 
 const clip = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');

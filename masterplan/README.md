@@ -53,7 +53,24 @@ some loss of liveliness.
 A member who shares sees every other sharing member's MasterPlans in the
 Library, and theirs are visible there. A member who does not share sees only
 their own. Turning sharing off removes theirs from the Library and closes it to
-them. Enforced on the server (`jobs.canView`), not in the page.
+them. The Library opens only once the member has a finished, shared MasterPlan of
+their own, so an empty account cannot be used to look around. Enforced on the
+server (`jobs.canView`), not in the page, and proven through the real routes in
+`test/security.test.js`.
+
+## Who is signed in
+
+The page asks the store (`GET /account`) and takes the member's email from, in
+order: the account page, the other account pages, fragments the store loads on
+demand, and the page itself (its text, shadow DOM and the store's web
+components). Never from scripts or links: page code carries addresses such as
+an error tracker's key, and the server refuses those as an identity too. When
+nothing is found the member is asked to open their account menu, and the page
+carries on by itself when the email appears. A refused session logs where the
+page looked (no personal data).
+
+The account is the email: any browser signed in to the store as that member
+opens their MasterPlans. There is no device linking.
 
 ## Storage (Supabase)
 
@@ -62,7 +79,7 @@ Records are rows in `public.mp_records` (key, jsonb value); files are in the
 private Storage bucket `masterplan`:
 
 ```
-members/<id>.json              record   email, sharing choice, devices, report ids
+members/<id>.json              record   email, sharing choice, report ids
 reports/<id>/meta.json         record   status, stage, page counts, cost
 reports/<id>/work.json         record   profile, research, both drafts (re-render without re-writing)
 shared.json, active.json, usage.json    the Library, the queue, the daily counts
@@ -134,5 +151,7 @@ npm run test:masterplan
   paste box for that, and the document says how thin the feed evidence was.
 - The queue runs in the web process (one instance). A deploy mid-report
   restarts that report from the beginning.
-- Gate mode `frame` trusts the store page's signed-in claim (as Kris AI does).
-  `strict` verifies the subscription with the Uscreen API key.
+- Gate mode `frame` trusts the email the store page reports (as Kris AI does):
+  someone who forges requests by hand with another member's email could open
+  that member's MasterPlans. `strict` mode with the Uscreen API key checks the
+  subscription; an emailed sign-in link would make the email itself proven.

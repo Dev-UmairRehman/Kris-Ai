@@ -94,47 +94,22 @@
     });
   }
 
-  /* Page mode: ask the store directly. GET /account with no Accept header
-     answers 401 when signed out, 200 (the account page, carrying the email)
-     when signed in, and 406 also means signed in. */
+  /* ---- who is signed in (page mode) -----------------------------------------
+     The store answers GET /account with 401 when signed out and the account
+     page (200, or 406 without an Accept header) when signed in. The email is
+     looked for in turn, stopping at the first place that has exactly one:
+       1. the account page (asked for as HTML if it answered 406);
+       2. the store's other account pages;
+       3. page fragments the store loads on demand (turbo-frame src);
+       4. this page itself: its text, open shadow roots and the email-like
+          attributes of the store's web components (the profile menu).
+     Never from scripts, styles or links: page code carries addresses such as
+     an error tracker's key@o123.ingest.sentry.io, which is no one's email -
+     two members given the same guessed address would share one account. */
   var EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
-  function probeAccount() {
-    return fetch('/account', { credentials: 'same-origin' }).then(function (res) {
-      var path = '';
-      try { path = new URL(res.url, location.href).pathname; } catch (e) { /* ignore */ }
-      if (/\/(sign_in|login|join)\b/.test(path)) return { signedIn: false, via: '/account -> ' + path };
-      if (res.status === 401 || res.status === 403) return { signedIn: false, via: '/account ' + res.status };
-      if (res.status === 406) return { signedIn: true, email: emailOnPage(), via: '/account 406' };
-      if (!res.ok) return null;
-      return res.text().then(function (t) {
-        return { signedIn: true, email: emailFromAccount(t), via: '/account 200' };
-      });
-    }).catch(function () { return null; });
-  }
-
-  /* Same probe as the live Kris AI loader. A failed probe is tried once more
-     before anyone is called signed out. */
-  function identityFromStore() {
-    return probeAccount().then(function (r) {
-      if (r) return r;
-      return new Promise(function (ok) { setTimeout(ok, 1500); }).then(probeAccount);
-    }).then(function (r) {
-      r = r || { signedIn: false, via: 'probe failed twice', transient: true };
-      try { console.log('[st-mp] signedIn=' + r.signedIn + ' email=' + (r.email ? 'yes' : 'none') + ' via ' + r.via); } catch (e) { /* no console */ }
-      return r;
-    });
-  }
-  /* Picking the member's email must never guess: two members given the same
-     guessed address would share one MasterPlan account.
-       1. the value of the account form's email field;
-       2. otherwise the email-like strings a person can SEE on the account
-          page (never its scripts, styles or links: a page's code carries
-          addresses such as an error tracker's, user@o123.ingest.sentry.io),
-          minus asset names (logo@2x.png), the store's own addresses and
-          machine addresses - used only if exactly one is left, or one of
-          them is also shown in this page's profile menu;
-       3. otherwise nothing, and the member is asked to try again. */
   var NOT_MEMBER = /@(strategytraining|firmsconsulting|uscreen|michael)\b|@([a-z0-9-]+\.)*(sentry\.io|sentry-cdn\.com|ingest\.[a-z0-9.-]+|sentry\.[a-z.]+)$|^[0-9a-f]{16,}@|\.(png|jpe?g|gif|svg|webp|css|js|ico)$/i;
+  var ACCOUNT_PAGES = ['/account/edit', '/account/settings', '/account/profile'];
+
   function candidates(text) {
     var all = String(text || '').match(new RegExp(EMAIL_RE.source, 'g')) || [];
     var seen = {};
@@ -145,43 +120,171 @@
       return true;
     });
   }
-  /* The text a person sees, plus the values of email fields. */
-  var HIDDEN_TAGS = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, TEMPLATE: 1, SVG: 1, IFRAME: 1, HEAD: 1 };
-  function visibleText(doc) {
-    var root = doc && (doc.body || doc.documentElement);
+
+  /* What a person can see in a document or shadow root, plus email fields and
+     the attributes of custom elements (never src/href, never inside scripts). */
+  var HIDDEN_TAGS = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, TEMPLATE: 1, SVG: 1, IFRAME: 1, HEAD: 1, LINK: 1, META: 1 };
+  var SKIP_ATTRS = /^(src|href|srcset|action|style|class|on\w+|data-action|integrity|nonce)$/i;
+  function visibleText(root, depth) {
     if (!root) return '';
+    depth = depth || 0;
     var out = [];
-    var walker = doc.createTreeWalker(root, 4 /* text */, {
-      acceptNode: function (n) {
-        for (var p = n.parentNode; p && p !== root; p = p.parentNode) {
-          if (HIDDEN_TAGS[String(p.nodeName).toUpperCase()]) return 2; // reject
+    var stack = [root.body || root];
+    while (stack.length) {
+      var node = stack.pop();
+      if (node.nodeType === 3) {
+        out.push(node.nodeValue);
+        continue;
+      }
+      if (node.nodeType !== 1 && node.nodeType !== 11 && node.nodeType !== 9) continue;
+      var tag = node.nodeName ? String(node.nodeName).toUpperCase() : '';
+      if (HIDDEN_TAGS[tag]) continue;
+      if (node.nodeType === 1) {
+        if (tag === 'INPUT' && /email/i.test((node.type || '') + ' ' + (node.name || '') + ' ' + (node.id || ''))) {
+          out.push(node.value || node.getAttribute('value') || '');
         }
-        return 1; // accept
-      },
-    });
-    for (var n = walker.nextNode(); n; n = walker.nextNode()) out.push(n.nodeValue);
-    Array.prototype.forEach.call(root.querySelectorAll('input[type="email"], input[name*="email"], input[id*="email"]'), function (i) {
-      out.push(i.value || i.getAttribute('value') || '');
-    });
+        if (tag.indexOf('-') !== -1 || node.hasAttribute('data-email')) {
+          for (var i = 0; i < node.attributes.length; i++) {
+            var at = node.attributes[i];
+            if (!SKIP_ATTRS.test(at.name)) out.push(at.value);
+          }
+        }
+        if (node.shadowRoot && depth < 4) out.push(visibleText(node.shadowRoot, depth + 1));
+      }
+      for (var c = node.lastChild; c; c = c.previousSibling) stack.push(c);
+    }
     return out.join(' ');
   }
-  function emailFromAccount(html) {
-    var doc;
-    try { doc = new DOMParser().parseFromString(html, 'text/html'); } catch (e) { return ''; }
+
+  function parse(html) {
+    try { return new DOMParser().parseFromString(html, 'text/html'); } catch (e) { return null; }
+  }
+
+  /* One email from an HTML page, or ''. The email field wins; otherwise
+     exactly one visible address, or the one this page also shows. */
+  function emailIn(doc) {
+    if (!doc) return '';
     var field = doc.querySelector('input[type="email"], input[name*="email"], input[id*="email"]');
-    var value = field && (field.getAttribute('value') || '');
-    if (value && candidates(value).length === 1) return value.trim();
+    var value = field && (field.getAttribute('value') || '').trim();
+    if (value && candidates(value).length === 1) return value;
     var list = candidates(visibleText(doc));
     if (list.length === 1) return list[0];
-    var onPage = candidates(visibleText(document)).map(function (e) { return e.toLowerCase(); });
-    var both = list.filter(function (e) { return onPage.indexOf(e.toLowerCase()) !== -1; });
-    if (both.length === 1) return both[0];
-    /* Nothing on the account page: the profile menu of this page shows it. */
-    return list.length ? '' : emailOnPage();
+    if (list.length > 1) {
+      var here = candidates(visibleText(document)).map(function (e) { return e.toLowerCase(); });
+      var both = list.filter(function (e) { return here.indexOf(e.toLowerCase()) !== -1; });
+      if (both.length === 1) return both[0];
+    }
+    return '';
   }
   function emailOnPage() {
     var list = candidates(visibleText(document));
     return list.length === 1 ? list[0] : '';
+  }
+
+  function getPage(url, asHtml) {
+    var opts = { credentials: 'same-origin', redirect: 'follow' };
+    if (asHtml) opts.headers = { Accept: 'text/html,application/xhtml+xml' };
+    return fetch(url, opts).then(function (res) {
+      var path = '';
+      try { path = new URL(res.url, location.href).pathname; } catch (e) { /* ignore */ }
+      if (/\/(sign_in|login|join)\b/.test(path) || res.status === 401 || res.status === 403) return { out: true, status: res.status };
+      if (!res.ok) return { status: res.status };
+      var type = res.headers.get('content-type') || '';
+      if (type && type.indexOf('html') === -1) return { status: res.status };
+      return res.text().then(function (t) { return { status: res.status, doc: parse(t) }; });
+    });
+  }
+
+  /* Tries the sources in order; resolves to the first email found. */
+  function findEmail(firstDoc) {
+    var found = emailIn(firstDoc);
+    if (found) return Promise.resolve({ email: found, via: 'account page' });
+    var i = 0;
+    function nextPage() {
+      if (i >= ACCOUNT_PAGES.length) return fromFrames();
+      var url = ACCOUNT_PAGES[i++];
+      return getPage(url, true).then(function (r) {
+        var e = r && r.doc ? emailIn(r.doc) : '';
+        return e ? { email: e, via: url } : nextPage();
+      }, nextPage);
+    }
+    function fromFrames() {
+      var srcs = [];
+      Array.prototype.forEach.call(document.querySelectorAll('turbo-frame[src], [data-src*="account"], [src*="/account"]'), function (f) {
+        var u = f.getAttribute('src') || f.getAttribute('data-src') || '';
+        try { u = new URL(u, location.href); } catch (e) { return; }
+        if (u.origin === location.origin && srcs.indexOf(u.href) === -1 && srcs.length < 4) srcs.push(u.href);
+      });
+      var j = 0;
+      function nextFrame() {
+        if (j >= srcs.length) return fromHere();
+        var url = srcs[j++];
+        return getPage(url, true).then(function (r) {
+          var e = r && r.doc ? emailIn(r.doc) : '';
+          return e ? { email: e, via: 'page fragment' } : nextFrame();
+        }, nextFrame);
+      }
+      return nextFrame();
+    }
+    function fromHere() {
+      var e = emailOnPage();
+      return { email: e, via: e ? 'this page' : 'not found' };
+    }
+    return nextPage();
+  }
+
+  function probeAccount() {
+    return getPage('/account', false).then(function (r) {
+      if (r.out) return { signedIn: false, via: '/account ' + (r.status || 'sign-in') };
+      if (r.status === 406) {
+        /* Signed in; ask for the account page as HTML. */
+        return getPage('/account', true).then(function (h) {
+          return findEmail(h && h.doc).then(function (f) { return { signedIn: true, email: f.email, via: '/account 406, ' + f.via }; });
+        }, function () {
+          return findEmail(null).then(function (f) { return { signedIn: true, email: f.email, via: '/account 406, ' + f.via }; });
+        });
+      }
+      if (!r.doc) return null; // an error page: tried once more, then treated as a blip
+      return findEmail(r.doc).then(function (f) { return { signedIn: true, email: f.email, via: '/account, ' + f.via }; });
+    }).catch(function () { return null; });
+  }
+
+  /* A failed probe is tried once more before anyone is called signed out. */
+  function identityFromStore() {
+    return probeAccount().then(function (r) {
+      if (r) return r;
+      return new Promise(function (ok) { setTimeout(ok, 1500); }).then(probeAccount);
+    }).then(function (r) {
+      r = r || { signedIn: false, via: 'probe failed twice', transient: true };
+      try { console.log('[st-mp] signedIn=' + r.signedIn + ' email=' + (r.email ? 'yes' : 'none') + ' via ' + r.via); } catch (e) { /* no console */ }
+      return r;
+    });
+  }
+
+  /* While "could not read your email" is showing, watch the page: the moment
+     the profile menu puts the email on it, carry on without a click. */
+  var emailWatch = null;
+  function watchForEmail() {
+    if (emailWatch || !window.MutationObserver) return;
+    var timer = null;
+    emailWatch = new MutationObserver(function () {
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        var e = emailOnPage();
+        if (!e) return;
+        stopEmailWatch();
+        $('mp-gate').hidden = true;
+        root.classList.add('is-booting');
+        attempts = 0;
+        startSession({ signedIn: true, email: e, via: 'profile menu, watched' });
+      }, 250);
+    });
+    emailWatch.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true });
+    setTimeout(stopEmailWatch, 10 * 60 * 1000);
+  }
+  function stopEmailWatch() {
+    if (emailWatch) emailWatch.disconnect();
+    emailWatch = null;
   }
 
   function requestIdentity() {
@@ -214,13 +317,11 @@
     lastIdentity = identity || {};
     var claim = {};
     for (var k in identity) claim[k] = identity[k];
-    claim.deviceKey = deviceKey();
     return api('POST', '/api/session', claim).then(function (r) {
       if (r.ok && r.data.ok) {
         token = r.data.token;
         email = r.data.email || '';
-        if (r.data.scope === 'link') showLink();
-        else openApp();
+        openApp();
       } else {
         showGate((r.data && r.data.reason) || 'service_down');
       }
@@ -236,64 +337,9 @@
     startSession({ signedIn: true, email: d.email || '' });
   });
 
-  /* ---- this browser's device key --------------------------------------------
-     A random secret made once per browser and kept in its storage. The server
-     only ever sees it in requests from this page; it is what proves that a
-     MasterPlan account is this member's, so knowing someone's email is never
-     enough to read their documents. */
-  var DEVICE_STORE = 'mp_device_v1';
-  var memoryKey = null;
-  function newKey() {
-    var bytes = new Uint8Array(32);
-    (window.crypto || window.msCrypto).getRandomValues(bytes);
-    var s = '';
-    for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
-    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  }
-  function deviceKey() {
-    try {
-      var k = window.localStorage.getItem(DEVICE_STORE);
-      if (k && /^[A-Za-z0-9_-]{32,128}$/.test(k)) return k;
-      k = newKey();
-      window.localStorage.setItem(DEVICE_STORE, k);
-      return k;
-    } catch (e) {
-      /* Storage blocked (private window): this visit only. */
-      if (!memoryKey) memoryKey = newKey();
-      return memoryKey;
-    }
-  }
-
-  function showLink() {
-    root.classList.remove('is-booting');
-    $('mp-app').hidden = true;
-    $('mp-gate').hidden = true;
-    $('mp-link').hidden = false;
-    $('link-who').hidden = !email;
-    $('link-who').textContent = email ? 'You are signed in as ' + email + '. A code made in another account will not work here.' : '';
-    showError('link-err', '');
-    $('link-code').focus();
-  }
-
-  $('link-form').addEventListener('submit', function (e) {
-    e.preventDefault();
-    var code = $('link-code').value.trim();
-    if (!/^[A-Za-z0-9]{4}-?[A-Za-z0-9]{4}$/.test(code)) return showError('link-err', 'Enter the 8-character code, like ABCD-1234.');
-    var btn = $('link-go');
-    btn.disabled = true;
-    api('POST', '/api/devices/link', { code: code }).then(function (r) {
-      btn.disabled = false;
-      if (!r.ok || !r.data.ok) return showError('link-err', (r.data && r.data.error) || 'That did not work. Please try again.');
-      token = r.data.token;
-      $('mp-link').hidden = true;
-      openApp();
-    });
-  });
-
   function showGate(reason) {
     root.classList.remove('is-booting');
     $('mp-app').hidden = true;
-    $('mp-link').hidden = true;
     $('mp-gate').hidden = false;
     $('mp-signin').href = BOOT.signInUrl || '#';
     $('mp-join').href = BOOT.joinUrl || '#';
@@ -306,11 +352,13 @@
     if (signedOut || reason === 'signed_out') text = 'Sign in to your StrategyTraining account to use the MasterPlan.';
     else if (reason === 'not_subscribed' || reason === 'customer_not_found') text = 'The MasterPlan is part of a StrategyTraining membership.';
     else if (reason === 'not_configured') text = 'The MasterPlan is being set up. Please check back soon.';
-    else if (reason === 'no_email') text = 'You are signed in, but we could not read the email on your account. Open your account menu once, then press Try again.';
+    else if (reason === 'no_email') text = 'You are signed in, but we could not read the email on your account. Open your account menu (your picture, top right) and this page continues by itself, or press Try again.';
     else if (reason === 'expired') text = 'Your session has expired. Press Try again to continue.';
     else if (reason === 'service_down') text = 'The MasterPlan service is not reachable right now. Please try again in a few minutes.';
     else text = 'We could not open the MasterPlan just now. Please try again in a moment.';
     $('mp-gate-text').textContent = text;
+    if (reason === 'no_email' && PAGE) watchForEmail();
+    else stopEmailWatch();
 
     var offerSignIn = signedOut || reason === 'signed_out' || reason === 'not_subscribed' || reason === 'customer_not_found';
     $('mp-signin').hidden = !offerSignIn || reason === 'not_subscribed' || reason === 'customer_not_found';
@@ -328,26 +376,9 @@
 
   /* ---- app ------------------------------------------------------------------ */
 
-  /* On a linked browser: a code to link another one. */
-  $('dev-code-btn').addEventListener('click', function () {
-    var out = $('dev-code');
-    api('POST', '/api/devices/code').then(function (r) {
-      out.hidden = false;
-      out.textContent = '';
-      if (!r.ok || !r.data.ok) {
-        out.textContent = (r.data && r.data.error) || 'Could not make a code. Please try again.';
-        return;
-      }
-      out.appendChild(document.createTextNode('On the other device, open this page and enter'));
-      out.appendChild(el('strong', null, r.data.code));
-      out.appendChild(document.createTextNode('within 15 minutes.'));
-    });
-  });
-
   function openApp() {
     root.classList.remove('is-booting');
     $('mp-gate').hidden = true;
-    $('mp-link').hidden = true;
     $('mp-app').hidden = false;
     $('g-email').textContent = email || 'you';
     refreshMine().then(function () {
