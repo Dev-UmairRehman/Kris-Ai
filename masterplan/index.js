@@ -197,7 +197,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
    (4ed1...@o123.ingest.us.sentry.io). Accepting one would put every member
    whose page carries it into one shared account. */
 const NOT_A_MAILBOX =
-  /\.(png|jpe?g|gif|svg|webp|css|js|ico)$|@([a-z0-9-]+\.)*(sentry\.io|sentry-cdn\.com|ingest\.[a-z0-9.-]+)$|^[0-9a-f]{16,}@/i;
+  /\.(png|jpe?g|gif|svg|webp|css|js|ico)$|@([a-z0-9-]+\.)*(sentry\.io|sentry-cdn\.com|ingest\.[a-z0-9.-]+)$|^[0-9a-f]{32}@/i;
 
 router.post('/api/session', async (req, res, next) => {
   try {

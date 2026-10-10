@@ -567,7 +567,10 @@
      an error tracker's key@o123.ingest.sentry.io, which is no one's email -
      two members given the same guessed address would share one account. */
   var EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
-  var NOT_MEMBER = /@(strategytraining|firmsconsulting|uscreen|michael)\b|@([a-z0-9-]+\.)*(sentry\.io|sentry-cdn\.com|ingest\.[a-z0-9.-]+|sentry\.[a-z.]+)$|^[0-9a-f]{16,}@|\.(png|jpe?g|gif|svg|webp|css|js|ico)$/i;
+  /* The store's own role addresses (support@strategytraining.com...) - never a whole domain:
+     the team signs in with firmsconsulting.com and strategytraining.com
+     addresses, while a footer's support@ address is no one's account. */
+  var NOT_MEMBER = /^(support|help|helpdesk|info|contact|hello|admin|noreply|no-reply|donotreply|do-not-reply|team|billing|sales|privacy|legal|press|care|service|notifications?|mailer|marketing|feedback|enquiries|inquiries)@([a-z0-9-]+\.)*(strategytraining|firmsconsulting)\.com$|@([a-z0-9-]+\.)*uscreen\.(io|tv|com)$|@([a-z0-9-]+\.)*(sentry\.io|sentry-cdn\.com|ingest\.[a-z0-9.-]+|sentry\.[a-z.]+)$|^[0-9a-f]{32}@|\.(png|jpe?g|gif|svg|webp|css|js|ico)$/i;
   var ACCOUNT_PAGES = ['/account/edit', '/account/settings', '/account/profile'];
 
   function candidates(text) {
