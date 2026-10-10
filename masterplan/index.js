@@ -199,6 +199,12 @@ router.use('/api', (req, res, next) => {
 });
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/* Strings in page code that look like emails but are no one's mailbox: asset
+   names (logo@2x.png) and machine addresses such as an error tracker's key
+   (4ed1...@o123.ingest.us.sentry.io). Accepting one would put every member
+   whose page carries it into one shared account. */
+const NOT_A_MAILBOX =
+  /\.(png|jpe?g|gif|svg|webp|css|js|ico)$|@([a-z0-9-]+\.)*(sentry\.io|sentry-cdn\.com|ingest\.[a-z0-9.-]+)$|^[0-9a-f]{16,}@/i;
 
 router.post('/api/session', async (req, res, next) => {
   try {
@@ -233,8 +239,8 @@ async function openSession(req, res) {
   }
 
   /* Results are emailed and owned by the account, so an email is required.
-     Asset names such as logo@2x.png look like emails; refuse them. */
-  if (!EMAIL_RE.test(useEmail) || useEmail.length > 320 || /\.(png|jpe?g|gif|svg|webp|css|js|ico)$/i.test(useEmail)) {
+     Strings that only look like emails are refused (NOT_A_MAILBOX). */
+  if (!EMAIL_RE.test(useEmail) || useEmail.length > 320 || NOT_A_MAILBOX.test(useEmail)) {
     return deny('no_email', 401);
   }
 
@@ -341,7 +347,7 @@ router.post('/api/devices/code', requireSession, wrap(async (req, res) => {
 router.post('/api/devices/link', requireAnySession, wrap(async (req, res) => {
   const code = typeof req.body?.code === 'string' ? req.body.code.slice(0, 20) : '';
   const ok = code && (await jobs.linkDevice(req.memberId, req.device, code));
-  if (!ok) return res.status(400).json({ error: 'That code is not right, or it has expired. Get a new code and try again.' });
+  if (!ok) return res.status(400).json({ error: 'That code is not right, it has expired, or it was made in a different account. Get a new code from a browser signed in to this same account.' });
   res.json({ ok: true, scope: 'full', token: mint(req.memberId, 'full', req.device) });
 }));
 

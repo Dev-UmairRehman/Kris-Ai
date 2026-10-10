@@ -149,6 +149,17 @@ test("an empty account cannot be used to read another member's shared MasterPlan
   assert.strictEqual(peek.status, 404);
 });
 
+test('addresses from page code are not an identity', async () => {
+  /* An account page with no email field once gave the page only an error
+     tracker's key from its scripts; every such member would have shared it. */
+  const deviceKey = 'k'.repeat(43);
+  for (const email of ['4ed12ab34cd56ef7890a1b2c3d4e5f60@o282387.ingest.us.sentry.io', 'abc@sentry.io', 'logo@2x.png']) {
+    const r = await call('POST', '/api/session', { signedIn: true, email, deviceKey });
+    assert.strictEqual(r.status, 401, email);
+    assert.strictEqual(r.data.reason, 'no_email', email);
+  }
+});
+
 test('a session without a device key is refused', async () => {
   const r = await call('POST', '/api/session', { signedIn: true, email: 'x@example.com' });
   assert.strictEqual(r.status, 400);

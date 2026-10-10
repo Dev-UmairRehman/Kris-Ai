@@ -127,12 +127,14 @@
   /* Picking the member's email must never guess: two members given the same
      guessed address would share one MasterPlan account.
        1. the value of the account form's email field;
-       2. otherwise the email-like strings on the account page, minus asset
-          names (logo@2x.png) and the store's own addresses - used only if
-          exactly one is left, or one of them is also shown in this page's
-          profile menu;
+       2. otherwise the email-like strings a person can SEE on the account
+          page (never its scripts, styles or links: a page's code carries
+          addresses such as an error tracker's, user@o123.ingest.sentry.io),
+          minus asset names (logo@2x.png), the store's own addresses and
+          machine addresses - used only if exactly one is left, or one of
+          them is also shown in this page's profile menu;
        3. otherwise nothing, and the member is asked to try again. */
-  var NOT_MEMBER = /@(strategytraining|firmsconsulting|uscreen|michael)\b|\.(png|jpe?g|gif|svg|webp|css|js|ico)$/i;
+  var NOT_MEMBER = /@(strategytraining|firmsconsulting|uscreen|michael)\b|@([a-z0-9-]+\.)*(sentry\.io|sentry-cdn\.com|ingest\.[a-z0-9.-]+|sentry\.[a-z.]+)$|^[0-9a-f]{16,}@|\.(png|jpe?g|gif|svg|webp|css|js|ico)$/i;
   function candidates(text) {
     var all = String(text || '').match(new RegExp(EMAIL_RE.source, 'g')) || [];
     var seen = {};
@@ -143,18 +145,42 @@
       return true;
     });
   }
+  /* The text a person sees, plus the values of email fields. */
+  var HIDDEN_TAGS = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, TEMPLATE: 1, SVG: 1, IFRAME: 1, HEAD: 1 };
+  function visibleText(doc) {
+    var root = doc && (doc.body || doc.documentElement);
+    if (!root) return '';
+    var out = [];
+    var walker = doc.createTreeWalker(root, 4 /* text */, {
+      acceptNode: function (n) {
+        for (var p = n.parentNode; p && p !== root; p = p.parentNode) {
+          if (HIDDEN_TAGS[String(p.nodeName).toUpperCase()]) return 2; // reject
+        }
+        return 1; // accept
+      },
+    });
+    for (var n = walker.nextNode(); n; n = walker.nextNode()) out.push(n.nodeValue);
+    Array.prototype.forEach.call(root.querySelectorAll('input[type="email"], input[name*="email"], input[id*="email"]'), function (i) {
+      out.push(i.value || i.getAttribute('value') || '');
+    });
+    return out.join(' ');
+  }
   function emailFromAccount(html) {
-    var field = html.match(/<input[^>]*(?:type="email"|(?:name|id)="[^"]*email[^"]*")[^>]*>/i);
-    var value = field && field[0].match(/value="([^"]*)"/i);
-    if (value && candidates(value[1]).length === 1) return value[1].trim();
-    var list = candidates(html);
+    var doc;
+    try { doc = new DOMParser().parseFromString(html, 'text/html'); } catch (e) { return ''; }
+    var field = doc.querySelector('input[type="email"], input[name*="email"], input[id*="email"]');
+    var value = field && (field.getAttribute('value') || '');
+    if (value && candidates(value).length === 1) return value.trim();
+    var list = candidates(visibleText(doc));
     if (list.length === 1) return list[0];
-    var onPage = candidates(document.body ? document.body.textContent : '').map(function (e) { return e.toLowerCase(); });
+    var onPage = candidates(visibleText(document)).map(function (e) { return e.toLowerCase(); });
     var both = list.filter(function (e) { return onPage.indexOf(e.toLowerCase()) !== -1; });
-    return both.length === 1 ? both[0] : '';
+    if (both.length === 1) return both[0];
+    /* Nothing on the account page: the profile menu of this page shows it. */
+    return list.length ? '' : emailOnPage();
   }
   function emailOnPage() {
-    var list = candidates(document.body ? document.body.textContent : '');
+    var list = candidates(visibleText(document));
     return list.length === 1 ? list[0] : '';
   }
 
@@ -243,6 +269,8 @@
     $('mp-app').hidden = true;
     $('mp-gate').hidden = true;
     $('mp-link').hidden = false;
+    $('link-who').hidden = !email;
+    $('link-who').textContent = email ? 'You are signed in as ' + email + '. A code made in another account will not work here.' : '';
     showError('link-err', '');
     $('link-code').focus();
   }
