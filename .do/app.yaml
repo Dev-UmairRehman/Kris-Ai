@@ -207,7 +207,7 @@ services:
 
       - key: MP_PAGE_URL
         scope: RUN_TIME
-        value: https://www.strategytraining.com/pages/masterplan
+        value: https://www.strategytraining.com/pages/masterplan-digital
 
       - key: MP_PER_MEMBER_PER_DAY
         scope: RUN_TIME

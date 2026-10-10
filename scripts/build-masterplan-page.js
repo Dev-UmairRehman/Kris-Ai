@@ -54,7 +54,7 @@ const out = `<!-- ==============================================================
      WHERE THIS GOES
      Uscreen admin > Marketing > Website > Landing Pages > + New page
        Page name:  MasterPlan Digital
-       Page URL:   masterplan             (live at /pages/masterplan;
+       Page URL:   masterplan-digital     (live at /pages/masterplan-digital;
                                            the "your MasterPlan is ready"
                                            email links there)
      Add a Custom HTML block, paste ALL of this file into it, publish.

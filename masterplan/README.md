@@ -89,7 +89,7 @@ Live test of the driver (writes a throwaway key and removes it):
 
 ## Uscreen page
 
-1. Marketing > Website > Landing Pages > new page, slug `masterplan` (live at /pages/masterplan; the email links there).
+1. Marketing > Website > Landing Pages > new page, slug `masterplan-digital` (live at /pages/masterplan-digital; the email links there).
 2. Paste `uscreen/masterplan-page.html` into its Custom HTML block.
 3. Add it to the menu next to Kris AI.
 

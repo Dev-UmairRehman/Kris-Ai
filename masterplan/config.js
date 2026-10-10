@@ -74,7 +74,7 @@ const config = {
   },
 
   /* Where members open their documents. Used in the email. */
-  pageUrl: str('MP_PAGE_URL', 'https://www.strategytraining.com/pages/masterplan'),
+  pageUrl: str('MP_PAGE_URL', 'https://www.strategytraining.com/pages/masterplan-digital'),
 
   /* Spend guards. One report is roughly a dozen model calls. */
   perMemberPerDay: int('MP_PER_MEMBER_PER_DAY', 2),
