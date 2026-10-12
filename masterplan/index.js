@@ -135,7 +135,8 @@ router.get('/healthz', (req, res) => {
     storage: config.storage.driver,
     model: config.anthropic.model,
     email: config.email.driver,
-    plansRequired: membership.enabled(),
+    plansRequired: membership.enabled() || config.pagePlanCheck === 'enforce',
+    planCheck: membership.enabled() ? 'Uscreen API' : 'store page /delphi (' + config.pagePlanCheck + ')',
   });
 });
 
