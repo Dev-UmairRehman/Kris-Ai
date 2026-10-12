@@ -46,6 +46,9 @@ const boot = {
   joinUrl: '/join',
   maxUploadBytes: 8 * 1024 * 1024,
   pdfjsVersion: require('pdfjs-dist/package.json').version,
+  /* A store page Uscreen opens only to members with a plan: the plan check
+     without an API key (app.js checkPlanPage). */
+  planPage: '/delphi',
 };
 
 const out = `<!-- ==========================================================================

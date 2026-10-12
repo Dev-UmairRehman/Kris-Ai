@@ -243,9 +243,20 @@ async function openSession(req, res) {
     return deny('no_email', 401);
   }
 
-  /* Only members with a StrategyTraining plan (membership.js). */
-  const plan = await membership.check(useEmail);
-  if (!plan.ok) return deny(plan.reason, plan.reason === 'verification_unavailable' ? 503 : 403);
+  /* Only members with a StrategyTraining plan. With the Uscreen API key the
+     server asks Uscreen (membership.js). Without it, the page asks the store
+     for a page Uscreen opens only to members with a plan (/delphi) and reports
+     yes / no / unknown; "no" is refused, anything else is let in, and older
+     copies of the page that do not ask are let in too. */
+  if (membership.enabled()) {
+    const plan = await membership.check(useEmail);
+    if (!plan.ok) return deny(plan.reason, plan.reason === 'verification_unavailable' ? 503 : 403);
+  } else if (config.pagePlanCheck !== 'off' && !membership.isStaff(useEmail)) {
+    const said = ['yes', 'no', 'unknown'].includes(req.body?.plan) ? req.body.plan : 'not asked';
+    const planVia = typeof req.body?.planVia === 'string' ? req.body.planVia.replace(/[^\w ,./>-]/g, '').slice(0, 80) : '';
+    console.log('[masterplan] plan from the store page: %s (%s)', said, planVia || '-');
+    if (config.pagePlanCheck === 'enforce' && said === 'no') return deny('not_subscribed', 403);
+  }
 
   const memberId = memberIdFor(useEmail);
   /* Express 4 does not catch a rejected promise, and an unhandled rejection

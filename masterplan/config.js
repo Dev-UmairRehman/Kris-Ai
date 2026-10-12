@@ -93,6 +93,11 @@ const config = {
       .filter(Boolean),
   },
 
+  /* Without the API key: the store page's own answer (index.js). enforce
+     refuses a member the store turns away from the plan page; observe only
+     logs; off ignores it. */
+  pagePlanCheck: str('MP_PAGE_PLAN_CHECK', 'enforce'),
+
   /* Spend guards. One report is roughly a dozen model calls. */
   perMemberPerDay: int('MP_PER_MEMBER_PER_DAY', 2),
   globalPerDay: int('MP_GLOBAL_PER_DAY', 40),

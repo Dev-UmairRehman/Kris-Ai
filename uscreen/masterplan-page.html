@@ -461,7 +461,7 @@
   </div>
 </div>
 
-<script>window.MP_BOOT = {"mode":"page","apiOrigin":"https://kris-ai-memory-baefm.ondigitalocean.app","ready":true,"signInUrl":"/sign_in","joinUrl":"/join","maxUploadBytes":8388608,"pdfjsVersion":"6.4.299"};</script>
+<script>window.MP_BOOT = {"mode":"page","apiOrigin":"https://kris-ai-memory-baefm.ondigitalocean.app","ready":true,"signInUrl":"/sign_in","joinUrl":"/join","maxUploadBytes":8388608,"pdfjsVersion":"6.4.299","planPage":"/delphi"};</script>
 <script>
 'use strict';
 
@@ -650,7 +650,7 @@
   }
 
   function getPage(url, asHtml) {
-    var opts = { credentials: 'same-origin', redirect: 'follow' };
+    var opts = { credentials: 'same-origin', redirect: 'follow', cache: 'no-store' };
     if (asHtml) opts.headers = { Accept: 'text/html,application/xhtml+xml' };
     return fetch(url, opts).then(function (res) {
       var path = '';
@@ -778,6 +778,29 @@
     });
   }
 
+  /* Does this member have a plan? Asked of the store itself: a page Uscreen
+     opens only to members with a plan (the Kris AI page, /delphi). Staying
+     on it means yes; being sent elsewhere means no. Anything unclear is
+     "unknown", and the server lets "unknown" in rather than lock out a paying
+     member. */
+  function checkPlanPage() {
+    var want = String(BOOT.planPage || '').replace(/\/+$/, '');
+    if (!PAGE || !want) return Promise.resolve({ plan: 'unknown', planVia: 'no plan page' });
+    return fetch(want, { credentials: 'same-origin', redirect: 'follow', cache: 'no-store' }).then(function (res) {
+      /* Where the store left us. The home page is "/" - never "", which would
+         read as "no information" and let a member without a plan through. */
+      var path = null;
+      try { path = new URL(res.url, location.href).pathname.replace(/\/+$/, '') || '/'; } catch (e) { /* ignore */ }
+      if (res.status === 401 || res.status === 403) return { plan: 'no', planVia: want + ' ' + res.status };
+      if (path !== null && path !== want) return { plan: 'no', planVia: want + ' -> ' + path };
+      if (path === null && res.redirected) return { plan: 'unknown', planVia: want + ' redirected' };
+      if (res.ok) return { plan: 'yes', planVia: want + ' 200' };
+      return { plan: 'unknown', planVia: want + ' ' + res.status };
+    }, function () {
+      return { plan: 'unknown', planVia: want + ' unreachable' };
+    });
+  }
+
   var attempts = 0;
   var lastIdentity = {};
   function startSession(identity) {
@@ -785,7 +808,15 @@
     lastIdentity = identity || {};
     var claim = {};
     for (var k in identity) claim[k] = identity[k];
-    return api('POST', '/api/session', claim).then(function (r) {
+    var planned = PAGE && claim.signedIn && !claim.plan ? checkPlanPage() : Promise.resolve({});
+    return planned.then(function (p) {
+      if (p.plan) {
+        claim.plan = p.plan;
+        claim.planVia = p.planVia;
+        try { console.log('[st-mp] plan=' + p.plan + ' via ' + p.planVia); } catch (e) { /* no console */ }
+      }
+      return api('POST', '/api/session', claim);
+    }).then(function (r) {
       if (r.ok && r.data.ok) {
         token = r.data.token;
         email = r.data.email || '';

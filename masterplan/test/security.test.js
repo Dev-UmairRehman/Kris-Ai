@@ -153,3 +153,15 @@ test('addresses from page code are not an identity', async () => {
     assert.strictEqual(r.data.reason, 'no_email', email);
   }
 });
+
+test('without the API key, the store page decides: no plan is refused, unclear is let in', async () => {
+  const say = (email, plan) => call('POST', '/api/session', { signedIn: true, email, ...(plan ? { plan, planVia: '/delphi test' } : {}) });
+  const free = await say('free.member@example.com', 'no');
+  assert.strictEqual(free.status, 403);
+  assert.strictEqual(free.data.reason, 'not_subscribed');
+  assert.ok(free.data.joinUrl, 'the page gets the link to choose a plan');
+  for (const plan of ['yes', 'unknown', null]) {
+    assert.strictEqual((await say('paid.member@example.com', plan)).status, 200, 'plan=' + plan);
+  }
+  assert.strictEqual((await say('kris@firmsconsulting.com', 'no')).status, 200, 'the team always gets in');
+});

@@ -70,6 +70,15 @@ If Uscreen is down members are let in; if it refuses the key nobody is, and
 the log says why. Off until `MP_USCREEN_API_KEY` is set; `/masterplan/healthz`
 shows `plansRequired`.
 
+Until the key is set, the page asks the store itself: it requests `/delphi`
+(the Kris AI page, which Uscreen opens only to members with a plan) with the
+member's own login. Staying on `/delphi` means a plan; being sent elsewhere
+(`/`, `/join`) means none and the member is refused. Errors and unclear answers
+let the member in. `MP_PAGE_PLAN_CHECK` = `enforce` (default) | `observe` (log
+only) | `off`. Each answer is logged as `plan from the store page: yes|no|unknown`.
+It runs in the browser, so a technical user could fake it; the API key is the
+proof.
+
 ## Who is signed in
 
 The page asks the store (`GET /account`) and takes the member's email from, in
