@@ -80,7 +80,7 @@ const config = {
      set; MasterPlan's own key, so Kris AI's settings are untouched. */
   membership: {
     apiKey: str('MP_USCREEN_API_KEY', ''),
-    apiBase: str('MP_USCREEN_API_BASE', 'https://uscreen.io/publisher_api/v1').replace(/\/+$/, ''),
+    apiBase: str('MP_USCREEN_API_BASE', 'https://www.uscreen.io/publisher_api/v1').replace(/\/+$/, ''),
     timeoutMs: int('MP_USCREEN_TIMEOUT_MS', 6000),
     /* Empty: any active recurring plan counts. Otherwise only these product IDs. */
     planProductIds: str('MP_PLAN_PRODUCT_IDS', '')
