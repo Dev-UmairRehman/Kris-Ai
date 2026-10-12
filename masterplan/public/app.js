@@ -353,7 +353,7 @@
     var signedOut = reason === 'no_identity_from_store' && !lastIdentity.signedIn;
     var text;
     if (signedOut || reason === 'signed_out') text = 'Sign in to your StrategyTraining account to use the MasterPlan.';
-    else if (reason === 'not_subscribed' || reason === 'customer_not_found') text = 'The MasterPlan is part of a StrategyTraining membership.';
+    else if (reason === 'not_subscribed' || reason === 'customer_not_found') text = 'The MasterPlan is included with a StrategyTraining plan. Choose a plan, then come back to this page to create yours.';
     else if (reason === 'not_configured') text = 'The MasterPlan is being set up. Please check back soon.';
     else if (reason === 'no_email') text = 'You are signed in, but we could not read the email on your account. Open your account menu (your picture, top right) and this page continues by itself, or press Try again.';
     else if (reason === 'expired') text = 'Your session has expired. Press Try again to continue.';
@@ -366,6 +366,7 @@
     var offerSignIn = signedOut || reason === 'signed_out' || reason === 'not_subscribed' || reason === 'customer_not_found';
     $('mp-signin').hidden = !offerSignIn || reason === 'not_subscribed' || reason === 'customer_not_found';
     $('mp-join').hidden = !offerSignIn;
+    $('mp-join').textContent = reason === 'not_subscribed' || reason === 'customer_not_found' ? 'Choose a plan' : 'Join';
     $('mp-retry').hidden = offerSignIn;
   }
 

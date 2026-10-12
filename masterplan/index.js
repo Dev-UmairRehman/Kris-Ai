@@ -29,6 +29,7 @@ const express = require('express');
 const rootConfig = require('../lib/config');
 const auth = require('../lib/auth');
 const uscreen = require('../lib/uscreen');
+const membership = require('./membership');
 const config = require('./config');
 
 const router = express.Router();
@@ -134,6 +135,7 @@ router.get('/healthz', (req, res) => {
     storage: config.storage.driver,
     model: config.anthropic.model,
     email: config.email.driver,
+    plansRequired: membership.enabled(),
   });
 });
 
@@ -241,19 +243,9 @@ async function openSession(req, res) {
     return deny('no_email', 401);
   }
 
-  /* Where the store's Uscreen API is configured, the email must also belong to
-     an active subscriber. Only a clear "no" from Uscreen refuses; a Uscreen
-     outage does not lock members out. */
-  if (rootConfig.gateMode !== 'strict' && rootConfig.uscreen.apiBase && rootConfig.uscreen.apiKey) {
-    try {
-      const verdict = await uscreen.verifySubscriber(useEmail);
-      if (!verdict.ok && (verdict.reason === 'not_subscribed' || verdict.reason === 'customer_not_found')) {
-        return deny(verdict.reason, 403);
-      }
-    } catch (err) {
-      console.warn('[masterplan] uscreen check unavailable:', err.message);
-    }
-  }
+  /* Only members with a StrategyTraining plan (membership.js). */
+  const plan = await membership.check(useEmail);
+  if (!plan.ok) return deny(plan.reason, plan.reason === 'verification_unavailable' ? 503 : 403);
 
   const memberId = memberIdFor(useEmail);
   /* Express 4 does not catch a rejected promise, and an unhandled rejection
@@ -319,6 +311,15 @@ router.post('/api/reports', requireSession, wrap(async (req, res) => {
 
   const s = readToken(req);
   const member = await jobs.getMember(s.sub);
+  /* Writing costs money: the plan is checked again here, not only at sign-in
+     (a plan can lapse during a four-hour session). */
+  const plan = await membership.check(member && member.email);
+  if (!plan.ok) {
+    return res.status(403).json({
+      error: 'Creating a MasterPlan is part of a StrategyTraining plan. Choose a plan, then try again.',
+      reason: plan.reason,
+    });
+  }
   const meta = await jobs.createReport({ memberId: req.memberId, email: member && member.email, form });
   res.status(202).json({ ok: true, report: { id: meta.id, status: meta.status } });
 }));

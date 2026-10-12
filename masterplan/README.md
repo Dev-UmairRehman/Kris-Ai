@@ -58,6 +58,18 @@ their own, so an empty account cannot be used to look around. Enforced on the
 server (`jobs.canView`), not in the page, and proven through the real routes in
 `test/security.test.js`.
 
+## Who may use it
+
+Only members with a StrategyTraining plan (`membership.js`), checked against
+Uscreen's Publisher API at sign-in and again when a MasterPlan is created:
+an active, unpaused subscription (`GET /customers/{email}/subscription`) or
+an active recurring access (`/accesses`, for plans assigned by an admin).
+Without one, the page says the MasterPlan comes with a plan and offers
+**Choose a plan**. The team's domains (`MP_STAFF_DOMAINS`) always get in.
+If Uscreen is down members are let in; if it refuses the key nobody is, and
+the log says why. Off until `MP_USCREEN_API_KEY` is set; `/masterplan/healthz`
+shows `plansRequired`.
+
 ## Who is signed in
 
 The page asks the store (`GET /account`) and takes the member's email from, in

@@ -76,6 +76,23 @@ const config = {
   /* Where members open their documents. Used in the email. */
   pageUrl: str('MP_PAGE_URL', 'https://www.strategytraining.com/pages/masterplan-digital'),
 
+  /* Only members with a plan get in (membership.js). Off until the key is
+     set; MasterPlan's own key, so Kris AI's settings are untouched. */
+  membership: {
+    apiKey: str('MP_USCREEN_API_KEY', ''),
+    apiBase: str('MP_USCREEN_API_BASE', 'https://uscreen.io/publisher_api/v1').replace(/\/+$/, ''),
+    timeoutMs: int('MP_USCREEN_TIMEOUT_MS', 6000),
+    /* Empty: any active recurring plan counts. Otherwise only these product IDs. */
+    planProductIds: str('MP_PLAN_PRODUCT_IDS', '')
+      .split(',')
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isFinite(n) && n > 0),
+    staffDomains: str('MP_STAFF_DOMAINS', 'firmsconsulting.com,strategytraining.com')
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean),
+  },
+
   /* Spend guards. One report is roughly a dozen model calls. */
   perMemberPerDay: int('MP_PER_MEMBER_PER_DAY', 2),
   globalPerDay: int('MP_GLOBAL_PER_DAY', 40),
