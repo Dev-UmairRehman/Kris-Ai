@@ -114,6 +114,16 @@ const config = {
     /* How much the top end of each voice is softened (0 to 1), against the speech model's sizzle. */
     softenA: Math.min(1, Math.max(0, Number(process.env.MP_PODCAST_SOFTEN_A || 0.35))),
     softenB: Math.min(1, Math.max(0, Number(process.env.MP_PODCAST_SOFTEN_B || 0.35))),
+    /* Google's two-speaker speech (podcast-gemini.js), used when the key is set: the closest to NotebookLM. */
+    gemini: {
+      apiKey: str('MP_GEMINI_API_KEY', ''),
+      model: str('MP_GEMINI_TTS_MODEL', 'gemini-2.5-pro-preview-tts'),
+      voiceA: str('MP_GEMINI_VOICE_A', 'Puck'),
+      voiceB: str('MP_GEMINI_VOICE_B', 'Aoede'),
+      /* Dollars per million tokens, for the cost log and the daily ceiling. */
+      inputPerMillion: Number(process.env.MP_GEMINI_TTS_INPUT_PER_M || 1),
+      outputPerMillion: Number(process.env.MP_GEMINI_TTS_OUTPUT_PER_M || 20),
+    },
   },
 
   /* Brand line in every PDF footer, as the client asked: "Produced on

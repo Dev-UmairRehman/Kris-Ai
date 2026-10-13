@@ -34,6 +34,7 @@ const { Worker } = require('worker_threads');
 const path = require('path');
 const config = require('./config');
 const llm = require('./llm');
+const gemini = require('./podcast-gemini');
 
 const SAMPLE_RATE = 24000; // the speech model's PCM output
 
@@ -281,7 +282,7 @@ function windowRms(s, from) {
 /* The speech in a clip, without the silence the model puts around it, at the
    same loudness as every other clip, with tiny fades so a cut never clicks. */
 function prepareClip(buf, opts = {}) {
-  const s = shortenPauses(asInt16(buf));
+  const s = opts.keepPauses ? asInt16(buf) : shortenPauses(asInt16(buf));
   let first = -1;
   let last = -1;
   let sum = 0;
@@ -373,10 +374,12 @@ function rng(seed) {
  * mono PCM in a fresh ArrayBuffer (handed to the encoder, not copied).
  *   lines[i]   turn i's speech; reacts[i] the other host's reaction under it
  */
-function mixEpisode(turns, lines, reacts) {
+function mixEpisode(turns, lines, reacts, opts = {}) {
   const rand = rng(turns.length * 7919 + (turns[0] ? turns[0].text.length : 0));
   const sec = (x) => Math.round(x * SAMPLE_RATE);
-  const tone = (host) => ({ soften: host === 'B' ? config.podcast.softenB : config.podcast.softenA });
+  /* Gemini parts are a conversation already: only levelled and joined. */
+  const natural = !!opts.natural;
+  const tone = (host) => (natural ? { keepPauses: true } : { soften: host === 'B' ? config.podcast.softenB : config.podcast.softenA });
   const clips = lines.map((l, i) => prepareClip(l, tone(turns[i].host)));
   const under = (reacts || []).map((r) => (r ? prepareClip(r, { soften: 0.8 }) : null));
 
@@ -387,7 +390,8 @@ function mixEpisode(turns, lines, reacts) {
     if (i) {
       const prevLen = clips[i - 1].length;
       let gap;
-      if (turns[i].cut) gap = -Math.min(sec(0.3 + rand() * 0.25), Math.round(prevLen * 0.35));
+      if (natural) gap = sec(0.22);
+      else if (turns[i].cut) gap = -Math.min(sec(0.3 + rand() * 0.25), Math.round(prevLen * 0.35));
       else if (rand() < 0.25) gap = -sec(rand() * 0.12); // latching on: the next one starts as the last word ends
       else if (/\?$/.test(turns[i - 1].text)) gap = sec(0.06 + rand() * 0.14);
       else if (turns[i].text.split(' ').length <= 3) gap = sec(0.03 + rand() * 0.1);
@@ -426,7 +430,7 @@ function mixEpisode(turns, lines, reacts) {
      read from the dry signal by working backwards. */
   const d1 = sec(0.023);
   const d2 = sec(0.037);
-  for (let j = total - 1; j >= d2; j--) {
+  for (let j = total - 1; j >= d2 && !natural; j--) {
     const v = mix[j] + mix[j - d1] * 0.09 + mix[j - d2] * 0.06;
     mix[j] = v > 32767 ? 32767 : v < -32768 ? -32768 : v;
   }
@@ -470,12 +474,21 @@ async function makePodcast({ name, narrative, article, usage, log }) {
   const script = await writeScript(name, narrative, article, usage);
   const count = script.turns.reduce((n, t) => n + t.text.split(/\s+/).length, 0);
   if (log) log('podcast script: ' + script.turns.length + ' turns, ' + count + ' words, ' + script.turns.filter((t) => t.react).length + ' reactions, ' + script.turns.filter((t) => t.cut).length + ' cut-ins');
-  const { lines, reacts } = await voiceAll(script.turns, usage);
-  const { mp3, seconds } = await encodeMp3(mixEpisode(script.turns, lines, reacts));
+  let mix;
+  if (gemini.available()) {
+    const parts = await gemini.voiceAll(script.turns, usage);
+    if (log) log('podcast voiced by ' + config.podcast.gemini.model + ' in ' + parts.length + ' parts');
+    mix = mixEpisode(parts.map(() => ({ host: 'A', text: '' })), parts, null, { natural: true });
+  } else {
+    const { lines, reacts } = await voiceAll(script.turns, usage);
+    mix = mixEpisode(script.turns, lines, reacts);
+  }
+  const { mp3, seconds } = await encodeMp3(mix);
   return { mp3, seconds, title: script.title, script };
 }
 
 function available() {
+  /* The script always comes through OpenRouter; the voices from Gemini when its key is set, else OpenRouter. */
   return config.podcast.enabled && config.anthropic.provider === 'openrouter' && !!config.anthropic.openrouterKey;
 }
 

@@ -89,3 +89,51 @@ test('a reading that adds or drops words is caught', () => {
   assert.strictEqual(podcast.readFaithfully(line, 'The other host just said the tape is good. ' + line + ' And honestly I agree with every word of it.'), false);
   assert.strictEqual(podcast.readFaithfully(line, 'The documents suggest.'), false);
 });
+
+/* ---- Google's two-speaker voices (podcast-gemini.js), the API stubbed ---- */
+
+test('with a Gemini key the episode is voiced by Google in parts, both hosts per request', async () => {
+  const config = require('../config');
+  const gemini = require('../podcast-gemini');
+  const llm = require('../llm');
+  const g = config.podcast.gemini;
+  const saved = { key: g.apiKey, fetch: global.fetch, generate: llm.generate };
+  g.apiKey = 'test-key';
+  const sent = [];
+  global.fetch = async (url, opts) => {
+    assert.match(String(url), /generativelanguage\.googleapis\.com\/v1beta\/models\/.+:generateContent$/);
+    assert.strictEqual(opts.headers['x-goog-api-key'], 'test-key');
+    const body = JSON.parse(opts.body);
+    sent.push(body);
+    const pcm = Buffer.alloc(RATE * 2 * 3);
+    for (let i = 0; i < pcm.length / 2; i++) pcm.writeInt16LE(Math.round(Math.sin(i / 9) * 5000), i * 2);
+    return new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ inlineData: { mimeType: 'audio/L16;rate=24000', data: pcm.toString('base64') } }] } }],
+      usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 3000 },
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  const long = (n) => Array.from({ length: n }, (_, i) => 'word' + i).join(' ');
+  const turns = [];
+  for (let i = 0; i < 24; i++) turns.push({ host: i % 2 ? 'B' : 'A', text: long(40), react: i === 2 ? 'Mm-hmm.' : undefined });
+  llm.generate = async () => ({ text: '```json\n' + JSON.stringify({ title: 'Camp or Cage', turns }) + '\n```', usage: {} });
+  try {
+    const usage = {};
+    const ep = await podcast.makePodcast({ name: 'Ana', narrative: 'n', article: 'a', usage });
+    assert.ok(sent.length >= 3, 'about 960 words go out in parts of about two minutes: ' + sent.length);
+    const first = sent[0];
+    assert.deepStrictEqual(first.generationConfig.responseModalities, ['AUDIO']);
+    const voices = first.generationConfig.speechConfig.multiSpeakerVoiceConfig.speakerVoiceConfigs;
+    assert.deepStrictEqual(voices.map((v) => v.speaker), [gemini.SPEAKERS.A, gemini.SPEAKERS.B]);
+    const text = first.contents[0].parts[0].text;
+    assert.match(text, /\nAlex: word0/);
+    assert.match(text, /Sam: Mm-hmm\. word0/, 'a reaction opens the other host\'s next turn');
+    assert.match(sent[1].contents[0].parts[0].text, /continues a conversation already under way/);
+    assert.ok(Math.abs(usage.cost_usd - sent.length * (1000 * 1 + 3000 * 20) / 1e6) < 1e-9, 'cost from the token counts');
+    assert.ok(ep.seconds >= sent.length * 3, 'every part is in the episode: ' + ep.seconds + ' s');
+    assert.strictEqual(ep.mp3.slice(0, 3).toString('latin1') === 'ID3' || ep.mp3[0] === 0xff, true, 'an MP3');
+  } finally {
+    g.apiKey = saved.key;
+    global.fetch = saved.fetch;
+    llm.generate = saved.generate;
+  }
+});
