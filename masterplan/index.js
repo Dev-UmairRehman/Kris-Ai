@@ -390,4 +390,5 @@ function boot() {
   jobs.resumeActive().catch((err) => console.error('[masterplan] could not resume active reports:', err.message));
 }
 
-module.exports = { router, boot };
+/* requireSession: Your Marketing Agency (agency/) uses the same member login. */
+module.exports = { router, boot, requireSession, ready };

@@ -1,0 +1,1655 @@
+<!-- ==========================================================================
+     StrategyTraining.com - YOUR MARKETING AGENCY page
+
+     WHERE THIS GOES
+     Uscreen admin > Marketing > Website > Landing Pages > + New page
+       Page name:  Your Marketing Agency
+       Page URL:   your-marketing-agency   (live at /pages/your-marketing-agency)
+     Add a Custom HTML block, paste ALL of this file into it, publish.
+     NOT into Settings > Snippets > Head Code.
+
+     WHAT IT IS
+     Members with a plan (same login as MasterPlan Digital) answer questions
+     about their life, in writing or recorded. Their answers build a brand
+     identity profile and a story bank, and become Shorts, Reels, posts and
+     covers in their own voice. It talks to the server at https://kris-ai-memory-baefm.ondigitalocean.app.
+
+     GENERATED FILE - do not edit by hand. Built by "npm run build:agency-page".
+     ========================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;800&display=swap">
+
+<style>
+/* MasterPlan Digital - the look the client showed: an editorial page on
+   white, a light serif headline (Cormorant Garamond), Inter for everything
+   else, small spaced-out grey labels, underline-only fields and one navy
+   button. Everything is scoped under .mp so it can sit inside the
+   StrategyTraining page without touching the store's header and footer. */
+
+.mp {
+  --ink: #16181d;
+  --ink-2: #3d414b;
+  --ink-3: #6e727c;
+  --line: #dcdee4;
+  --field: #cfd2da;
+  --soft: #f4f5f8;
+  --paper: #fff;
+  --navy: #1c2541;
+  --navy-2: #2a355a;
+  --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --sans: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.mp, .mp *, .mp *::before, .mp *::after { box-sizing: border-box; }
+.mp { font: 17px/1.65 var(--sans); color: var(--ink); background: var(--paper); -webkit-font-smoothing: antialiased; text-align: left; }
+/* :where() keeps these resets at the lowest priority, under every .mp-* rule. */
+:where(.mp) :where(h1, h2, h3, p, ol, ul) { letter-spacing: normal; text-transform: none; color: inherit; margin: 0; padding: 0; }
+:where(.mp) :where(button, input, select, textarea) { font-family: var(--sans); }
+:where(.mp) a { color: inherit; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.mp [hidden], .mp[hidden] { display: none !important; }
+.mp-preview { margin: 0 0 22px; padding: 10px 14px; border: 1px dashed var(--ink-3); font-size: 15px; color: var(--ink-2); }
+
+.mp { max-width: 760px; margin: 0 auto; padding: 40px 24px 64px; }
+/* On the store page the white runs the full width and fills the space between
+   the store's header and footer. Sideways shadows (no blur, no spread) paint
+   white copies of the column to its left and right: they never change the
+   layout, catch no clicks and cannot add a horizontal scrollbar. */
+.mp.is-page {
+  min-height: calc(100vh - 210px);
+  box-shadow:
+    -600px 0 0 var(--paper), 600px 0 0 var(--paper),
+    -1200px 0 0 var(--paper), 1200px 0 0 var(--paper),
+    -1800px 0 0 var(--paper), 1800px 0 0 var(--paper),
+    -2400px 0 0 var(--paper), 2400px 0 0 var(--paper);
+}
+
+.mp-boot { padding: 80px 0; text-align: center; color: var(--ink-3); }
+.mp:not(.is-booting) .mp-boot { display: none; }
+
+/* ---- type ---- */
+.mp-kicker { margin: 0 0 18px; font: 500 13px/1.4 var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); }
+.mp-title { margin: 0 0 22px; font: 500 54px/1.08 var(--serif); letter-spacing: -.005em; color: var(--ink); }
+.mp-title-sm { font-size: 42px; }
+.mp-lede { margin: 0 0 30px; font: 18px/1.7 var(--sans); color: var(--ink-2); }
+.mp-label { margin: 0 0 12px; font: 500 13px/1.4 var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); }
+.mp-optional { letter-spacing: 0; text-transform: none; font-size: 13px; color: var(--ink-3); }
+.mp-help { margin: 10px 0 30px; font-size: 14.5px; line-height: 1.6; color: var(--ink-3); }
+.mp-hint { margin: 6px 0 12px; font-size: 15px; color: var(--ink-3); }
+.mp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- what you receive ---- */
+.mp-receive { margin: 8px 0 0; }
+.mp-receive-list { list-style: none; margin: 0; padding: 0; counter-reset: rcv; }
+.mp-receive-list li { position: relative; counter-increment: rcv; padding: 0 0 14px 26px; font-size: 16.5px; line-height: 1.55; color: var(--ink-2); }
+.mp-receive-list li::before { content: counter(rcv); position: absolute; left: 0; top: 4px; font: 500 12px/1 var(--sans); color: var(--ink-3); }
+.mp-receive-list strong { font-weight: 500; color: var(--ink); }
+
+/* ---- the form ---- */
+.mp-intro { padding-bottom: 34px; margin-bottom: 34px; border-bottom: 1px solid var(--line); }
+.mp-form { margin: 0; }
+.mp-drop {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  min-height: 88px; padding: 18px; background: var(--soft); border: 1px solid var(--field); cursor: pointer; text-align: center;
+  transition: background .15s, border-color .15s;
+}
+.mp-drop:hover, .mp-drop.is-over { background: #eceef4; border-color: var(--navy); }
+.mp-drop.has-file { background: #fff; border-color: var(--navy); }
+.mp-drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.mp-drop-main { font-size: 16px; color: var(--ink); }
+.mp-drop-sub { font-size: 13.5px; color: var(--ink-3); }
+.mp-drop.has-file .mp-drop-main { font-weight: 500; }
+
+.mp-profiles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 26px; }
+.mp-line input {
+  width: 100%; padding: 10px 0 8px; border: 0; border-bottom: 1px solid var(--field); border-radius: 0; background: transparent;
+  font: 16.5px var(--sans); color: var(--ink);
+}
+.mp-line input::placeholder { color: var(--ink-3); }
+.mp-line input:focus { outline: none; border-bottom-color: var(--navy); box-shadow: 0 1px 0 0 var(--navy); }
+.mp-line input[aria-invalid="true"] { border-bottom-color: #b42318; }
+
+.mp-more { margin: 16px 0 0; }
+.mp-more summary { cursor: pointer; font-size: 14.5px; color: var(--ink-3); text-decoration: underline; text-underline-offset: 3px; }
+.mp-more textarea {
+  width: 100%; margin-top: 10px; padding: 10px 12px; border: 1px solid var(--field); border-radius: 0; resize: vertical;
+  font: 16px/1.5 var(--sans); color: var(--ink);
+}
+.mp-more textarea:focus { outline: 1px solid var(--navy); border-color: var(--navy); }
+
+.mp-check { display: flex; gap: 10px; align-items: flex-start; margin: 28px 0 0; font-size: 15px; line-height: 1.55; color: var(--ink-2); cursor: pointer; }
+.mp-check input { width: 17px; height: 17px; margin: 3px 0 0; accent-color: var(--navy); flex: none; }
+.mp-note { margin: 22px 0 26px; font-size: 14.5px; line-height: 1.65; color: var(--ink-2); }
+.mp-foot { margin: 40px 0 0; font-size: 13.5px; color: var(--ink-3); }
+.mp-foot a { color: var(--ink-3); }
+
+.mp-error { margin: 0 0 18px; padding: 10px 12px; border-left: 2px solid #b42318; background: #fdf3f2; font-size: 15px; color: #6c1d16; }
+
+/* ---- buttons ---- */
+.mp-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 14px 30px; border: 1px solid var(--navy); border-radius: 0; background: var(--navy); color: #fff !important;
+  font: 500 15.5px var(--sans); text-decoration: none !important; cursor: pointer;
+}
+.mp-btn:hover { background: var(--navy-2); }
+.mp-btn:disabled { opacity: .5; cursor: default; }
+.mp-btn-ghost { background: #fff; color: var(--navy) !important; }
+.mp-btn-ghost:hover { background: var(--soft); }
+.mp-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 40px; }
+.mp-link { appearance: none; border: 0; background: none; padding: 0; font: inherit; font-size: 15px; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.mp-link:hover { color: var(--ink); }
+.mp-icon { appearance: none; width: 32px; height: 32px; border: 1px solid var(--line); background: #fff; font-size: 17px; cursor: pointer; }
+
+/* ---- the three views of the tool ---- */
+.mp-tabs { display: flex; justify-content: center; justify-content: safe center; gap: 40px; margin: 0 0 40px; padding-bottom: 0; border-bottom: 1px solid var(--line); }
+.mp-tabs button {
+  appearance: none; border: 0; background: none; padding: 6px 0 14px; margin-bottom: -1px; border-bottom: 2px solid transparent;
+  font: 600 15px/1.4 var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); cursor: pointer; white-space: nowrap;
+}
+.mp-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.mp-tabs button:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+.mp-count { display: inline-block; min-width: 16px; padding: 0 5px; margin-left: 4px; border-radius: 9px; background: var(--navy); color: #fff; font-size: 12px; line-height: 18px; letter-spacing: 0; text-align: center; }
+
+/* ---- signed out / link ---- */
+.mp-gate { padding: 8px 0 0; }
+.mp-gate-text { margin: 0 0 22px; font-size: 17.5px; color: var(--ink); }
+
+/* ---- generating ---- */
+.mp-gen { list-style: none; margin: 4px 0 22px; padding: 0; }
+.mp-gen li { position: relative; padding: 11px 0 11px 32px; border-bottom: 1px solid var(--line); color: var(--ink-3); font-size: 16.5px; }
+.mp-gen li::before { content: ''; position: absolute; left: 0; top: 15px; width: 16px; height: 16px; border: 1px solid var(--field); border-radius: 50%; }
+.mp-gen li.is-current { color: var(--ink); font-weight: 500; }
+.mp-gen li.is-current::before { border: 2px solid var(--navy); border-right-color: transparent; animation: mp-spin 0.9s linear infinite; }
+.mp-gen li.is-done { color: var(--ink); }
+.mp-gen li.is-done::before { content: '✓'; background: var(--navy); border-color: var(--navy); color: #fff; font-size: 10px; line-height: 16px; text-align: center; }
+@keyframes mp-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .mp-gen li.is-current::before { animation: none; } }
+.mp-progress { height: 2px; margin-top: 14px; background: var(--line); overflow: hidden; }
+.mp-progress span { display: block; height: 100%; background: var(--navy); transition: width .6s; }
+.mp-progress-lg { height: 3px; margin: 0 0 18px; }
+.mp-gen-view .mp-error { margin-top: 4px; }
+.mp-gen-nav { display: flex; gap: 22px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
+
+/* ---- lists ---- */
+.mp-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.mp-item { padding: 20px 0; border-bottom: 1px solid var(--line); }
+.mp-item-top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.mp-item h3 { margin: 0; font: 500 28px/1.2 var(--serif); }
+.mp-item .mp-sub { margin: 4px 0 0; font-size: 15px; color: var(--ink-3); }
+.mp-docs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.mp-doc {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 220px;
+  padding: 14px 18px; border: 1px solid var(--navy); background: #fff; color: var(--ink);
+  font: 500 16px/1.3 var(--sans); text-align: left; cursor: pointer;
+}
+.mp-doc:hover { background: var(--soft); }
+.mp-doc small { font-weight: 400; color: var(--ink-3); font-size: 14px; }
+.mp-doc[disabled] { border-color: var(--line); color: var(--ink-3); cursor: default; background: #fff; }
+
+.mp-status { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; color: var(--ink-2); white-space: nowrap; }
+.mp-status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--navy); }
+.mp-status.is-busy .dot { animation: mp-pulse 1.2s ease-in-out infinite; }
+.mp-status.is-failed .dot { background: #fff; border: 1.5px solid var(--ink-2); }
+@keyframes mp-pulse { 50% { opacity: .2; } }
+@media (prefers-reduced-motion: reduce) { .mp-status.is-busy .dot { animation: none; } }
+.mp-item-foot { display: flex; gap: 18px; margin-top: 12px; }
+
+.mp-empty, .mp-optin { padding: 12px 0 36px; }
+.mp-empty p, .mp-optin p { max-width: 600px; margin: 0 0 18px; font-size: 17.5px; line-height: 1.65; color: var(--ink-2); }
+.mp-optin h2 { margin: 0 0 10px; font: 500 38px/1.15 var(--serif); }
+.mp-libbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+.mp-empty-line { color: var(--ink-3); padding: 16px 0; }
+
+/* ---- viewer ---- */
+.mp-viewer { position: fixed; inset: 0; z-index: 2147483000; display: flex; flex-direction: column; background: #e9eaee; }
+.mp-vbar { display: flex; align-items: center; gap: 16px; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--line); }
+.mp-vtitle { flex: 1; margin: 0; font: 500 22px var(--serif); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-vtools { display: flex; align-items: center; gap: 6px; }
+.mp-vpage { min-width: 90px; text-align: right; font-size: 14.5px; color: var(--ink-3); }
+.mp-vpages { flex: 1; overflow: auto; padding: 20px 12px 40px; -webkit-overflow-scrolling: touch; }
+.mp-page { position: relative; margin: 0 auto 16px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
+.mp-page canvas { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.mp-vmsg { padding: 60px 20px; text-align: center; color: var(--ink-2); }
+
+/* ---- podcast ---- */
+.mp-doc.is-busy small::after { content: ''; display: inline-block; width: 6px; height: 6px; margin-left: 7px; border-radius: 50%; background: var(--navy); vertical-align: 1px; animation: mp-pulse 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .mp-doc.is-busy small::after { animation: none; } }
+
+.mp-player {
+  position: fixed; inset: 0; z-index: 2147483000; display: flex; align-items: center; justify-content: center;
+  padding: 20px; background: rgba(22, 24, 29, .55); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+}
+.mp-pcard {
+  position: relative; width: 100%; max-width: 520px; max-height: 100%; overflow: auto;
+  padding: 30px 34px 26px; background: #fff; border-top: 3px solid var(--navy); box-shadow: 0 18px 50px rgba(0,0,0,.25);
+  text-align: center; user-select: none; -webkit-user-select: none;
+}
+.mp-pclose { position: absolute; top: 14px; left: 18px; }
+.mp-pcard .mp-kicker { margin: 18px 0 12px; }
+.mp-ptitle { margin: 0 0 8px; font: 500 34px/1.15 var(--serif); color: var(--ink); }
+.mp-pwho { margin: 0 0 26px; font-size: 15.5px; color: var(--ink-3); }
+.mp-pmain { display: flex; align-items: center; justify-content: center; gap: 26px; margin: 0 0 24px; }
+.mp-pplay {
+  position: relative; width: 72px; height: 72px; padding: 0; border: 0; border-radius: 50%; background: var(--navy); cursor: pointer;
+  box-shadow: 0 6px 18px rgba(28, 37, 65, .28); transition: transform .15s, background .15s;
+}
+.mp-pplay:hover:not([disabled]) { background: var(--navy-2); transform: scale(1.04); }
+.mp-pplay[disabled] { background: var(--field); box-shadow: none; cursor: default; }
+.mp-picon { position: absolute; left: 50%; top: 50%; width: 0; height: 0; margin: -11px 0 0 -7px; border-style: solid; border-width: 11px 0 11px 19px; border-color: transparent transparent transparent #fff; }
+.mp-player.is-playing .mp-picon { width: 20px; height: 22px; margin: -11px 0 0 -10px; border: 0; border-left: 6px solid #fff; border-right: 6px solid #fff; }
+.mp-pskip {
+  appearance: none; width: 46px; height: 46px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: #fff;
+  font: 500 12.5px/1 var(--sans); color: var(--ink-2); cursor: pointer;
+}
+.mp-pskip:hover:not([disabled]) { border-color: var(--navy); color: var(--navy); }
+.mp-pskip[disabled] { color: var(--field); cursor: default; }
+.mp-pseek {
+  --at: 0%;
+  appearance: none; -webkit-appearance: none; display: block; width: 100%; height: 4px; margin: 0; padding: 0; border: 0; border-radius: 2px; cursor: pointer;
+  background: linear-gradient(to right, var(--navy) var(--at), var(--line) var(--at));
+}
+.mp-pseek:focus { outline: none; }
+.mp-pseek:focus-visible { outline: 2px solid var(--navy); outline-offset: 6px; }
+.mp-pseek::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border: 0; border-radius: 50%; background: var(--navy); }
+.mp-pseek::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: var(--navy); }
+.mp-pseek[disabled] { cursor: default; }
+.mp-pseek[disabled]::-webkit-slider-thumb { background: var(--field); }
+.mp-ptimes { display: flex; justify-content: space-between; align-items: center; margin: 10px 0 0; font: 14.5px/1 var(--sans); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.mp-prate { text-decoration: none; padding: 4px 10px; border: 1px solid var(--line); font-size: 12px; }
+.mp-prate[disabled] { color: var(--field); cursor: default; }
+.mp-pmsg { min-height: 22px; margin: 16px 0 0; font-size: 15px; color: var(--ink-2); }
+.mp-pnote { margin: 14px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 14px; line-height: 1.6; color: var(--ink-3); }
+
+@media (max-width: 640px) {
+  .mp { padding: 26px 18px 48px; }
+  .mp-title { font-size: 40px; }
+  .mp-title-sm { font-size: 34px; }
+  .mp-profiles { grid-template-columns: 1fr; }
+  .mp-tabs { gap: 18px; overflow-x: auto; }
+  .mp-tabs button { font-size: 12.5px; letter-spacing: .03em; }
+  .mp-doc { min-width: 0; width: 100%; }
+  .mp-item-top { flex-direction: column; gap: 4px; }
+  .mp-player { padding: 0; align-items: stretch; }
+  .mp-pcard { max-width: none; display: flex; flex-direction: column; justify-content: center; padding: 56px 22px 28px; border-top: 0; }
+  .mp-ptitle { font-size: 30px; }
+}
+@media (max-width: 370px) {
+  .mp-tabs { gap: 12px; }
+  .mp-tabs button { font-size: 11.5px; letter-spacing: .01em; }
+}
+
+@media print { .mp { display: none !important; } }
+
+/* Your Marketing Agency - on top of MasterPlan's styles (masterplan/public/app.css):
+   same tokens, type, tabs, buttons and lists, so the two pages look like one
+   product family. Only what this page adds is here, scoped under .yma. */
+
+.yma .y-intro { margin: 0 0 22px; }
+
+/* the first ten questions */
+.yma .y-starters { list-style: none; margin: 0 0 28px; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.yma .y-starters li button {
+  width: 100%; min-height: 56px; padding: 8px 10px; border: 1px solid var(--line); background: #fff; cursor: pointer;
+  font: 500 13px/1.3 var(--sans); color: var(--ink-2); text-align: left;
+}
+.yma .y-starters li button small { display: block; font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.yma .y-starters li.is-done button { border-color: var(--navy); color: var(--ink); }
+.yma .y-starters li.is-done button small::after { content: ' ✓'; color: var(--navy); }
+.yma .y-starters li.is-current button { box-shadow: inset 0 -3px 0 var(--navy); }
+
+/* the question card */
+.yma .y-card { padding: 26px 26px 22px; border: 1px solid var(--line); border-top: 3px solid var(--navy); background: #fff; margin: 0 0 28px; }
+.yma .y-q { margin: 0 0 14px; font: 500 30px/1.25 var(--serif); color: var(--ink); }
+.yma .y-follow { margin: 0 0 14px; padding: 10px 14px; background: var(--soft); border-left: 2px solid var(--navy); font-size: 15px; color: var(--ink-2); }
+.yma .y-answer-tools { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin: 6px 0 12px; }
+.yma .y-rec { gap: 10px; }
+.yma .y-dot { width: 10px; height: 10px; border-radius: 50%; background: #b42318; }
+.yma .y-rec.is-on { background: #b42318; border-color: #b42318; color: #fff !important; }
+.yma .y-rec.is-on .y-dot { background: #fff; animation: mp-pulse 1s ease-in-out infinite; }
+.yma .y-rec-time { font: 500 15px var(--sans); color: #b42318; font-variant-numeric: tabular-nums; }
+.yma .y-upload { cursor: pointer; }
+.yma textarea {
+  display: block; width: 100%; padding: 12px 14px; border: 1px solid var(--field); border-radius: 0; resize: vertical;
+  font: 16px/1.6 var(--sans); color: var(--ink); background: #fff;
+}
+.yma textarea:focus { outline: 1px solid var(--navy); border-color: var(--navy); }
+.yma .y-save-row { margin: 16px 0 0; align-items: center; }
+.yma .y-wait { padding: 26px 0; margin: 0 0 20px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+
+/* all questions */
+.yma .y-all { margin: 8px 0 0; }
+.yma .y-all > summary { cursor: pointer; font: 600 14px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); padding: 10px 0; }
+.yma .y-level { margin: 18px 0 0; }
+.yma .y-level h3 { margin: 0 0 6px; font: 500 22px var(--serif); }
+.yma .y-level ul { list-style: none; margin: 0; padding: 0; }
+.yma .y-level li { display: flex; gap: 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 15px; color: var(--ink-2); }
+.yma .y-level li.is-locked { color: var(--ink-3); }
+.yma .y-level li button { appearance: none; border: 0; background: none; padding: 0; text-align: left; font: inherit; color: var(--ink); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.yma .y-level .y-tag { flex: none; min-width: 74px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.yma .y-level li.is-answered .y-tag { color: var(--navy); }
+
+/* my brand */
+.yma .y-sec { margin: 0 0 38px; }
+.yma .y-h { margin: 0 0 6px; font: 500 30px/1.2 var(--serif); }
+.yma .y-reading { padding: 10px 14px; background: var(--soft); }
+.yma .y-profile { margin: 14px 0 0; border-top: 1px solid var(--line); }
+.yma .y-field { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.yma .y-field dt { display: flex; justify-content: space-between; gap: 12px; font: 600 12.5px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.yma .y-field dd { margin: 6px 0 0; font-size: 16.5px; color: var(--ink); white-space: pre-line; }
+.yma .y-field dd.is-empty { color: var(--ink-3); font-style: italic; }
+.yma .y-field .y-mine { font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--navy); }
+.yma .y-confirm { margin: 10px 0 0; padding: 0; list-style: none; }
+.yma .y-confirm li { display: flex; justify-content: space-between; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 15.5px; }
+.yma .y-stories { list-style: none; margin: 14px 0 0; padding: 0; }
+.yma .y-story { padding: 16px 0; border-bottom: 1px solid var(--line); }
+.yma .y-story h3 { margin: 0; font: 500 22px/1.25 var(--serif); }
+.yma .y-story .y-theme { margin: 2px 0 6px; font-size: 14px; color: var(--ink-3); }
+.yma .y-story p { margin: 0 0 10px; font-size: 15.5px; color: var(--ink-2); }
+.yma .y-tiers { display: inline-flex; border: 1px solid var(--line); }
+.yma .y-tiers button { appearance: none; border: 0; border-right: 1px solid var(--line); background: #fff; padding: 7px 12px; font: 500 13px var(--sans); color: var(--ink-2); cursor: pointer; }
+.yma .y-tiers button:last-child { border-right: 0; }
+.yma .y-tiers button[aria-pressed="true"] { background: var(--navy); color: #fff; }
+.yma .y-tiers button[data-tier="X"][aria-pressed="true"] { background: var(--ink-2); }
+.yma .y-rules-default { white-space: pre-wrap; font: 13.5px/1.55 var(--sans); color: var(--ink-2); background: var(--soft); padding: 14px; max-height: 340px; overflow: auto; }
+.yma .y-photo img { display: block; width: 140px; height: 140px; object-fit: cover; margin: 0 0 12px; border: 1px solid var(--line); }
+.yma .y-danger { padding-top: 18px; border-top: 1px solid var(--line); }
+.yma .y-danger .mp-link { color: #b42318; }
+
+/* content */
+.yma .y-ideas-bar { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; margin: 0 0 18px; }
+.yma .y-goal { display: inline-block; margin-left: 8px; padding: 2px 8px; border: 1px solid var(--line); font: 600 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); vertical-align: 3px; }
+.yma .y-idea .mp-sub { margin: 6px 0 0; }
+.yma .y-pack { margin: 16px 0 0; padding: 18px 0 0; border-top: 1px dashed var(--line); }
+.yma .y-pack h4 { margin: 18px 0 8px; font: 600 12.5px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.yma .y-titles { margin: 0; padding-left: 20px; font-size: 16.5px; }
+.yma .y-hook { font: 500 22px/1.35 var(--serif); margin: 0; }
+.yma .y-script { width: 100%; border-collapse: collapse; font-size: 15px; }
+.yma .y-script td { vertical-align: top; padding: 10px 10px 10px 0; border-bottom: 1px solid var(--line); }
+.yma .y-script td:first-child { width: 58%; color: var(--ink); }
+.yma .y-script td:last-child { color: var(--ink-3); font-size: 14px; }
+.yma .y-text { white-space: pre-wrap; font-size: 16px; color: var(--ink); background: var(--soft); padding: 14px; margin: 0; }
+.yma .y-copy { margin-left: 10px; font-size: 13px; }
+.yma .y-filming { margin: 0; padding-left: 20px; font-size: 15px; color: var(--ink-2); }
+.yma .y-cover { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
+.yma .y-cover canvas { width: 216px; height: 384px; background: var(--soft); border: 1px solid var(--line); }
+.yma .y-cover canvas.is-post { width: 216px; height: 270px; }
+.yma .y-cover-tools { flex: 1; min-width: 220px; }
+.yma .y-cover-tools input { width: 100%; padding: 10px 0 8px; border: 0; border-bottom: 1px solid var(--field); font: 16.5px var(--sans); margin: 0 0 14px; background: transparent; }
+.yma .y-cover-tools input:focus { outline: none; border-bottom-color: var(--navy); }
+.yma .y-cover-tools .mp-actions { margin: 0 0 10px; }
+
+@media (max-width: 640px) {
+  .yma .y-starters { grid-template-columns: repeat(2, 1fr); }
+  .yma .y-card { padding: 20px 16px 18px; }
+  .yma .y-q { font-size: 25px; }
+  .yma .y-ideas-bar { flex-direction: column; align-items: stretch; }
+  .yma .y-script td:first-child { width: auto; }
+  .yma .y-script tr { display: block; border-bottom: 1px solid var(--line); }
+  .yma .y-script td { display: block; border: 0; padding: 6px 0; }
+  .yma .y-cover canvas { width: 162px; height: 288px; }
+  .yma .y-cover canvas.is-post { width: 162px; height: 203px; }
+}
+</style>
+
+<div id="yma" class="mp yma is-booting" role="main">
+
+  <div class="mp-boot" role="status">Loading Your Marketing Agency…</div>
+
+  <!-- ===== signed out, no plan, or the service is unavailable ===== -->
+  <div class="mp-gate" id="y-gate" hidden>
+    <p class="mp-kicker">From Kris and Michael</p>
+    <h1 class="mp-title">Your Marketing Agency.</h1>
+    <p class="mp-lede">Answer questions about your life, one at a time, in writing or out of your own mouth. From your answers we build your brand identity and turn your real stories into Shorts, Reels, posts and covers, in your voice.</p>
+    <p class="mp-gate-text" id="y-gate-text">Sign in to your StrategyTraining account to use Your Marketing Agency.</p>
+    <div class="mp-actions">
+      <a class="mp-btn" id="y-signin" target="_top" href="#">Sign in</a>
+      <a class="mp-btn mp-btn-ghost" id="y-join" target="_top" href="#">Join</a>
+      <button type="button" class="mp-btn" id="y-retry" hidden>Try again</button>
+    </div>
+  </div>
+
+  <!-- ===== the tool ===== -->
+  <div class="mp-app" id="y-app" hidden>
+    <div class="mp-tabs" role="tablist">
+      <button role="tab" data-tab="questions" aria-selected="true">Questions</button>
+      <button role="tab" data-tab="brand" aria-selected="false">My Brand</button>
+      <button role="tab" data-tab="content" aria-selected="false">Content</button>
+    </div>
+
+    <!-- ===== questions ===== -->
+    <div class="mp-panel" data-panel="questions">
+      <div class="y-intro" id="y-intro">
+        <p class="mp-kicker">Your Marketing Agency</p>
+        <h1 class="mp-title mp-title-sm">Your stories are your marketing.</h1>
+        <p class="mp-lede">Start with one question from each of the ten areas below. Write your answer or record it. After that, a new question waits for you here every few days, and every answer makes your brand identity and your content sharper.</p>
+      </div>
+
+      <ol class="y-starters" id="y-starters" aria-label="Your first ten questions"></ol>
+      <p class="mp-error" id="y-read-failed" role="alert" hidden></p>
+
+      <div class="y-card" id="y-card" hidden>
+        <p class="mp-label" id="y-q-level"></p>
+        <h2 class="y-q" id="y-q-text"></h2>
+        <p class="mp-hint" id="y-q-hint" hidden></p>
+        <p class="y-follow" id="y-q-follow" hidden></p>
+
+        <div class="y-answer-tools">
+          <button type="button" class="mp-btn mp-btn-ghost y-rec" id="y-rec"><span class="y-dot" aria-hidden="true"></span><span id="y-rec-label">Record your answer</span></button>
+          <label class="mp-link y-upload">Upload a recording<input type="file" id="y-audio-file" accept="audio/*,.mp3,.m4a,.wav,.ogg,.flac,.aac" hidden></label>
+          <span class="y-rec-time" id="y-rec-time" hidden>0:00</span>
+        </div>
+        <p class="mp-hint" id="y-rec-status" role="status" hidden></p>
+
+        <textarea id="y-answer" rows="9" placeholder="Write your answer here, or record it. Specific moments, names of places, what you felt: the more concrete, the better your content."></textarea>
+        <p class="mp-error" id="y-ans-error" role="alert" hidden></p>
+        <div class="mp-actions y-save-row">
+          <button type="button" class="mp-btn" id="y-save">Save answer</button>
+          <span class="mp-hint" id="y-saved" hidden></span>
+        </div>
+      </div>
+
+      <div class="y-wait" id="y-wait" hidden>
+        <h2 class="y-q">You are up to date.</h2>
+        <p class="mp-lede" id="y-wait-text">Your next question arrives soon. Meanwhile, look at My Brand, or turn your stories into content.</p>
+      </div>
+
+      <details class="y-all" id="y-all">
+        <summary>All questions</summary>
+        <div id="y-levels"></div>
+      </details>
+    </div>
+
+    <!-- ===== my brand ===== -->
+    <div class="mp-panel" data-panel="brand" hidden>
+      <p class="mp-hint y-reading" id="y-reading" hidden>Reading your latest answer into your profile…</p>
+      <div class="mp-empty" id="y-brand-empty" hidden>
+        <p>Your brand identity appears here after your first answer.</p>
+        <button class="mp-btn" data-goto="questions">Answer a question</button>
+      </div>
+
+      <div id="y-brand" hidden>
+        <section class="y-sec">
+          <h2 class="y-h">Identity profile</h2>
+          <p class="mp-hint">Built from your answers. Change anything; what you edit is yours and is never overwritten.</p>
+          <dl class="y-profile" id="y-profile"></dl>
+        </section>
+
+        <section class="y-sec" id="y-confirm-sec" hidden>
+          <h2 class="y-h">Please check</h2>
+          <ul class="y-confirm" id="y-confirm"></ul>
+        </section>
+
+        <section class="y-sec">
+          <h2 class="y-h">Story bank</h2>
+          <p class="mp-hint">Only <strong>Publishable</strong> stories are ever used in your content. <strong>Ask first</strong> waits for your yes. <strong>Private</strong> stays private and only shapes your tone.</p>
+          <ul class="y-stories" id="y-stories"></ul>
+        </section>
+      </div>
+
+      <section class="y-sec">
+        <h2 class="y-h">Writing rules</h2>
+        <p class="mp-hint">Every script and post follows these. Add your own rules and the words you never want to use.</p>
+        <details class="mp-more"><summary>See the rules everyone starts with</summary><pre class="y-rules-default" id="y-rules-default"></pre></details>
+        <label class="mp-label" for="y-rules-text">Your own rules</label>
+        <textarea id="y-rules-text" rows="4" placeholder="For example: I never talk about my children. I say &quot;clients&quot;, never &quot;customers&quot;."></textarea>
+        <label class="mp-label" for="y-rules-phrases">Words and phrases you never use (one per line)</label>
+        <textarea id="y-rules-phrases" rows="3"></textarea>
+        <div class="mp-actions"><button type="button" class="mp-btn mp-btn-ghost" id="y-rules-save">Save rules</button><span class="mp-hint" id="y-rules-saved" hidden>Saved.</span></div>
+      </section>
+
+      <section class="y-sec">
+        <h2 class="y-h">Your photo for covers</h2>
+        <p class="mp-hint">Covers with your face get more clicks. Add one clear photo of yourself, face to the camera, good light.</p>
+        <div class="y-photo">
+          <img id="y-photo-img" alt="Your photo" hidden>
+          <div class="mp-actions">
+            <label class="mp-btn mp-btn-ghost">Choose a photo<input type="file" id="y-photo-file" accept="image/jpeg,image/png,image/webp" hidden></label>
+            <button type="button" class="mp-link" id="y-photo-del" hidden>Remove photo</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="y-sec y-danger">
+        <button type="button" class="mp-link" id="y-delete-all">Delete all my answers and content</button>
+      </section>
+    </div>
+
+    <!-- ===== content ===== -->
+    <div class="mp-panel" data-panel="content" hidden>
+      <div class="y-ideas-bar">
+        <div>
+          <h2 class="y-h">Content ideas</h2>
+          <p class="mp-hint">Short videos for YouTube Shorts and Instagram Reels, each with a matching post, built from your publishable stories.</p>
+        </div>
+        <button type="button" class="mp-btn" id="y-ideas-go">Suggest ideas</button>
+      </div>
+      <p class="mp-hint" id="y-ideas-status" role="status" hidden></p>
+      <p class="mp-empty-line" id="y-ideas-empty" hidden>No ideas yet. Answer a few questions, then press Suggest ideas.</p>
+      <ul class="mp-list" id="y-ideas"></ul>
+    </div>
+  </div>
+</div>
+
+<script>window.YMA_BOOT = {"apiOrigin":"https://kris-ai-memory-baefm.ondigitalocean.app","signInUrl":"/sign_in","joinUrl":"/join","planPage":"/delphi","maxAudioBytes":41943040,"maxAudioMinutes":45};</script>
+<script>
+'use strict';
+
+/* ---------------------------------------------------------------------------
+   Who is signed in on the StrategyTraining store, and do they have a plan.
+
+   Shared by every StrategyTraining product page pasted into Uscreen
+   (MasterPlan Digital, Your Marketing Agency), so a fix here is a fix for all
+   of them. Runs on the store's own pages (same origin as /account).
+
+     STMember.identify(log)       -> { signedIn, email, via, transient? }
+     STMember.checkPlan(planPage) -> { plan: 'yes'|'no'|'unknown', planVia }
+     STMember.emailOnPage()       -> the one member email shown on this page, or ''
+   --------------------------------------------------------------------------- */
+
+(function () {
+  if (window.STMember) return;
+  var LOG = '[st-member]';
+
+  /* ---- who is signed in (page mode) -----------------------------------------
+     The store answers GET /account with 401 when signed out and the account
+     page (200, or 406 without an Accept header) when signed in. The email is
+     looked for in turn, stopping at the first place that has exactly one:
+       1. the account page (asked for as HTML if it answered 406);
+       2. the store's other account pages;
+       3. page fragments the store loads on demand (turbo-frame src);
+       4. this page itself: its text, open shadow roots and the email-like
+          attributes of the store's web components (the profile menu).
+     Never from scripts, styles or links: page code carries addresses such as
+     an error tracker's key@o123.ingest.sentry.io, which is no one's email -
+     two members given the same guessed address would share one account. */
+  var EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+  /* The store's own role addresses (support@strategytraining.com...) - never a whole domain:
+     the team signs in with firmsconsulting.com and strategytraining.com
+     addresses, while a footer's support@ address is no one's account. */
+  var NOT_MEMBER = /^(support|help|helpdesk|info|contact|hello|admin|noreply|no-reply|donotreply|do-not-reply|team|billing|sales|privacy|legal|press|care|service|notifications?|mailer|marketing|feedback|enquiries|inquiries)@([a-z0-9-]+\.)*(strategytraining|firmsconsulting)\.com$|@([a-z0-9-]+\.)*uscreen\.(io|tv|com)$|@([a-z0-9-]+\.)*(sentry\.io|sentry-cdn\.com|ingest\.[a-z0-9.-]+|sentry\.[a-z.]+)$|^[0-9a-f]{32}@|\.(png|jpe?g|gif|svg|webp|css|js|ico)$/i;
+  var ACCOUNT_PAGES = ['/account/edit', '/account/settings', '/account/profile'];
+
+  function candidates(text) {
+    var all = String(text || '').match(new RegExp(EMAIL_RE.source, 'g')) || [];
+    var seen = {};
+    return all.filter(function (e) {
+      e = e.toLowerCase();
+      if (NOT_MEMBER.test(e) || seen[e]) return false;
+      seen[e] = true;
+      return true;
+    });
+  }
+
+  /* What a person can see in a document or shadow root, plus email fields and
+     the attributes of custom elements (never src/href, never inside scripts). */
+  var HIDDEN_TAGS = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, TEMPLATE: 1, SVG: 1, IFRAME: 1, HEAD: 1, LINK: 1, META: 1 };
+  var SKIP_ATTRS = /^(src|href|srcset|action|style|class|on\w+|data-action|integrity|nonce)$/i;
+  function visibleText(root, depth) {
+    if (!root) return '';
+    depth = depth || 0;
+    var out = [];
+    var stack = [root.body || root];
+    while (stack.length) {
+      var node = stack.pop();
+      if (node.nodeType === 3) {
+        out.push(node.nodeValue);
+        continue;
+      }
+      if (node.nodeType !== 1 && node.nodeType !== 11 && node.nodeType !== 9) continue;
+      var tag = node.nodeName ? String(node.nodeName).toUpperCase() : '';
+      if (HIDDEN_TAGS[tag]) continue;
+      if (node.nodeType === 1) {
+        if (tag === 'INPUT' && /email/i.test((node.type || '') + ' ' + (node.name || '') + ' ' + (node.id || ''))) {
+          out.push(node.value || node.getAttribute('value') || '');
+        }
+        if (tag.indexOf('-') !== -1 || node.hasAttribute('data-email')) {
+          for (var i = 0; i < node.attributes.length; i++) {
+            var at = node.attributes[i];
+            if (!SKIP_ATTRS.test(at.name)) out.push(at.value);
+          }
+        }
+        if (node.shadowRoot && depth < 4) out.push(visibleText(node.shadowRoot, depth + 1));
+      }
+      for (var c = node.lastChild; c; c = c.previousSibling) stack.push(c);
+    }
+    return out.join(' ');
+  }
+
+  function parse(html) {
+    try { return new DOMParser().parseFromString(html, 'text/html'); } catch (e) { return null; }
+  }
+
+  /* One email from an HTML page, or ''. The email field wins; otherwise
+     exactly one visible address, or the one this page also shows. */
+  function emailIn(doc) {
+    if (!doc) return '';
+    var field = doc.querySelector('input[type="email"], input[name*="email"], input[id*="email"]');
+    var value = field && (field.getAttribute('value') || '').trim();
+    if (value && candidates(value).length === 1) return value;
+    var list = candidates(visibleText(doc));
+    if (list.length === 1) return list[0];
+    if (list.length > 1) {
+      var here = candidates(visibleText(document)).map(function (e) { return e.toLowerCase(); });
+      var both = list.filter(function (e) { return here.indexOf(e.toLowerCase()) !== -1; });
+      if (both.length === 1) return both[0];
+    }
+    return '';
+  }
+  function emailOnPage() {
+    var list = candidates(visibleText(document));
+    return list.length === 1 ? list[0] : '';
+  }
+
+  function getPage(url, asHtml) {
+    var opts = { credentials: 'same-origin', redirect: 'follow', cache: 'no-store' };
+    if (asHtml) opts.headers = { Accept: 'text/html,application/xhtml+xml' };
+    return fetch(url, opts).then(function (res) {
+      var path = '';
+      try { path = new URL(res.url, location.href).pathname; } catch (e) { /* ignore */ }
+      if (/\/(sign_in|login|join)\b/.test(path) || res.status === 401 || res.status === 403) return { out: true, status: res.status };
+      if (!res.ok) return { status: res.status };
+      var type = res.headers.get('content-type') || '';
+      if (type && type.indexOf('html') === -1) return { status: res.status };
+      return res.text().then(function (t) { return { status: res.status, doc: parse(t) }; });
+    });
+  }
+
+  /* Tries the sources in order; resolves to the first email found. */
+  function findEmail(firstDoc) {
+    var found = emailIn(firstDoc);
+    if (found) return Promise.resolve({ email: found, via: 'account page' });
+    var i = 0;
+    function nextPage() {
+      if (i >= ACCOUNT_PAGES.length) return fromFrames();
+      var url = ACCOUNT_PAGES[i++];
+      return getPage(url, true).then(function (r) {
+        var e = r && r.doc ? emailIn(r.doc) : '';
+        return e ? { email: e, via: url } : nextPage();
+      }, nextPage);
+    }
+    function fromFrames() {
+      var srcs = [];
+      Array.prototype.forEach.call(document.querySelectorAll('turbo-frame[src], [data-src*="account"], [src*="/account"]'), function (f) {
+        var u = f.getAttribute('src') || f.getAttribute('data-src') || '';
+        try { u = new URL(u, location.href); } catch (e) { return; }
+        if (u.origin === location.origin && srcs.indexOf(u.href) === -1 && srcs.length < 4) srcs.push(u.href);
+      });
+      var j = 0;
+      function nextFrame() {
+        if (j >= srcs.length) return fromHere();
+        var url = srcs[j++];
+        return getPage(url, true).then(function (r) {
+          var e = r && r.doc ? emailIn(r.doc) : '';
+          return e ? { email: e, via: 'page fragment' } : nextFrame();
+        }, nextFrame);
+      }
+      return nextFrame();
+    }
+    function fromHere() {
+      var e = emailOnPage();
+      return { email: e, via: e ? 'this page' : 'not found' };
+    }
+    return nextPage();
+  }
+
+  function probeAccount() {
+    return getPage('/account', false).then(function (r) {
+      if (r.out) return { signedIn: false, via: '/account ' + (r.status || 'sign-in') };
+      if (r.status === 406) {
+        /* Signed in; ask for the account page as HTML. */
+        return getPage('/account', true).then(function (h) {
+          return findEmail(h && h.doc).then(function (f) { return { signedIn: true, email: f.email, via: '/account 406, ' + f.via }; });
+        }, function () {
+          return findEmail(null).then(function (f) { return { signedIn: true, email: f.email, via: '/account 406, ' + f.via }; });
+        });
+      }
+      if (!r.doc) return null; // an error page: tried once more, then treated as a blip
+      return findEmail(r.doc).then(function (f) { return { signedIn: true, email: f.email, via: '/account, ' + f.via }; });
+    }).catch(function () { return null; });
+  }
+
+  /* A failed probe is tried once more before anyone is called signed out. */
+  function identityFromStore() {
+    return probeAccount().then(function (r) {
+      if (r) return r;
+      return new Promise(function (ok) { setTimeout(ok, 1500); }).then(probeAccount);
+    }).then(function (r) {
+      r = r || { signedIn: false, via: 'probe failed twice', transient: true };
+      try { console.log(LOG + ' signedIn=' + r.signedIn + ' email=' + (r.email ? 'yes' : 'none') + ' via ' + r.via); } catch (e) { /* no console */ }
+      return r;
+    });
+  }
+
+  /* Does this member have a plan? Asked of the store itself: a page Uscreen
+     opens only to members with a plan (the Kris AI page, /delphi). Staying
+     on it means yes; being sent elsewhere means no. Anything unclear is
+     "unknown", and the server lets "unknown" in rather than lock out a paying
+     member. */
+  function checkPlanPage(planPage) {
+    var want = String(planPage || '').replace(/\/+$/, '');
+    if (!want) return Promise.resolve({ plan: 'unknown', planVia: 'no plan page' });
+    return fetch(want, { credentials: 'same-origin', redirect: 'follow', cache: 'no-store' }).then(function (res) {
+      /* Where the store left us. The home page is "/" - never "", which would
+         read as "no information" and let a member without a plan through. */
+      var path = null;
+      try { path = new URL(res.url, location.href).pathname.replace(/\/+$/, '') || '/'; } catch (e) { /* ignore */ }
+      if (res.status === 401 || res.status === 403) return { plan: 'no', planVia: want + ' ' + res.status };
+      if (path !== null && path !== want) return { plan: 'no', planVia: want + ' -> ' + path };
+      if (path === null && res.redirected) return { plan: 'unknown', planVia: want + ' redirected' };
+      if (res.ok) return { plan: 'yes', planVia: want + ' 200' };
+      return { plan: 'unknown', planVia: want + ' ' + res.status };
+    }, function () {
+      return { plan: 'unknown', planVia: want + ' unreachable' };
+    });
+  }
+
+  window.STMember = {
+    identify: function (log) {
+      if (log) LOG = log;
+      return identityFromStore();
+    },
+    checkPlan: checkPlanPage,
+    emailOnPage: emailOnPage,
+  };
+})();
+</script>
+<script>
+'use strict';
+
+/* ---------------------------------------------------------------------------
+   Your Marketing Agency - the page, pasted into a Uscreen landing page.
+
+   Login: the same as MasterPlan Digital. member.js (window.STMember) reads who
+   is signed in on the store and whether they have a plan; the session comes
+   from MasterPlan's /masterplan/api/session and is sent here as a Bearer
+   token. The token lives only in this script's memory.
+
+   Recording: the microphone is encoded to MP3 while the member speaks (one
+   channel, 16 kHz, 32 kbps: about 11 MB for 45 minutes), so even a long
+   answer never sits in memory as raw audio.
+
+   Covers: the picture comes from the server without text; the title is drawn
+   here on a canvas, so it is always spelled right and can be changed freely.
+   --------------------------------------------------------------------------- */
+
+(function () {
+  var BOOT = window.YMA_BOOT || {};
+  var ORIGIN = BOOT.apiOrigin || '';
+  var API = ORIGIN + '/agency/api';
+  var PREVIEW = !/(^|\.)strategytraining\.com$/i.test(location.hostname) && !BOOT.localApi;
+  var MAX_REC_SECONDS = (BOOT.maxAudioMinutes || 45) * 60;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var root = $('yma');
+  root.classList.add('is-page');
+  var token = null;
+  var state = null;
+  var current = null; // the question in the card
+  var pollTimer = null;
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function show(id, on) { $(id).hidden = !on; }
+  function msg(id, text) {
+    $(id).textContent = text || '';
+    $(id).hidden = !text;
+  }
+
+  /* ---- api ------------------------------------------------------------------ */
+
+  function request(url, opts) {
+    if (PREVIEW) return Promise.resolve({ ok: false, status: 0, data: { error: 'This is a preview. Publish this page on StrategyTraining.com to use it.' } });
+    opts = opts || {};
+    var headers = opts.headers || {};
+    if (token) headers.Authorization = 'Bearer ' + token;
+    var body = opts.body;
+    if (body && !(body instanceof Blob)) {
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify(body);
+    }
+    return fetch(url, { method: opts.method || 'GET', headers: headers, body: body, redirect: 'manual' }).then(function (res) {
+      var type = res.headers.get('content-type') || '';
+      if (opts.blob && res.ok) return res.blob().then(function (b) { return { ok: true, status: res.status, blob: b }; });
+      return (/json/i.test(type) ? res.json() : Promise.reject(new Error('not json'))).catch(function () {
+        return { error: 'Your Marketing Agency is not reachable right now. Please try again in a few minutes.', reason: 'service_down' };
+      }).then(function (data) {
+        if (res.status === 401 && data.reason === 'no_session') showGate('expired');
+        return { ok: res.ok, status: res.status, data: data };
+      });
+    }, function () {
+      return { ok: false, status: 0, data: { error: 'Your Marketing Agency is not reachable right now. Please try again in a few minutes.', reason: 'service_down' } };
+    });
+  }
+  var api = {
+    get: function (p) { return request(API + p); },
+    post: function (p, body, headers) { return request(API + p, { method: 'POST', body: body || {}, headers: headers }); },
+    blob: function (p) { return request(API + p, { blob: true }); },
+  };
+
+  /* ---- sign in: the same login as MasterPlan ----------------------------------- */
+
+  var lastIdentity = {};
+  function startSession(identity) {
+    lastIdentity = identity || {};
+    var claim = {};
+    for (var k in identity) claim[k] = identity[k];
+    var planned = claim.signedIn && BOOT.planPage && window.STMember ? window.STMember.checkPlan(BOOT.planPage) : Promise.resolve({});
+    return planned.then(function (p) {
+      if (p.plan) {
+        claim.plan = p.plan;
+        claim.planVia = p.planVia;
+      }
+      return request(ORIGIN + '/masterplan/api/session', { method: 'POST', body: claim });
+    }).then(function (r) {
+      if (r.ok && r.data.ok) {
+        token = r.data.token;
+        openApp();
+      } else {
+        showGate((r.data && r.data.reason) || 'service_down');
+      }
+    });
+  }
+
+  function showGate(reason) {
+    root.classList.remove('is-booting');
+    show('y-app', false);
+    show('y-gate', true);
+    $('y-signin').href = BOOT.signInUrl || '#';
+    $('y-join').href = BOOT.joinUrl || '#';
+    var signedOut = reason === 'signed_out' || (reason === 'no_identity_from_store' && !lastIdentity.signedIn);
+    var noPlan = reason === 'not_subscribed' || reason === 'customer_not_found';
+    var text;
+    if (signedOut) text = 'Sign in to your StrategyTraining account to use Your Marketing Agency.';
+    else if (noPlan) text = 'Your Marketing Agency is included with a StrategyTraining plan. Choose a plan, then come back to this page.';
+    else if (reason === 'no_email') text = 'You are signed in, but we could not read the email on your account. Open your account menu (your picture, top right), then press Try again.';
+    else if (reason === 'expired') text = 'Your session has expired. Press Try again to continue.';
+    else if (reason === 'service_down') text = 'Your Marketing Agency is not reachable right now. Please try again in a few minutes.';
+    else text = 'We could not open Your Marketing Agency just now. Please try again in a moment.';
+    $('y-gate-text').textContent = text;
+    $('y-signin').hidden = !signedOut;
+    $('y-join').hidden = !(signedOut || noPlan);
+    $('y-join').textContent = noPlan ? 'Choose a plan' : 'Join';
+    $('y-retry').hidden = signedOut || noPlan;
+  }
+  $('y-retry').addEventListener('click', function () {
+    show('y-gate', false);
+    root.classList.add('is-booting');
+    token = null;
+    window.STMember.identify('[st-yma]').then(startSession);
+  });
+
+  /* ---- tabs ------------------------------------------------------------------ */
+
+  var tabs = Array.prototype.slice.call(root.querySelectorAll('.mp-tabs [data-tab]'));
+  function selectTab(name) {
+    tabs.forEach(function (t) { t.setAttribute('aria-selected', String(t.dataset.tab === name)); });
+    Array.prototype.forEach.call(root.querySelectorAll('[data-panel]'), function (p) { p.hidden = p.dataset.panel !== name; });
+    if (name === 'brand') loadBrand();
+    if (name === 'content') loadIdeas();
+  }
+  tabs.forEach(function (t) { t.addEventListener('click', function () { selectTab(t.dataset.tab); }); });
+  root.addEventListener('click', function (e) {
+    var go = e.target.closest && e.target.closest('[data-goto]');
+    if (go) selectTab(go.dataset.goto);
+  });
+
+  function openApp() {
+    root.classList.remove('is-booting');
+    show('y-gate', false);
+    show('y-app', true);
+    loadState(true);
+  }
+
+  /* ---- questions ------------------------------------------------------------- */
+
+  function loadState(fillCard) {
+    return api.get('/state').then(function (r) {
+      if (!r.ok) return;
+      state = r.data;
+      renderStarters();
+      if (state.readFailed && state.readFailed.length) {
+        msg('y-read-failed', 'We could not read your answer to "' + state.readFailed[0].text.slice(0, 80) + '…" into your profile. Open it from All questions and save it again.');
+      } else msg('y-read-failed', '');
+      if (fillCard || !current) {
+        if (state.next) loadQuestion(state.next.id);
+        else showWait();
+      }
+      schedulePoll();
+    });
+  }
+
+  function renderStarters() {
+    var list = $('y-starters');
+    list.textContent = '';
+    show('y-intro', !state.startersDone);
+    state.starters.forEach(function (s) {
+      var li = el('li', s.done ? 'is-done' : '');
+      if (current && current.id === s.id) li.classList.add('is-current');
+      var b = el('button');
+      b.type = 'button';
+      b.appendChild(el('small', null, 'Level ' + s.level));
+      b.appendChild(document.createTextNode(s.title));
+      b.addEventListener('click', function () { loadQuestion(s.id); });
+      li.appendChild(b);
+      list.appendChild(li);
+    });
+  }
+
+  function showWait() {
+    current = null;
+    show('y-card', false);
+    show('y-wait', true);
+    var when = state && state.nextAt ? new Date(state.nextAt) : null;
+    $('y-wait-text').textContent = when
+      ? 'Your next question arrives on ' + when.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) + '. Meanwhile, look at My Brand, or turn your stories into content.'
+      : 'Your next question arrives soon. Meanwhile, look at My Brand, or turn your stories into content.';
+  }
+
+  function loadQuestion(qid) {
+    return api.get('/answers/' + encodeURIComponent(qid)).then(function (r) {
+      if (!r.ok) return;
+      current = r.data.question;
+      show('y-wait', false);
+      show('y-card', true);
+      $('y-q-level').textContent = 'Level ' + current.level + ' · ' + current.levelTitle;
+      $('y-q-text').textContent = current.text;
+      var hint = current.kind === 'list' && current.items ? 'Write ' + current.items + ', one per line.' : '';
+      msg('y-q-hint', hint);
+      msg('y-q-follow', r.data.followUp ? 'To make this answer stronger: ' + r.data.followUp : '');
+      $('y-answer').value = r.data.answer ? r.data.answer.text : '';
+      $('y-save').textContent = r.data.answer ? 'Save new answer' : 'Save answer';
+      msg('y-saved', '');
+      msg('y-ans-error', '');
+      if (state) renderStarters();
+    });
+  }
+
+  $('y-save').addEventListener('click', function () {
+    if (!current) return;
+    var text = $('y-answer').value.trim();
+    if (text.length < 2) return msg('y-ans-error', 'Write or record your answer first.');
+    var btn = $('y-save');
+    btn.disabled = true;
+    msg('y-ans-error', '');
+    api.post('/answers', { qid: current.id, text: text, source: lastSource }).then(function (r) {
+      btn.disabled = false;
+      if (!r.ok) return msg('y-ans-error', r.data.error || 'That did not save. Please try again.');
+      lastSource = 'typed';
+      msg('y-saved', 'Saved. We are reading it into your brand profile now.');
+      setTimeout(function () { loadState(true); }, 900);
+    });
+  });
+  var lastSource = 'typed';
+  $('y-answer').addEventListener('input', function () { if (!$('y-answer').value) lastSource = 'typed'; });
+
+  /* All questions, by level, loaded when opened. */
+  $('y-all').addEventListener('toggle', function () { if ($('y-all').open) loadLevels(); });
+  function loadLevels() {
+    api.get('/questions').then(function (r) {
+      if (!r.ok) return;
+      var box = $('y-levels');
+      box.textContent = '';
+      r.data.levels.forEach(function (l) {
+        var sec = el('div', 'y-level');
+        sec.appendChild(el('h3', null, 'Level ' + l.n + ' · ' + l.title));
+        var ul = el('ul');
+        l.questions.forEach(function (q) {
+          var li = el('li', q.answeredAt ? 'is-answered' : q.open ? '' : 'is-locked');
+          li.appendChild(el('span', 'y-tag', q.answeredAt ? 'Answered' : q.open ? 'Open' : 'Later'));
+          if (q.open) {
+            var b = el('button', null, q.text);
+            b.type = 'button';
+            b.addEventListener('click', function () {
+              loadQuestion(q.id).then(function () { $('y-card').scrollIntoView({ block: 'start', behavior: 'smooth' }); });
+            });
+            li.appendChild(b);
+          } else li.appendChild(el('span', null, q.text));
+          ul.appendChild(li);
+        });
+        sec.appendChild(ul);
+        box.appendChild(sec);
+      });
+    });
+  }
+
+  /* ---- recording: straight to MP3 ------------------------------------------------ */
+
+  var rec = null;
+  function loadEncoder() {
+    if (window.lamejs) return Promise.resolve();
+    return new Promise(function (ok, fail) {
+      var s = document.createElement('script');
+      s.src = ORIGIN + '/agency/static/lame.js';
+      s.onload = ok;
+      s.onerror = function () { fail(new Error('encoder')); };
+      document.head.appendChild(s);
+    });
+  }
+  function clock(s) { return Math.floor(s / 60) + ':' + ('0' + Math.floor(s % 60)).slice(-2); }
+
+  $('y-rec').addEventListener('click', function () {
+    if (rec) return stopRecording();
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return msg('y-rec-status', 'This browser cannot record. Upload a recording instead, or type your answer.');
+    msg('y-rec-status', 'Starting the microphone…');
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    var ctx = new Ctx();
+    Promise.all([loadEncoder(), navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } })]).then(function (got) {
+      var stream = got[1];
+      var source = ctx.createMediaStreamSource(stream);
+      var node = ctx.createScriptProcessor(4096, 1, 1);
+      var encoder = new window.lamejs.Mp3Encoder(1, 16000, 32);
+      var ratio = ctx.sampleRate / 16000;
+      var carry = 0;
+      var chunks = [];
+      var samples = 0;
+      node.onaudioprocess = function (e) {
+        var input = e.inputBuffer.getChannelData(0);
+        var outLen = Math.floor((input.length - carry) / ratio);
+        var pcm = new Int16Array(outLen);
+        for (var i = 0; i < outLen; i++) {
+          var v = input[Math.floor(carry + i * ratio)];
+          pcm[i] = v < 0 ? Math.max(-1, v) * 0x8000 : Math.min(1, v) * 0x7fff;
+        }
+        carry = (carry + outLen * ratio) - input.length;
+        var mp3 = encoder.encodeBuffer(pcm);
+        if (mp3.length) chunks.push(new Uint8Array(mp3));
+        samples += outLen;
+        var secs = samples / 16000;
+        $('y-rec-time').textContent = clock(secs);
+        if (secs >= MAX_REC_SECONDS) stopRecording();
+      };
+      source.connect(node);
+      node.connect(ctx.destination);
+      rec = { ctx: ctx, stream: stream, node: node, source: source, encoder: encoder, chunks: chunks, samples: function () { return samples; } };
+      $('y-rec').classList.add('is-on');
+      $('y-rec-label').textContent = 'Stop recording';
+      show('y-rec-time', true);
+      msg('y-rec-status', 'Recording. Speak as if you were telling a friend. Press Stop when you are done.');
+    }).catch(function () {
+      ctx.close();
+      msg('y-rec-status', 'The microphone could not be used. Check that this site may use it, or upload a recording instead.');
+    });
+  });
+
+  function stopRecording() {
+    var r = rec;
+    rec = null;
+    r.node.disconnect();
+    r.source.disconnect();
+    r.stream.getTracks().forEach(function (t) { t.stop(); });
+    r.ctx.close();
+    var tail = r.encoder.flush();
+    if (tail.length) r.chunks.push(new Uint8Array(tail));
+    $('y-rec').classList.remove('is-on');
+    $('y-rec-label').textContent = 'Record your answer';
+    var secs = Math.round(r.samples() / 16000);
+    if (secs < 2) {
+      show('y-rec-time', false);
+      return msg('y-rec-status', 'That recording was too short.');
+    }
+    transcribe(new Blob(r.chunks, { type: 'audio/mpeg' }), secs);
+  }
+
+  var AUDIO_TYPES = { mp3: 'audio/mpeg', m4a: 'audio/mp4', wav: 'audio/wav', ogg: 'audio/ogg', flac: 'audio/flac', aac: 'audio/aac' };
+  $('y-audio-file').addEventListener('change', function () {
+    var f = this.files[0];
+    this.value = '';
+    if (!f) return;
+    var ext = (f.name.split('.').pop() || '').toLowerCase();
+    var type = AUDIO_TYPES[ext] || f.type;
+    if (!type || !/^audio\//.test(type)) return msg('y-rec-status', 'Please use an MP3, M4A, WAV, OGG, FLAC or AAC recording.');
+    if (f.size > (BOOT.maxAudioBytes || 40 * 1024 * 1024)) return msg('y-rec-status', 'That file is too large. Please split it into shorter parts.');
+    /* The length, for the daily allowance. */
+    var a = new Audio();
+    var url = URL.createObjectURL(f);
+    var done = function (secs) {
+      URL.revokeObjectURL(url);
+      transcribe(new Blob([f], { type: type }), secs);
+    };
+    a.preload = 'metadata';
+    a.onloadedmetadata = function () { done(isFinite(a.duration) ? Math.round(a.duration) : 0); };
+    a.onerror = function () { done(0); };
+    a.src = url;
+  });
+
+  function transcribe(blob, secs) {
+    show('y-rec-time', false);
+    msg('y-rec-status', 'Turning your recording into text… (about ' + Math.max(1, Math.round(secs / 60) || 1) + ' minute' + (secs > 90 ? 's' : '') + ' of audio)');
+    $('y-rec').disabled = true;
+    request(API + '/transcribe?seconds=' + (secs || 0), { method: 'POST', body: blob, headers: { 'Content-Type': blob.type } }).then(function (r) {
+      $('y-rec').disabled = false;
+      if (!r.ok) return msg('y-rec-status', r.data.error || 'The recording could not be read. Please try again.');
+      var box = $('y-answer');
+      box.value = box.value.trim() ? box.value.trim() + '\n\n' + r.data.text : r.data.text;
+      lastSource = 'audio';
+      msg('y-rec-status', 'Here is what you said. Check it, correct anything, then press Save answer. The recording itself is not kept.');
+      box.focus();
+    });
+  }
+
+  /* ---- my brand ---------------------------------------------------------------- */
+
+  var LABELS = {
+    mission: 'Mission', expertise: 'Expertise', audience: 'Who you help', method: 'How you help', coreBelief: 'Core belief',
+    values: 'Values', thinkingStyle: 'How you think', centralTension: 'Central tension', recurringImages: 'Recurring images',
+    turningPoints: 'Turning points', proofPoints: 'Results and proof', voice: 'Your voice', businessDirection: 'Business direction',
+    wantsToTalkAbout: 'What you want to talk about',
+  };
+
+  function loadBrand() {
+    api.get('/profile').then(function (r) {
+      if (!r.ok) return;
+      var d = r.data;
+      show('y-reading', d.reading > 0);
+      var has = d.updatedAt || (d.stories && d.stories.length);
+      show('y-brand', !!has);
+      show('y-brand-empty', !has && d.reading === 0);
+      if (has) {
+        renderProfile(d);
+        renderConfirm(d.confirm || []);
+        renderStories(d.stories || []);
+      }
+      if (d.reading > 0) schedulePoll(true);
+    });
+    loadRules();
+    loadPhoto();
+  }
+
+  function renderProfile(d) {
+    var dl = $('y-profile');
+    dl.textContent = '';
+    Object.keys(d.fields).forEach(function (k) {
+      var isList = d.listFields.indexOf(k) !== -1;
+      var v = d.profile[k];
+      var shown = isList ? (v || []).join('\n') : v || '';
+      var wrap = el('div', 'y-field');
+      var dt = el('dt');
+      var name = el('span', null, LABELS[k] || k);
+      if (d.locked.indexOf(k) !== -1) name.appendChild(el('span', 'y-mine', ' · your words'));
+      dt.appendChild(name);
+      var edit = el('button', 'mp-link', 'Edit');
+      edit.type = 'button';
+      dt.appendChild(edit);
+      var dd = el('dd', shown ? '' : 'is-empty', shown || 'Not yet in your answers.');
+      edit.addEventListener('click', function () {
+        if (wrap.querySelector('textarea')) return;
+        var ta = el('textarea');
+        ta.rows = isList ? 4 : 3;
+        ta.value = shown;
+        if (isList) ta.placeholder = 'One per line';
+        var save = el('button', 'mp-btn mp-btn-ghost', 'Save');
+        save.type = 'button';
+        var row = el('div', 'mp-actions');
+        row.appendChild(save);
+        dd.replaceWith(ta);
+        wrap.appendChild(row);
+        ta.focus();
+        save.addEventListener('click', function () {
+          save.disabled = true;
+          api.post('/profile', { field: k, value: isList ? ta.value.split('\n') : ta.value }).then(loadBrand);
+        });
+      });
+      wrap.appendChild(dt);
+      wrap.appendChild(dd);
+      dl.appendChild(wrap);
+    });
+  }
+
+  function renderConfirm(items) {
+    show('y-confirm-sec', items.length > 0);
+    var ul = $('y-confirm');
+    ul.textContent = '';
+    items.forEach(function (c) {
+      var li = el('li');
+      li.appendChild(el('span', null, c));
+      var b = el('button', 'mp-link', 'Done');
+      b.type = 'button';
+      b.addEventListener('click', function () { api.post('/confirm/clear', { item: c }).then(loadBrand); });
+      li.appendChild(b);
+      ul.appendChild(li);
+    });
+  }
+
+  var TIERS = [['P', 'Publishable'], ['A', 'Ask first'], ['X', 'Private']];
+  function renderStories(stories) {
+    var ul = $('y-stories');
+    ul.textContent = '';
+    if (!stories.length) ul.appendChild(el('li', 'mp-empty-line', 'Your stories appear here as you answer.'));
+    stories.slice().reverse().forEach(function (s) {
+      var li = el('li', 'y-story');
+      li.appendChild(el('h3', null, s.title));
+      if (s.theme) li.appendChild(el('p', 'y-theme', s.theme));
+      li.appendChild(el('p', null, s.summary));
+      var group = el('div', 'y-tiers');
+      group.setAttribute('role', 'group');
+      group.setAttribute('aria-label', 'Who may see this story');
+      TIERS.forEach(function (t) {
+        var b = el('button', null, t[1]);
+        b.type = 'button';
+        b.dataset.tier = t[0];
+        b.setAttribute('aria-pressed', String(s.tier === t[0]));
+        b.addEventListener('click', function () {
+          api.post('/stories/' + encodeURIComponent(s.id), { tier: t[0] }).then(loadBrand);
+        });
+        group.appendChild(b);
+      });
+      li.appendChild(group);
+      ul.appendChild(li);
+    });
+  }
+
+  var rulesLoaded = false;
+  function loadRules() {
+    if (rulesLoaded) return;
+    api.get('/rules').then(function (r) {
+      if (!r.ok) return;
+      rulesLoaded = true;
+      $('y-rules-default').textContent = r.data.defaults;
+      $('y-rules-text').value = r.data.own.text || '';
+      $('y-rules-phrases').value = (r.data.own.phrases || []).join('\n');
+    });
+  }
+  $('y-rules-save').addEventListener('click', function () {
+    api.post('/rules', { text: $('y-rules-text').value, phrases: $('y-rules-phrases').value.split('\n') }).then(function (r) {
+      msg('y-rules-saved', r.ok ? 'Saved. Your next content follows them.' : r.data.error);
+    });
+  });
+
+  var photoUrl = null;
+  function loadPhoto() {
+    if (!state || !state.photo) return showPhoto(null);
+    api.blob('/photo').then(function (r) { showPhoto(r.ok ? r.blob : null); });
+  }
+  function showPhoto(blob) {
+    if (photoUrl) URL.revokeObjectURL(photoUrl);
+    photoUrl = blob ? URL.createObjectURL(blob) : null;
+    var img = $('y-photo-img');
+    img.hidden = !photoUrl;
+    if (photoUrl) img.src = photoUrl;
+    show('y-photo-del', !!photoUrl);
+  }
+  /* Made smaller here first (1024 px, JPEG): a phone photo of 5 MB becomes
+     about 150 KB, which is faster to send and cheaper for the image model. */
+  $('y-photo-file').addEventListener('change', function () {
+    var f = this.files[0];
+    this.value = '';
+    if (!f) return;
+    var img = new Image();
+    var url = URL.createObjectURL(f);
+    img.onload = function () {
+      var scale = Math.min(1, 1024 / Math.max(img.width, img.height));
+      var c = document.createElement('canvas');
+      c.width = Math.round(img.width * scale);
+      c.height = Math.round(img.height * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob(function (b) {
+        request(API + '/photo', { method: 'POST', body: b, headers: { 'Content-Type': 'image/jpeg' } }).then(function (r) {
+          if (!r.ok) return window.alert(r.data.error || 'The photo could not be saved.');
+          state.photo = true;
+          showPhoto(b);
+        });
+      }, 'image/jpeg', 0.86);
+    };
+    img.onerror = function () { window.alert('That photo could not be opened.'); };
+    img.src = url;
+  });
+  $('y-photo-del').addEventListener('click', function () {
+    api.post('/photo/delete').then(function () {
+      state.photo = false;
+      showPhoto(null);
+    });
+  });
+
+  $('y-delete-all').addEventListener('click', function () {
+    var typed = window.prompt('This deletes all your answers, your profile, your stories and your content. It cannot be undone. Type DELETE to confirm.');
+    if (typed !== 'DELETE') return;
+    api.post('/delete-all', { confirm: 'DELETE' }).then(function (r) {
+      if (!r.ok) return window.alert(r.data.error || 'That did not work. Please try again.');
+      current = null;
+      selectTab('questions');
+      loadState(true);
+    });
+  });
+
+  /* ---- content ---------------------------------------------------------------------- */
+
+  var GOALS = { trust: 'Trust', expertise: 'Expertise', growth: 'Growth', sales: 'Sales' };
+  var openIdea = null;
+
+  function loadIdeas() {
+    return api.get('/ideas').then(function (r) {
+      if (!r.ok) return;
+      var job = r.data.job;
+      var running = job && job.status === 'running';
+      $('y-ideas-go').disabled = running;
+      msg('y-ideas-status', running ? 'Thinking up ideas from your stories…' : job && job.status === 'failed' ? job.error : '');
+      show('y-ideas-empty', !r.data.ideas.length && !running);
+      renderIdeas(r.data.ideas);
+      if (running || r.data.ideas.some(function (i) { return busy(i.pack) || busy(i.cover); })) schedulePoll(true);
+    });
+  }
+  function busy(j) { return !!(j && j.status === 'running'); }
+
+  $('y-ideas-go').addEventListener('click', function () {
+    $('y-ideas-go').disabled = true;
+    api.post('/ideas').then(function (r) {
+      if (!r.ok) {
+        $('y-ideas-go').disabled = false;
+        return msg('y-ideas-status', r.data.error);
+      }
+      loadIdeas();
+    });
+  });
+
+  function renderIdeas(ideas) {
+    var ul = $('y-ideas');
+    ul.textContent = '';
+    ideas.forEach(function (i) {
+      var li = el('li', 'mp-item y-idea');
+      li.dataset.id = i.id;
+      var h = el('h3', null, i.topic);
+      h.appendChild(el('span', 'y-goal', GOALS[i.goal] || i.goal));
+      li.appendChild(h);
+      li.appendChild(el('p', 'mp-sub', i.angle + (i.story ? ' (from your story "' + i.story + '")' : '')));
+      var foot = el('div', 'mp-item-foot');
+      var open = el('button', 'mp-link', openIdea === i.id ? 'Close' : i.pack && i.pack.status === 'ready' ? 'Open the content' : 'Write the content');
+      open.type = 'button';
+      open.addEventListener('click', function () {
+        if (openIdea === i.id) {
+          openIdea = null;
+          return loadIdeas();
+        }
+        openIdea = i.id;
+        if (!i.pack) api.post('/ideas/' + i.id + '/pack').then(function (r) {
+          if (!r.ok) window.alert(r.data.error);
+          loadIdeas();
+        });
+        else loadIdeas();
+      });
+      foot.appendChild(open);
+      var del = el('button', 'mp-link', 'Delete');
+      del.type = 'button';
+      del.addEventListener('click', function () {
+        if (!window.confirm('Delete this idea and its content?')) return;
+        api.post('/ideas/' + i.id + '/delete').then(function (r) {
+          if (!r.ok) window.alert(r.data.error);
+          loadIdeas();
+        });
+      });
+      foot.appendChild(del);
+      li.appendChild(foot);
+      if (openIdea === i.id) li.appendChild(packView(i));
+      ul.appendChild(li);
+    });
+  }
+
+  function packView(i) {
+    var box = el('div', 'y-pack');
+    if (busy(i.pack)) {
+      box.appendChild(el('p', 'mp-hint', 'Writing your script, post and titles… (about half a minute)'));
+      return box;
+    }
+    if (i.pack && i.pack.status === 'failed') {
+      box.appendChild(el('p', 'mp-error', i.pack.error));
+      var again = el('button', 'mp-btn mp-btn-ghost', 'Try again');
+      again.type = 'button';
+      again.addEventListener('click', function () { api.post('/ideas/' + i.id + '/pack').then(loadIdeas); });
+      box.appendChild(again);
+      return box;
+    }
+    box.appendChild(el('p', 'mp-hint', 'Loading…'));
+    api.get('/ideas/' + i.id).then(function (r) {
+      if (!r.ok || !r.data.content) return;
+      box.textContent = '';
+      fillPack(box, r.data.idea, r.data.content);
+    });
+    return box;
+  }
+
+  function copyButton(text) {
+    var b = el('button', 'mp-link y-copy', 'Copy');
+    b.type = 'button';
+    b.addEventListener('click', function () {
+      var done = function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1500); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () { window.prompt('Copy this:', text); });
+      else window.prompt('Copy this:', text);
+    });
+    return b;
+  }
+  function heading(text, copyText) {
+    var h = el('h4', null, text);
+    if (copyText) h.appendChild(copyButton(copyText));
+    return h;
+  }
+
+  function fillPack(box, idea, c) {
+    box.appendChild(heading('Title options'));
+    var ol = el('ol', 'y-titles');
+    c.titles.forEach(function (t) { ol.appendChild(el('li', null, t)); });
+    box.appendChild(ol);
+
+    var spoken = c.script.map(function (l) { return l.say; }).join('\n');
+    box.appendChild(heading('Short video script · about ' + c.seconds + ' seconds', spoken));
+    box.appendChild(el('p', 'y-hook', c.hook));
+    var table = el('table', 'y-script');
+    c.script.forEach(function (l) {
+      var tr = el('tr');
+      tr.appendChild(el('td', null, l.say));
+      tr.appendChild(el('td', null, l.show));
+      table.appendChild(tr);
+    });
+    box.appendChild(table);
+
+    box.appendChild(heading('How to film it'));
+    var ul = el('ul', 'y-filming');
+    [['Framing', c.filming.framing], ['Light', c.filming.light], ['Sound', c.filming.sound], ['Where', c.filming.location]].forEach(function (f) {
+      if (f[1]) ul.appendChild(el('li', null, f[0] + ': ' + f[1]));
+    });
+    (c.filming.tips || []).forEach(function (t) { ul.appendChild(el('li', null, t)); });
+    box.appendChild(ul);
+
+    var caption = c.caption + (c.hashtags.length ? '\n\n' + c.hashtags.join(' ') : '');
+    box.appendChild(heading('Caption for Shorts and Reels', caption));
+    box.appendChild(el('p', 'y-text', caption));
+    box.appendChild(heading('Post', c.post));
+    box.appendChild(el('p', 'y-text', c.post));
+    if (c.postingTips && c.postingTips.length) {
+      box.appendChild(heading('When and how to post'));
+      var tips = el('ul', 'y-filming');
+      c.postingTips.forEach(function (t) { tips.appendChild(el('li', null, t)); });
+      box.appendChild(tips);
+    }
+    if (c.ruleIssues && c.ruleIssues.length) box.appendChild(el('p', 'mp-hint', 'Check before posting: ' + c.ruleIssues.join(', ') + '.'));
+
+    box.appendChild(heading('Cover'));
+    box.appendChild(coverView(idea, c));
+  }
+
+  /* ---- covers -------------------------------------------------------------------------- */
+
+  var FORMATS = { reel: [1080, 1920], post: [1080, 1350] };
+
+  function coverView(idea, c) {
+    var wrap = el('div', 'y-cover');
+    var tall = el('canvas');
+    tall.width = FORMATS.reel[0];
+    tall.height = FORMATS.reel[1];
+    var square = el('canvas', 'is-post');
+    square.width = FORMATS.post[0];
+    square.height = FORMATS.post[1];
+    var tools = el('div', 'y-cover-tools');
+    var label = el('label', 'mp-label', 'Cover text');
+    var input = el('input');
+    input.type = 'text';
+    input.maxLength = 60;
+    input.value = c.cover.text || c.titles[0] || '';
+    label.appendChild(input);
+    tools.appendChild(label);
+    var status = el('p', 'mp-hint');
+    var actions = el('div', 'mp-actions');
+    tools.appendChild(actions);
+    tools.appendChild(status);
+
+    var image = null;
+    var draw = function () {
+      paint(tall, image, input.value);
+      paint(square, image, input.value);
+    };
+    input.addEventListener('input', draw);
+
+    if (busy(idea.cover)) {
+      status.textContent = 'Drawing your cover… (about 15 seconds)';
+    } else if (idea.cover && idea.cover.status === 'ready') {
+      api.blob('/ideas/' + idea.id + '/cover').then(function (r) {
+        if (!r.ok) return;
+        var img = new Image();
+        img.onload = function () {
+          image = img;
+          draw();
+        };
+        img.src = URL.createObjectURL(r.blob);
+      });
+      actions.appendChild(downloadButton('Download for Shorts / Reels', tall, idea.topic + ' - reel'));
+      actions.appendChild(downloadButton('Download for posts', square, idea.topic + ' - post'));
+      var redo = el('button', 'mp-link', 'Draw a different cover');
+      redo.type = 'button';
+      redo.addEventListener('click', function () { requestCover(idea); });
+      tools.appendChild(redo);
+    } else {
+      if (idea.cover && idea.cover.status === 'failed') status.textContent = idea.cover.error;
+      var go = el('button', 'mp-btn', 'Draw the cover');
+      go.type = 'button';
+      go.addEventListener('click', function () { requestCover(idea); });
+      actions.appendChild(go);
+      if (!state || !state.photo) tools.appendChild(el('p', 'mp-hint', 'Tip: add your photo under My Brand first, so the cover shows you.'));
+    }
+    wrap.appendChild(tall);
+    wrap.appendChild(square);
+    wrap.appendChild(tools);
+    setTimeout(draw, 0);
+    return wrap;
+  }
+
+  function requestCover(idea) {
+    api.post('/ideas/' + idea.id + '/cover').then(function (r) {
+      if (!r.ok) window.alert(r.data.error);
+      loadIdeas();
+    });
+  }
+
+  /* The picture, cropped to fill, with the title in the calm top area. */
+  function paint(canvas, img, text) {
+    var g = canvas.getContext('2d');
+    var W = canvas.width;
+    var H = canvas.height;
+    g.fillStyle = '#e9eaee';
+    g.fillRect(0, 0, W, H);
+    if (img) {
+      var s = Math.max(W / img.width, H / img.height);
+      var w = img.width * s;
+      var h = img.height * s;
+      g.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+    }
+    var grad = g.createLinearGradient(0, 0, 0, H * 0.45);
+    grad.addColorStop(0, 'rgba(10,12,20,0.72)');
+    grad.addColorStop(1, 'rgba(10,12,20,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, W, H * 0.45);
+    text = String(text || '').trim().toUpperCase();
+    if (!text) return;
+    var size = Math.round(W * 0.105);
+    var lines;
+    for (;;) {
+      g.font = '800 ' + size + 'px Inter, "Helvetica Neue", Arial, sans-serif';
+      lines = wrapText(g, text, W * 0.86);
+      if (lines.length <= 3 || size < W * 0.06) break;
+      size -= 6;
+    }
+    g.textAlign = 'center';
+    g.textBaseline = 'top';
+    g.fillStyle = '#fff';
+    g.shadowColor = 'rgba(0,0,0,0.45)';
+    g.shadowBlur = size * 0.25;
+    var y = H * 0.07;
+    lines.forEach(function (l) {
+      g.fillText(l, W / 2, y);
+      y += size * 1.08;
+    });
+    g.shadowBlur = 0;
+  }
+  function wrapText(g, text, max) {
+    var words = text.split(/\s+/);
+    var lines = [];
+    var line = '';
+    words.forEach(function (w) {
+      var t = line ? line + ' ' + w : w;
+      if (g.measureText(t).width > max && line) {
+        lines.push(line);
+        line = w;
+      } else line = t;
+    });
+    if (line) lines.push(line);
+    return lines;
+  }
+  function downloadButton(label, canvas, name) {
+    var b = el('button', 'mp-btn mp-btn-ghost', label);
+    b.type = 'button';
+    b.addEventListener('click', function () {
+      canvas.toBlob(function (blob) {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name.replace(/[^\w -]+/g, '').slice(0, 60) + '.png';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () {
+          URL.revokeObjectURL(a.href);
+          a.remove();
+        }, 1000);
+      }, 'image/png');
+    });
+    return b;
+  }
+
+  /* ---- polling while work is running ---------------------------------------------------- */
+
+  function schedulePoll(force) {
+    clearTimeout(pollTimer);
+    var reading = state && state.reading > 0;
+    if (!force && !reading) return;
+    pollTimer = setTimeout(function () {
+      var tab = (root.querySelector('.mp-tabs [aria-selected="true"]') || {}).dataset;
+      tab = tab ? tab.tab : 'questions';
+      if (tab === 'content') loadIdeas();
+      else if (tab === 'brand') {
+        loadState(false);
+        loadBrand();
+      } else loadState(false);
+    }, 4000);
+  }
+
+  /* ---- boot ------------------------------------------------------------------------------ */
+
+  if (PREVIEW) {
+    var note = el('p', 'mp-preview', 'Preview. This page only works once it is published on StrategyTraining.com and you are signed in.');
+    $('y-app').insertBefore(note, $('y-app').firstChild);
+    root.classList.remove('is-booting');
+    show('y-app', true);
+  } else if (!window.STMember) {
+    showGate('service_down');
+  } else {
+    window.STMember.identify('[st-yma]').then(function (who) {
+      if (who.signedIn === false && !who.transient) {
+        lastIdentity = who;
+        return showGate('signed_out');
+      }
+      return startSession(who);
+    });
+  }
+})();
+</script>

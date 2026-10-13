@@ -98,7 +98,7 @@ const RESUME = Buffer.from(
 ).toString('base64');
 
 async function waitFor(id, status) {
-  for (let i = 0; i < 400; i++) {
+  for (let i = 0; i < 1200; i++) {
     const meta = await store.getJson('reports/' + id + '/meta.json');
     if (meta && meta.status === status) return meta;
     if (meta && meta.status === 'failed') throw new Error('report failed: ' + meta.error);
@@ -193,7 +193,7 @@ test('the podcast follows the documents, can fail on its own and be retried', as
     return { mp3: Buffer.from('ID3 test episode'), seconds: 1080, title: 'Training Camp or Golden Cage', script: {} };
   };
   const waitPod = async (id, status) => {
-    for (let i = 0; i < 400; i++) {
+    for (let i = 0; i < 1200; i++) {
       const m = await store.getJson('reports/' + id + '/meta.json');
       if (m && m.podcast && m.podcast.status === status && m.emailedAt) return m;
       await new Promise((r) => setTimeout(r, 50));

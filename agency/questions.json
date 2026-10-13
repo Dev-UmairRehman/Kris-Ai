@@ -1,0 +1,951 @@
+{
+  "source": "Authority Based Business question bank (client spreadsheet, 10 levels)",
+  "levels": [
+    {
+      "n": 1,
+      "title": "Childhood",
+      "starter": "L1Q1",
+      "questions": [
+        {
+          "id": "L1Q1",
+          "text": "What did you dream about when you were a child?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q2",
+          "text": "How did your dreams change?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q3",
+          "text": "Is there any correlation between dreams in childhood and now? Is there any pattern to be traced?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q4",
+          "text": "What did you love about yourself when you were a child that you think is no longer visible to others, and maybe even to you, with age?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q5",
+          "text": "Which parent you were or may still be closest to?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q6",
+          "text": "Were there other people you were close with? What qualities did you love about them?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q7",
+          "text": "What was your relationship with your mother?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q8",
+          "text": "What was your relationship with your father?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q9",
+          "text": "Was your childhood happy?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q10",
+          "text": "10 reasons why your childhood was happy.",
+          "kind": "list",
+          "items": 10
+        },
+        {
+          "id": "L1Q11",
+          "text": "10 reasons why your childhood wasn't happy.",
+          "kind": "list",
+          "items": 10
+        },
+        {
+          "id": "L1Q12",
+          "text": "What qualities have you learned from your parents?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q13",
+          "text": "What qualities did you not want to get from your parents?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q14",
+          "text": "Why are you proud of your mother?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q15",
+          "text": "Why are you proud of your father?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q16",
+          "text": "What are the biggest strengths and weaknesses of your mother?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q17",
+          "text": "What are the biggest strengths and weaknesses of your father?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q18",
+          "text": "How much your life is similar to your parents. Have you repeated a story of your mother or father?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q19",
+          "text": "Which qualities from your parents would you want to pass on to your children?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q20",
+          "text": "What values and principles were in your family?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q21",
+          "text": "What do you remember the most from your childhood? Write down the 5 most memorable moments.",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q22",
+          "text": "Write down 3 childhood stories where you showed your leadership qualities/spirit?",
+          "kind": "list",
+          "items": 3
+        },
+        {
+          "id": "L1Q23",
+          "text": "Which day from your childhood are you most proud of? Why?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q24",
+          "text": "Which day from your childhood do you wish you could change? Why?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q25",
+          "text": "Who you wanted to be when you grew up? If you are interested in multiple professions, write down all of them.",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q26",
+          "text": "What worried you the most as a child?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q27",
+          "text": "If you could go back to one day in your childhood, which day would it be and why.",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q28",
+          "text": "Important events in your childhood which transformed who you are.",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q29",
+          "text": "Who are you most thankful to from your childhood? Why?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q30",
+          "text": "Which dreams from childhood have you not realized yet?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q31",
+          "text": "What was your favorite childhood game? Come back to that time. Why did you like to play that game? What brought you joy?",
+          "kind": "text"
+        },
+        {
+          "id": "L1Q32",
+          "text": "Who you admired when you were a child? Why?",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "title": "Values and Principles",
+      "starter": "L2Q21",
+      "questions": [
+        {
+          "id": "L2Q1",
+          "text": "Describe your values.",
+          "kind": "text"
+        },
+        {
+          "id": "L2Q2",
+          "text": "Describe your principles.",
+          "kind": "text"
+        },
+        {
+          "id": "L2Q3",
+          "text": "Are your values and principles reflected in what you do now? How?",
+          "kind": "text"
+        },
+        {
+          "id": "L2Q4",
+          "text": "How are your values reflected in your desire to build your own authority-based business?",
+          "kind": "text"
+        },
+        {
+          "id": "L2Q5",
+          "text": "What limiting beliefs do you have? Only writing them down will not make a huge difference. Remember, most thoughts are not yours. Limiting beliefs will start changing when something happens that tells you, \"This is not true!”",
+          "kind": "text"
+        },
+        {
+          "id": "L2Q6",
+          "text": "What would you never do in your life? What is tabu?",
+          "kind": "text"
+        },
+        {
+          "id": "L2Q7",
+          "text": "What drives you?",
+          "kind": "text"
+        },
+        {
+          "id": "L2Q8",
+          "text": "How can your life change if every day you will build, no matter what, your own authority-based business?",
+          "kind": "text"
+        },
+        {
+          "id": "L2Q9",
+          "text": "Moments in your life that changed who you are or made you who you are. Something that seriously influenced you.",
+          "kind": "text"
+        },
+        {
+          "id": "L2Q10",
+          "text": "Where were you a leader? Remember, go through that experience.",
+          "kind": "text"
+        },
+        {
+          "id": "L2Q11",
+          "text": "Where did you feel the most pain?",
+          "kind": "text"
+        },
+        {
+          "id": "L2Q12",
+          "text": "Which day in your life was the best?",
+          "kind": "text"
+        },
+        {
+          "id": "L2Q13",
+          "text": "Which day in your life was the worst?",
+          "kind": "text"
+        },
+        {
+          "id": "L2Q14",
+          "text": "What values and principles do you want to carry to the world?",
+          "kind": "text"
+        },
+        {
+          "id": "L2Q15",
+          "text": "Which things have you done in your life that you can be proud of?",
+          "kind": "text"
+        },
+        {
+          "id": "L2Q16",
+          "text": "What do you like about yourself? Write 30 items.",
+          "kind": "list",
+          "items": 30
+        },
+        {
+          "id": "L2Q17",
+          "text": "What was the motivating factor that moved you to start building your own authority-based business?",
+          "kind": "text"
+        },
+        {
+          "id": "L2Q18",
+          "text": "What is the mission of your authority-based business?",
+          "kind": "text"
+        },
+        {
+          "id": "L2Q19",
+          "text": "What are the main meanings/thoughts you want to communicate to your audience?",
+          "kind": "text"
+        },
+        {
+          "id": "L2Q20",
+          "text": "What emotions do you want your clients and audience to feel?",
+          "kind": "text"
+        },
+        {
+          "id": "L2Q21",
+          "text": "What do you believe so strongly that no one will be able to convince you otherwise?",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "n": 3,
+      "title": "Goals and Mission",
+      "starter": "L3Q6",
+      "questions": [
+        {
+          "id": "L3Q1",
+          "text": "What are your current life goals? What do you want to achieve in terms of material and not material things?",
+          "kind": "text"
+        },
+        {
+          "id": "L3Q2",
+          "text": "What are you dreaming about now?",
+          "kind": "text"
+        },
+        {
+          "id": "L3Q3",
+          "text": "What is your mission? What is a mission?",
+          "kind": "text"
+        },
+        {
+          "id": "L3Q4",
+          "text": "What is your main goal in life?",
+          "kind": "text"
+        },
+        {
+          "id": "L3Q5",
+          "text": "If you could pick a place and year in the past to be born, what would you pick?",
+          "kind": "text"
+        },
+        {
+          "id": "L3Q6",
+          "text": "Which difficulties you were able to overcome in life? Tell the story of transformation.",
+          "kind": "text"
+        },
+        {
+          "id": "L3Q7",
+          "text": "What are your biggest goals for this year? Achievement of which goals your audience would be interested in observing?",
+          "kind": "text"
+        },
+        {
+          "id": "L3Q8",
+          "text": "What are your goals for the next 1-3 months? Achievement of which goals your audience would be interested in observing?",
+          "kind": "text"
+        },
+        {
+          "id": "L3Q9",
+          "text": "What do you definitely need to do before you die?",
+          "kind": "text"
+        },
+        {
+          "id": "L3Q10",
+          "text": "What goals have you not achieved in the past because you did not follow your own principles and values outlined in level 2? How can you prevent this from happening again?",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "n": 4,
+      "title": "Spheres of Life",
+      "starter": "L4-work",
+      "questions": [
+        {
+          "id": "L4-spouse",
+          "text": "Spouse: where were you in the past, where are you now, and where do you want to be in the future?",
+          "kind": "text"
+        },
+        {
+          "id": "L4-friends",
+          "text": "Friends/colleagues: where were you in the past, where are you now, and where do you want to be in the future?",
+          "kind": "text"
+        },
+        {
+          "id": "L4-sports",
+          "text": "Sports: where were you in the past, where are you now, and where do you want to be in the future?",
+          "kind": "text"
+        },
+        {
+          "id": "L4-self",
+          "text": "Self Actualization: where were you in the past, where are you now, and where do you want to be in the future?",
+          "kind": "text"
+        },
+        {
+          "id": "L4-health",
+          "text": "Health: where were you in the past, where are you now, and where do you want to be in the future?",
+          "kind": "text"
+        },
+        {
+          "id": "L4-children",
+          "text": "Children: where were you in the past, where are you now, and where do you want to be in the future?",
+          "kind": "text"
+        },
+        {
+          "id": "L4-work",
+          "text": "Work: where were you in the past, where are you now, and where do you want to be in the future?",
+          "kind": "text"
+        },
+        {
+          "id": "L4-money",
+          "text": "Money: where were you in the past, where are you now, and where do you want to be in the future?",
+          "kind": "text"
+        },
+        {
+          "id": "L4-hobbies",
+          "text": "Hobbies: where were you in the past, where are you now, and where do you want to be in the future?",
+          "kind": "text"
+        },
+        {
+          "id": "L4-religion",
+          "text": "Religion/spirituality: where were you in the past, where are you now, and where do you want to be in the future?",
+          "kind": "text"
+        },
+        {
+          "id": "L4-strengths",
+          "text": "Across all these areas of your life, what are your strengths and your weaknesses?",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "n": 5,
+      "title": "Money",
+      "starter": "L5Q5",
+      "questions": [
+        {
+          "id": "L5Q1",
+          "text": "Write down all your skills, professions, and things you know how to do.",
+          "kind": "text"
+        },
+        {
+          "id": "L5Q2",
+          "text": "Write down what you learned during your life.",
+          "kind": "text"
+        },
+        {
+          "id": "L5Q3",
+          "text": "Write down all jobs you ever had (even as a child/teenager).",
+          "kind": "text"
+        },
+        {
+          "id": "L5Q4",
+          "text": "Write down the results you have already achieved.",
+          "kind": "text"
+        },
+        {
+          "id": "L5Q5",
+          "text": "What advice do people ask you for?",
+          "kind": "text"
+        },
+        {
+          "id": "L5Q6",
+          "text": "Write down people you know. Those are your assets in terms of your connections. Your closest circle is you, then your partner, then family, then friends, then colleagues, then people you know. Look at each circle. Don't think about it just do it. Select people that can be helpful to you. Maybe they have a business, maybe they can hire you.",
+          "kind": "text"
+        },
+        {
+          "id": "L5Q7",
+          "text": "Why do people buy from people?",
+          "kind": "text"
+        },
+        {
+          "id": "L5-circles",
+          "text": "Map your circles of relationships: you; your partner, closest friends and family; good and reliable friends; acquaintances and colleagues; possible relationships; and the people you removed from your life. Who in each circle could help you build your business?",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "n": 6,
+      "title": "Feelings",
+      "starter": "L6Q14",
+      "questions": [
+        {
+          "id": "L6Q1",
+          "text": "What you dreamed about?",
+          "kind": "text"
+        },
+        {
+          "id": "L6Q2",
+          "text": "What have you dreamed about before? How has your position changed?",
+          "kind": "text"
+        },
+        {
+          "id": "L6Q3",
+          "text": "What do you feel when you understand that your personal brand will have an impact on people?",
+          "kind": "text"
+        },
+        {
+          "id": "L6Q4",
+          "text": "Can you show your feelings? When did you show your feelings last time?",
+          "kind": "text"
+        },
+        {
+          "id": "L6Q5",
+          "text": "How open are you with people? Do you speak in the language of feelings?",
+          "kind": "text"
+        },
+        {
+          "id": "L6Q6",
+          "text": "What do you worry about the most? What is your main worry related to your life?",
+          "kind": "text"
+        },
+        {
+          "id": "L6Q7",
+          "text": "Which feeling you feel the most lately? Is it happiness, do you feel you are in transition?",
+          "kind": "text"
+        },
+        {
+          "id": "L6Q8",
+          "text": "Do you understand the source of this feeling? Do you understand the nature of this feeling? Eg, I am scared but don't know why. Do you understand what is happening?",
+          "kind": "text"
+        },
+        {
+          "id": "L6Q9",
+          "text": "What was the source of this feeling? When did it start?",
+          "kind": "text"
+        },
+        {
+          "id": "L6Q10",
+          "text": "What can bring you to tears? Very important.",
+          "kind": "text"
+        },
+        {
+          "id": "L6Q11",
+          "text": "How do you like to rest? What do you like doing? What do you find to be most restful? Do you like to rest with others or alone?",
+          "kind": "text"
+        },
+        {
+          "id": "L6Q12",
+          "text": "Which hobbies do you have? What do you like to do even if you are not getting paid for it?",
+          "kind": "text"
+        },
+        {
+          "id": "L6Q13",
+          "text": "What can you do indefinitely?",
+          "kind": "text"
+        },
+        {
+          "id": "L6Q14",
+          "text": "What puts you in a state of flow? What makes you forget what time it is or if you are hungry?",
+          "kind": "text"
+        },
+        {
+          "id": "L6Q15",
+          "text": "What feeling do you feel most often lately?",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "n": 7,
+      "title": "Personal",
+      "starter": "L7Q16",
+      "questions": [
+        {
+          "id": "L7Q1",
+          "text": "Who do I want to become?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q2",
+          "text": "3 key life events which determined who you are today.",
+          "kind": "list",
+          "items": 3
+        },
+        {
+          "id": "L7Q3",
+          "text": "How is your relationship with your partner? Is he/she the person whom you wanted/dreamed about? How much do they fill you up? How much the person who is next to you is the person you want? 1-10",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q4",
+          "text": "Describe your ideal partner (if it is not your current partner).",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q5",
+          "text": "Write down at least 5 strengths and weaknesses.",
+          "kind": "list",
+          "items": 5
+        },
+        {
+          "id": "L7Q6",
+          "text": "What drives you to get out of bed in the morning?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q7",
+          "text": "Did you notice that you have different parts of you?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q8",
+          "text": "What is the most memorable day of your life? Why?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q9",
+          "text": "What was the best day of your life? Why?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q10",
+          "text": "What day in your life do you regret?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q11",
+          "text": "What actions are you most proud of?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q12",
+          "text": "Which spheres of your life do you want to place the most attention on going forward? Why?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q13",
+          "text": "What are your 5 good qualities?",
+          "kind": "list",
+          "items": 5
+        },
+        {
+          "id": "L7Q14",
+          "text": "What are your 5 negative qualities?",
+          "kind": "list",
+          "items": 5
+        },
+        {
+          "id": "L7Q15",
+          "text": "Which qualities do you want to develop in yourself and why?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q16",
+          "text": "What do you want to talk about with the world?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q17",
+          "text": "If you could now select any line of work, what would you select?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q18",
+          "text": "How will you use this unpacking work in the future?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q19",
+          "text": "What are 3 adjectives that people associate with you? Ask people you trust to let you know 3 adjectives they associate with you.",
+          "kind": "list",
+          "items": 3
+        },
+        {
+          "id": "L7Q20",
+          "text": "What 3 adjectives do you want to be associated with?",
+          "kind": "list",
+          "items": 3
+        },
+        {
+          "id": "L7Q21",
+          "text": "Which of your qualities is an obstacle in achieving your goals? How can you showcase it to your audience to show drama/obstacles in pursuit of your goals?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q22",
+          "text": "Which circumstances can become obstacles in achieving your goals? How can you communicate these obstacles to your audience in an entertaining way?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q23",
+          "text": "What are 10 facts about you that you want your audience to know?",
+          "kind": "list",
+          "items": 10
+        },
+        {
+          "id": "L7Q24",
+          "text": "What are you interested in?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q25",
+          "text": "Are there people in your life who are an obstacle in your pursuit of building your own business?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q26",
+          "text": "Describe your typical day.",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q27",
+          "text": "Where do you usually go?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q28",
+          "text": "What do you feel while answering these questions?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q29",
+          "text": "Why do you need a personal brand?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q30",
+          "text": "What do you read in your free time? Why.",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q31",
+          "text": "What 3 of your qualities do people most often note?",
+          "kind": "list",
+          "items": 3
+        },
+        {
+          "id": "L7Q32",
+          "text": "What would be your ideal day?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q33",
+          "text": "Who inspires you? Why?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q34",
+          "text": "What are you proud of? What do you want to be proud of?",
+          "kind": "text"
+        },
+        {
+          "id": "L7Q35",
+          "text": "Write down 5 imperfections that will help your audience to see themselves in you and to fall in love with you?",
+          "kind": "list",
+          "items": 5
+        },
+        {
+          "id": "L7Q36",
+          "text": "What are your irrational fears? What are those fears trying to tell you? When were they originated?",
+          "kind": "text"
+        },
+        {
+          "id": "L7X1",
+          "text": "What is the meaning of life for you?",
+          "kind": "text"
+        },
+        {
+          "id": "L7X2",
+          "text": "If you could be born in any place and any time, when you would want to be born?",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "n": 8,
+      "title": "Expertise",
+      "starter": "L8Q7",
+      "questions": [
+        {
+          "id": "L8Q1",
+          "text": "What is your expertise?",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q2",
+          "text": "How do you see your future professional development in the area of your expertise?",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q3",
+          "text": "What does my work mean?",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q4",
+          "text": "How can I change the world?",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q5",
+          "text": "What did you study (formally and informally)?",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q6",
+          "text": "Write down all jobs you ever had (even as a child).",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q7",
+          "text": "Are there any myths, misconceptions, or mistakes that beginners make in your field?",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q8",
+          "text": "What experience do you have that you would like to share with the world?",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q9",
+          "text": "What professional skills do you have?",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q10",
+          "text": "What questions do your friends/relatives/acquaintances already ask you?",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q11",
+          "text": "Why are you doing this particular topic?",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q12",
+          "text": "What topic or area gives you energy?",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q13",
+          "text": "What are you ready to talk about for hours because you enjoy it so much?",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q14",
+          "text": "What puts you in a state of flow?",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q15",
+          "text": "Your additional skills (you don't currently earn from them, but you can use them on the blog).",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q16",
+          "text": "Your success stories in your field/testimonials.",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q17",
+          "text": "Share engaging stories (minimum 5) related to your area of expertise (these can be educational, cautionary tales, inspiring, funny stories, motivating stories, etc.).",
+          "kind": "list",
+          "items": 5
+        },
+        {
+          "id": "L8Q18",
+          "text": "Why you selected this area of expertise?",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q19",
+          "text": "Are you happy to focus on this area of expertise?",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q20",
+          "text": "What is the biggest value you are bringing to the world?",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q21",
+          "text": "What is your unique strength?",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q22",
+          "text": "Write down your 10 most important achievements.",
+          "kind": "list",
+          "items": 10
+        },
+        {
+          "id": "L8Q23",
+          "text": "Write down 10 people-brands that you consider to be cool.",
+          "kind": "list",
+          "items": 10
+        },
+        {
+          "id": "L8Q24",
+          "text": "If you now had unlimited financial freedom, what work would you do?",
+          "kind": "text"
+        },
+        {
+          "id": "L8Q25",
+          "text": "How can you help people?",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "n": 9,
+      "title": "Music and Movies",
+      "starter": "L9Q3",
+      "questions": [
+        {
+          "id": "L9Q1",
+          "text": "What music do you like? Write down all songs which you like.",
+          "kind": "text"
+        },
+        {
+          "id": "L9Q2",
+          "text": "Listen to it today and write down phrases that create the most emotions in you. There is always some phrase that touches you. If music is instrumental, which emotions do you feel the most when you listen to it? Do you feel inspired? What it moves you to do.",
+          "kind": "text"
+        },
+        {
+          "id": "L9Q3",
+          "text": "Remember moments in your life that are associated with some music.",
+          "kind": "text"
+        },
+        {
+          "id": "L9Q4",
+          "text": "Which movies are you watching? What specifically you liked? What was the main meaning? If it was the main character, what were the main characteristics of this person?",
+          "kind": "text"
+        },
+        {
+          "id": "L9Q5",
+          "text": "Do you write poems? If yes, what is it about?",
+          "kind": "text"
+        },
+        {
+          "id": "L9Q6",
+          "text": "Do you have favorite symbols? Maybe you constantly see some symbols. Maybe you have a tattoo. Write down what it is and what it means to you.",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "n": 10,
+      "title": "Pulling It All Together",
+      "starter": "L10Q6",
+      "questions": [
+        {
+          "id": "L10Q1",
+          "text": "What did you uncover about yourself once you heard the decoding of level 9 (music and movies)?",
+          "kind": "text"
+        },
+        {
+          "id": "L10Q2",
+          "text": "Go through all your answers to the previous 9 levels and highlight the most important areas. Highlight only 20% of the answers for each level, so select wisely.",
+          "kind": "text"
+        },
+        {
+          "id": "L10Q3",
+          "text": "What have you uncovered about yourself that will change the way you live your life and build your business?",
+          "kind": "text"
+        },
+        {
+          "id": "L10Q4",
+          "text": "How can you quickly integrate what you uncovered, starting with the top 20%?",
+          "kind": "text"
+        },
+        {
+          "id": "L10Q5",
+          "text": "What products and services should you offer given the top 20% you uncovered? What action you can take right now to ensure you will offer this product/service/to ensure quick integration?",
+          "kind": "text"
+        },
+        {
+          "id": "L10Q6",
+          "text": "Who do you want to help most? Outline your ideal customer: gender, interests, nationality, where they were born and live now, their dreams, their main pain points, why they cannot solve those pains, what they have tried, what you can offer them, and why your product or service is different.",
+          "kind": "text"
+        }
+      ]
+    }
+  ]
+}

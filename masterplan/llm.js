@@ -125,6 +125,9 @@ function toParts(content) {
     if (b.type === 'document' && b.source && b.source.media_type === 'application/pdf') {
       return { type: 'file', file: { filename: 'resume.pdf', file_data: 'data:application/pdf;base64,' + b.source.data } };
     }
+    /* Audio and images, for products that pass them (Your Marketing Agency). */
+    if (b.type === 'audio') return { type: 'input_audio', input_audio: { data: b.data, format: b.format || 'mp3' } };
+    if (b.type === 'image_data') return { type: 'image_url', image_url: { url: 'data:' + (b.media || 'image/jpeg') + ';base64,' + b.data } };
     const part = { type: 'text', text: b.text };
     if (b.cache_control) part.cache_control = b.cache_control;
     return part;
@@ -194,15 +197,18 @@ async function generateOpenRouter(p) {
   }
   messages.push({ role: 'user', content: toParts(p.content) });
 
+  /* p.model picks another model for this call (cheaper ones for small jobs);
+     MasterPlan's own calls leave it unset. p.effort 'none' sends no reasoning. */
+  const model = p.model || config.anthropic.model;
   const body = {
-    model: config.anthropic.model,
+    model,
     messages,
     max_tokens: p.maxTokens || 32000,
-    reasoning: { effort: p.effort || config.anthropic.effort },
     stream: true,
     usage: { include: true },
-    provider: { order: ['anthropic'], allow_fallbacks: true },
   };
+  if (p.effort !== 'none') body.reasoning = { effort: p.effort || config.anthropic.effort };
+  if (model.startsWith('anthropic/')) body.provider = { order: ['anthropic'], allow_fallbacks: true };
   const search = (p.tools || []).find((t) => t.name === 'web_search');
   if (search) body.plugins = [{ id: 'web', engine: 'native', max_results: search.max_uses || 5 }];
   if (Array.isArray(p.content) && p.content.some((b) => b.type === 'document')) {
@@ -227,7 +233,7 @@ async function generateOpenRouter(p) {
       if (out.finish === 'length') throw new LlmError('The response was cut off at the length limit.', 'max_tokens');
       if (out.finish === 'content_filter') throw new LlmError('The model declined this request.', 'refusal');
       if (!out.text.trim()) throw new LlmError('The model returned an empty answer.', 'empty');
-      return { text: out.text, usage, model: config.anthropic.model };
+      return { text: out.text, usage, model };
     } catch (err) {
       last = err;
       const status = err.status;

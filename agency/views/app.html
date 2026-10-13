@@ -1,0 +1,138 @@
+<div id="yma" class="mp yma is-booting" role="main">
+
+  <div class="mp-boot" role="status">Loading Your Marketing Agency…</div>
+
+  <!-- ===== signed out, no plan, or the service is unavailable ===== -->
+  <div class="mp-gate" id="y-gate" hidden>
+    <p class="mp-kicker">From Kris and Michael</p>
+    <h1 class="mp-title">Your Marketing Agency.</h1>
+    <p class="mp-lede">Answer questions about your life, one at a time, in writing or out of your own mouth. From your answers we build your brand identity and turn your real stories into Shorts, Reels, posts and covers, in your voice.</p>
+    <p class="mp-gate-text" id="y-gate-text">Sign in to your StrategyTraining account to use Your Marketing Agency.</p>
+    <div class="mp-actions">
+      <a class="mp-btn" id="y-signin" target="_top" href="#">Sign in</a>
+      <a class="mp-btn mp-btn-ghost" id="y-join" target="_top" href="#">Join</a>
+      <button type="button" class="mp-btn" id="y-retry" hidden>Try again</button>
+    </div>
+  </div>
+
+  <!-- ===== the tool ===== -->
+  <div class="mp-app" id="y-app" hidden>
+    <div class="mp-tabs" role="tablist">
+      <button role="tab" data-tab="questions" aria-selected="true">Questions</button>
+      <button role="tab" data-tab="brand" aria-selected="false">My Brand</button>
+      <button role="tab" data-tab="content" aria-selected="false">Content</button>
+    </div>
+
+    <!-- ===== questions ===== -->
+    <div class="mp-panel" data-panel="questions">
+      <div class="y-intro" id="y-intro">
+        <p class="mp-kicker">Your Marketing Agency</p>
+        <h1 class="mp-title mp-title-sm">Your stories are your marketing.</h1>
+        <p class="mp-lede">Start with one question from each of the ten areas below. Write your answer or record it. After that, a new question waits for you here every few days, and every answer makes your brand identity and your content sharper.</p>
+      </div>
+
+      <ol class="y-starters" id="y-starters" aria-label="Your first ten questions"></ol>
+      <p class="mp-error" id="y-read-failed" role="alert" hidden></p>
+
+      <div class="y-card" id="y-card" hidden>
+        <p class="mp-label" id="y-q-level"></p>
+        <h2 class="y-q" id="y-q-text"></h2>
+        <p class="mp-hint" id="y-q-hint" hidden></p>
+        <p class="y-follow" id="y-q-follow" hidden></p>
+
+        <div class="y-answer-tools">
+          <button type="button" class="mp-btn mp-btn-ghost y-rec" id="y-rec"><span class="y-dot" aria-hidden="true"></span><span id="y-rec-label">Record your answer</span></button>
+          <label class="mp-link y-upload">Upload a recording<input type="file" id="y-audio-file" accept="audio/*,.mp3,.m4a,.wav,.ogg,.flac,.aac" hidden></label>
+          <span class="y-rec-time" id="y-rec-time" hidden>0:00</span>
+        </div>
+        <p class="mp-hint" id="y-rec-status" role="status" hidden></p>
+
+        <textarea id="y-answer" rows="9" placeholder="Write your answer here, or record it. Specific moments, names of places, what you felt: the more concrete, the better your content."></textarea>
+        <p class="mp-error" id="y-ans-error" role="alert" hidden></p>
+        <div class="mp-actions y-save-row">
+          <button type="button" class="mp-btn" id="y-save">Save answer</button>
+          <span class="mp-hint" id="y-saved" hidden></span>
+        </div>
+      </div>
+
+      <div class="y-wait" id="y-wait" hidden>
+        <h2 class="y-q">You are up to date.</h2>
+        <p class="mp-lede" id="y-wait-text">Your next question arrives soon. Meanwhile, look at My Brand, or turn your stories into content.</p>
+      </div>
+
+      <details class="y-all" id="y-all">
+        <summary>All questions</summary>
+        <div id="y-levels"></div>
+      </details>
+    </div>
+
+    <!-- ===== my brand ===== -->
+    <div class="mp-panel" data-panel="brand" hidden>
+      <p class="mp-hint y-reading" id="y-reading" hidden>Reading your latest answer into your profile…</p>
+      <div class="mp-empty" id="y-brand-empty" hidden>
+        <p>Your brand identity appears here after your first answer.</p>
+        <button class="mp-btn" data-goto="questions">Answer a question</button>
+      </div>
+
+      <div id="y-brand" hidden>
+        <section class="y-sec">
+          <h2 class="y-h">Identity profile</h2>
+          <p class="mp-hint">Built from your answers. Change anything; what you edit is yours and is never overwritten.</p>
+          <dl class="y-profile" id="y-profile"></dl>
+        </section>
+
+        <section class="y-sec" id="y-confirm-sec" hidden>
+          <h2 class="y-h">Please check</h2>
+          <ul class="y-confirm" id="y-confirm"></ul>
+        </section>
+
+        <section class="y-sec">
+          <h2 class="y-h">Story bank</h2>
+          <p class="mp-hint">Only <strong>Publishable</strong> stories are ever used in your content. <strong>Ask first</strong> waits for your yes. <strong>Private</strong> stays private and only shapes your tone.</p>
+          <ul class="y-stories" id="y-stories"></ul>
+        </section>
+      </div>
+
+      <section class="y-sec">
+        <h2 class="y-h">Writing rules</h2>
+        <p class="mp-hint">Every script and post follows these. Add your own rules and the words you never want to use.</p>
+        <details class="mp-more"><summary>See the rules everyone starts with</summary><pre class="y-rules-default" id="y-rules-default"></pre></details>
+        <label class="mp-label" for="y-rules-text">Your own rules</label>
+        <textarea id="y-rules-text" rows="4" placeholder="For example: I never talk about my children. I say &quot;clients&quot;, never &quot;customers&quot;."></textarea>
+        <label class="mp-label" for="y-rules-phrases">Words and phrases you never use (one per line)</label>
+        <textarea id="y-rules-phrases" rows="3"></textarea>
+        <div class="mp-actions"><button type="button" class="mp-btn mp-btn-ghost" id="y-rules-save">Save rules</button><span class="mp-hint" id="y-rules-saved" hidden>Saved.</span></div>
+      </section>
+
+      <section class="y-sec">
+        <h2 class="y-h">Your photo for covers</h2>
+        <p class="mp-hint">Covers with your face get more clicks. Add one clear photo of yourself, face to the camera, good light.</p>
+        <div class="y-photo">
+          <img id="y-photo-img" alt="Your photo" hidden>
+          <div class="mp-actions">
+            <label class="mp-btn mp-btn-ghost">Choose a photo<input type="file" id="y-photo-file" accept="image/jpeg,image/png,image/webp" hidden></label>
+            <button type="button" class="mp-link" id="y-photo-del" hidden>Remove photo</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="y-sec y-danger">
+        <button type="button" class="mp-link" id="y-delete-all">Delete all my answers and content</button>
+      </section>
+    </div>
+
+    <!-- ===== content ===== -->
+    <div class="mp-panel" data-panel="content" hidden>
+      <div class="y-ideas-bar">
+        <div>
+          <h2 class="y-h">Content ideas</h2>
+          <p class="mp-hint">Short videos for YouTube Shorts and Instagram Reels, each with a matching post, built from your publishable stories.</p>
+        </div>
+        <button type="button" class="mp-btn" id="y-ideas-go">Suggest ideas</button>
+      </div>
+      <p class="mp-hint" id="y-ideas-status" role="status" hidden></p>
+      <p class="mp-empty-line" id="y-ideas-empty" hidden>No ideas yet. Answer a few questions, then press Suggest ideas.</p>
+      <ul class="mp-list" id="y-ideas"></ul>
+    </div>
+  </div>
+</div>

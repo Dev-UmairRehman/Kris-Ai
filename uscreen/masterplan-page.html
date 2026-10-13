@@ -466,98 +466,20 @@
 'use strict';
 
 /* ---------------------------------------------------------------------------
-   MasterPlan Digital - the page.
+   Who is signed in on the StrategyTraining store, and do they have a plan.
 
-   Boot: ask the store page who is signed in (same handshake as Kris AI
-   Memory, with its own message names), exchange that for a MasterPlan
-   session, then show the three tabs.
+   Shared by every StrategyTraining product page pasted into Uscreen
+   (MasterPlan Digital, Your Marketing Agency), so a fix here is a fix for all
+   of them. Runs on the store's own pages (same origin as /account).
 
-   The session token lives only in this script's memory and goes out as a
-   Bearer header - the iframe is cross-site, so cookies cannot be relied on.
-
-   The viewer renders each PDF page onto a canvas with PDF.js. There is no
-   download button, no text layer to copy from and no file URL: the bytes are
-   fetched with the token and drawn. That stops casual saving; it cannot stop a
-   screenshot, and nothing on the web can.
+     STMember.identify(log)       -> { signedIn, email, via, transient? }
+     STMember.checkPlan(planPage) -> { plan: 'yes'|'no'|'unknown', planVia }
+     STMember.emailOnPage()       -> the one member email shown on this page, or ''
    --------------------------------------------------------------------------- */
 
 (function () {
-  var BOOT = window.MP_BOOT || {};
-  /* Two homes for this script:
-       embed  inside the iframe served by the app (views/app.html)
-       page   pasted straight into the Uscreen page (uscreen/masterplan-page.html):
-              the API is on another origin, and the member is read from the
-              store's own /account page, which this page can see. */
-  var PAGE = BOOT.mode === 'page';
-  var BASE = (BOOT.apiOrigin || '') + '/masterplan';
-  /* The page opened outside the store (a saved file, an editor preview):
-     show the tool, but there is no member and no server to talk to. */
-  var PREVIEW = PAGE && !/(^|\.)strategytraining\.com$/i.test(location.hostname) && !BOOT.localApi;
-  if (PAGE && !BOOT.openReport) {
-    try { BOOT.openReport = new URLSearchParams(location.search).get('report') || ''; } catch (e) { /* old browser */ }
-  }
-  var IDENTITY_WAIT_MS = 4000;
-  var POLL_MS = 8000;
-
-  var $ = function (id) { return document.getElementById(id); };
-  var root = $('mp');
-  /* On the Uscreen page the title is already on the page around the app. */
-  if (BOOT.bare) root.classList.add('is-bare');
-  if (PAGE) root.classList.add('is-page');
-  var token = null;
-  var email = '';
-  var state = { mine: [], sharing: false, library: [] };
-  var pollTimer = null;
-
-  /* ---- api ---------------------------------------------------------------- */
-
-  function api(method, path, body) {
-    if (PREVIEW) {
-      return Promise.resolve({
-        ok: false,
-        status: 0,
-        data: { error: 'This is a preview. Publish this page on StrategyTraining.com to create a MasterPlan.' },
-      });
-    }
-    var headers = { 'Content-Type': 'application/json' };
-    if (token) headers.Authorization = 'Bearer ' + token;
-    return fetch(BASE + path, {
-      method: method,
-      headers: headers,
-      body: body ? JSON.stringify(body) : undefined,
-      /* Our API never redirects. A redirect means the request did not reach
-         the MasterPlan service (not deployed, or a proxy page), and following
-         it would land on the store's join page. */
-      redirect: 'manual',
-    }).then(function (res) {
-      var json = /json/i.test(res.headers.get('content-type') || '');
-      return (json ? res.json() : Promise.reject(new Error('not json'))).catch(function () {
-        /* Not an answer from the MasterPlan service. */
-        return { error: 'The MasterPlan service is not reachable right now. Please try again in a few minutes.', reason: 'service_down' };
-      }).then(function (data) {
-        if (res.status === 401 && data.reason === 'no_session') showGate('expired');
-        return { ok: res.ok && data.reason !== 'service_down', status: res.status, data: data };
-      });
-    }, function () {
-      return {
-        ok: false,
-        status: 0,
-        data: { error: 'The MasterPlan service is not reachable right now. Please try again in a few minutes.', reason: 'service_down' },
-      };
-    });
-  }
-
-  /* ---- identity handshake ------------------------------------------------- */
-
-  var embedded = window.parent !== window;
-  var parents = BOOT.allowedParentOrigins || [];
-
-  function toParent(msg) {
-    if (!embedded) return;
-    parents.forEach(function (origin) {
-      try { window.parent.postMessage(msg, origin); } catch (e) { /* not this one */ }
-    });
-  }
+  if (window.STMember) return;
+  var LOG = '[st-member]';
 
   /* ---- who is signed in (page mode) -----------------------------------------
      The store answers GET /account with 401 when signed out and the account
@@ -724,9 +646,149 @@
       return new Promise(function (ok) { setTimeout(ok, 1500); }).then(probeAccount);
     }).then(function (r) {
       r = r || { signedIn: false, via: 'probe failed twice', transient: true };
-      try { console.log('[st-mp] signedIn=' + r.signedIn + ' email=' + (r.email ? 'yes' : 'none') + ' via ' + r.via); } catch (e) { /* no console */ }
+      try { console.log(LOG + ' signedIn=' + r.signedIn + ' email=' + (r.email ? 'yes' : 'none') + ' via ' + r.via); } catch (e) { /* no console */ }
       return r;
     });
+  }
+
+  /* Does this member have a plan? Asked of the store itself: a page Uscreen
+     opens only to members with a plan (the Kris AI page, /delphi). Staying
+     on it means yes; being sent elsewhere means no. Anything unclear is
+     "unknown", and the server lets "unknown" in rather than lock out a paying
+     member. */
+  function checkPlanPage(planPage) {
+    var want = String(planPage || '').replace(/\/+$/, '');
+    if (!want) return Promise.resolve({ plan: 'unknown', planVia: 'no plan page' });
+    return fetch(want, { credentials: 'same-origin', redirect: 'follow', cache: 'no-store' }).then(function (res) {
+      /* Where the store left us. The home page is "/" - never "", which would
+         read as "no information" and let a member without a plan through. */
+      var path = null;
+      try { path = new URL(res.url, location.href).pathname.replace(/\/+$/, '') || '/'; } catch (e) { /* ignore */ }
+      if (res.status === 401 || res.status === 403) return { plan: 'no', planVia: want + ' ' + res.status };
+      if (path !== null && path !== want) return { plan: 'no', planVia: want + ' -> ' + path };
+      if (path === null && res.redirected) return { plan: 'unknown', planVia: want + ' redirected' };
+      if (res.ok) return { plan: 'yes', planVia: want + ' 200' };
+      return { plan: 'unknown', planVia: want + ' ' + res.status };
+    }, function () {
+      return { plan: 'unknown', planVia: want + ' unreachable' };
+    });
+  }
+
+  window.STMember = {
+    identify: function (log) {
+      if (log) LOG = log;
+      return identityFromStore();
+    },
+    checkPlan: checkPlanPage,
+    emailOnPage: emailOnPage,
+  };
+})();
+</script>
+<script>
+'use strict';
+
+/* ---------------------------------------------------------------------------
+   MasterPlan Digital - the page.
+
+   Boot: ask the store page who is signed in (same handshake as Kris AI
+   Memory, with its own message names), exchange that for a MasterPlan
+   session, then show the three tabs.
+
+   The session token lives only in this script's memory and goes out as a
+   Bearer header - the iframe is cross-site, so cookies cannot be relied on.
+
+   The viewer renders each PDF page onto a canvas with PDF.js. There is no
+   download button, no text layer to copy from and no file URL: the bytes are
+   fetched with the token and drawn. That stops casual saving; it cannot stop a
+   screenshot, and nothing on the web can.
+   --------------------------------------------------------------------------- */
+
+(function () {
+  var BOOT = window.MP_BOOT || {};
+  /* Two homes for this script:
+       embed  inside the iframe served by the app (views/app.html)
+       page   pasted straight into the Uscreen page (uscreen/masterplan-page.html):
+              the API is on another origin, and the member is read from the
+              store's own /account page, which this page can see. */
+  var PAGE = BOOT.mode === 'page';
+  var BASE = (BOOT.apiOrigin || '') + '/masterplan';
+  /* The page opened outside the store (a saved file, an editor preview):
+     show the tool, but there is no member and no server to talk to. */
+  var PREVIEW = PAGE && !/(^|\.)strategytraining\.com$/i.test(location.hostname) && !BOOT.localApi;
+  if (PAGE && !BOOT.openReport) {
+    try { BOOT.openReport = new URLSearchParams(location.search).get('report') || ''; } catch (e) { /* old browser */ }
+  }
+  var IDENTITY_WAIT_MS = 4000;
+  var POLL_MS = 8000;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var root = $('mp');
+  /* On the Uscreen page the title is already on the page around the app. */
+  if (BOOT.bare) root.classList.add('is-bare');
+  if (PAGE) root.classList.add('is-page');
+  var token = null;
+  var email = '';
+  var state = { mine: [], sharing: false, library: [] };
+  var pollTimer = null;
+
+  /* ---- api ---------------------------------------------------------------- */
+
+  function api(method, path, body) {
+    if (PREVIEW) {
+      return Promise.resolve({
+        ok: false,
+        status: 0,
+        data: { error: 'This is a preview. Publish this page on StrategyTraining.com to create a MasterPlan.' },
+      });
+    }
+    var headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = 'Bearer ' + token;
+    return fetch(BASE + path, {
+      method: method,
+      headers: headers,
+      body: body ? JSON.stringify(body) : undefined,
+      /* Our API never redirects. A redirect means the request did not reach
+         the MasterPlan service (not deployed, or a proxy page), and following
+         it would land on the store's join page. */
+      redirect: 'manual',
+    }).then(function (res) {
+      var json = /json/i.test(res.headers.get('content-type') || '');
+      return (json ? res.json() : Promise.reject(new Error('not json'))).catch(function () {
+        /* Not an answer from the MasterPlan service. */
+        return { error: 'The MasterPlan service is not reachable right now. Please try again in a few minutes.', reason: 'service_down' };
+      }).then(function (data) {
+        if (res.status === 401 && data.reason === 'no_session') showGate('expired');
+        return { ok: res.ok && data.reason !== 'service_down', status: res.status, data: data };
+      });
+    }, function () {
+      return {
+        ok: false,
+        status: 0,
+        data: { error: 'The MasterPlan service is not reachable right now. Please try again in a few minutes.', reason: 'service_down' },
+      };
+    });
+  }
+
+  /* ---- identity handshake ------------------------------------------------- */
+
+  var embedded = window.parent !== window;
+  var parents = BOOT.allowedParentOrigins || [];
+
+  function toParent(msg) {
+    if (!embedded) return;
+    parents.forEach(function (origin) {
+      try { window.parent.postMessage(msg, origin); } catch (e) { /* not this one */ }
+    });
+  }
+
+  /* ---- who is signed in (page mode) -----------------------------------------
+     The detection lives in member.js (window.STMember), shared with the other
+     StrategyTraining product pages. */
+  function identityFromStore() {
+    return window.STMember.identify('[st-mp]');
+  }
+  function emailOnPage() {
+    return window.STMember ? window.STMember.emailOnPage() : '';
   }
 
   /* While "could not read your email" is showing, watch the page: the moment
@@ -778,27 +840,10 @@
     });
   }
 
-  /* Does this member have a plan? Asked of the store itself: a page Uscreen
-     opens only to members with a plan (the Kris AI page, /delphi). Staying
-     on it means yes; being sent elsewhere means no. Anything unclear is
-     "unknown", and the server lets "unknown" in rather than lock out a paying
-     member. */
+  /* Does this member have a plan? Asked of the store (member.js). */
   function checkPlanPage() {
-    var want = String(BOOT.planPage || '').replace(/\/+$/, '');
-    if (!PAGE || !want) return Promise.resolve({ plan: 'unknown', planVia: 'no plan page' });
-    return fetch(want, { credentials: 'same-origin', redirect: 'follow', cache: 'no-store' }).then(function (res) {
-      /* Where the store left us. The home page is "/" - never "", which would
-         read as "no information" and let a member without a plan through. */
-      var path = null;
-      try { path = new URL(res.url, location.href).pathname.replace(/\/+$/, '') || '/'; } catch (e) { /* ignore */ }
-      if (res.status === 401 || res.status === 403) return { plan: 'no', planVia: want + ' ' + res.status };
-      if (path !== null && path !== want) return { plan: 'no', planVia: want + ' -> ' + path };
-      if (path === null && res.redirected) return { plan: 'unknown', planVia: want + ' redirected' };
-      if (res.ok) return { plan: 'yes', planVia: want + ' 200' };
-      return { plan: 'unknown', planVia: want + ' ' + res.status };
-    }, function () {
-      return { plan: 'unknown', planVia: want + ' unreachable' };
-    });
+    if (!PAGE || !BOOT.planPage || !window.STMember) return Promise.resolve({ plan: 'unknown', planVia: 'no plan page' });
+    return window.STMember.checkPlan(BOOT.planPage);
   }
 
   var attempts = 0;

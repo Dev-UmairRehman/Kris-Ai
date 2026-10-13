@@ -25,6 +25,9 @@ const API_ORIGIN = process.env.MP_PUBLIC_ORIGIN || 'https://kris-ai-memory-baefm
 const html = fs.readFileSync(path.join(ROOT, 'masterplan', 'views', 'app.html'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'masterplan', 'public', 'app.css'), 'utf8');
 const js = fs.readFileSync(path.join(ROOT, 'masterplan', 'public', 'app.js'), 'utf8');
+/* Who is signed in and whether they have a plan: shared with the other
+   StrategyTraining product pages. */
+const memberJs = fs.readFileSync(path.join(ROOT, 'masterplan', 'public', 'member.js'), 'utf8');
 
 /* The tool's markup: from <div id="mp"> to just before the boot script. Plain
    divs (no main/header/nav) so store-wide tag styles cannot reach it. */
@@ -94,6 +97,9 @@ ${pageCss.trim()}
 ${main[0]}
 
 <script>window.MP_BOOT = ${JSON.stringify(boot)};</script>
+<script>
+${memberJs.trim()}
+</script>
 <script>
 ${js.trim()}
 </script>

@@ -12,6 +12,7 @@
      POST /api/chat       ask Kris one question.
      POST /api/memory     Michael AI writes a member's finished work into memory.
      /masterplan/*        MasterPlan Digital, a separate product (masterplan/README.md).
+     /agency/*            Your Marketing Agency, a separate product (agency/README.md).
 
    The BuddyPro key and the Uscreen key exist only in this process. Nothing
    secret is ever written into the page.
@@ -548,6 +549,19 @@ try {
   console.error('[masterplan] failed to load; Kris AI is unaffected:', err);
 }
 
+/* ---- Your Marketing Agency ----------------------------------------------
+   The next StrategyTraining.com product, under /agency in ./agency. Shares
+   MasterPlan's member login, storage and model access. Loaded the same
+   defensive way. */
+
+let agency = null;
+try {
+  agency = require('./agency');
+  app.use('/agency', agency.router);
+} catch (err) {
+  console.error('[agency] failed to load; Kris AI and MasterPlan are unaffected:', err);
+}
+
 /* ---- fallbacks --------------------------------------------------------- */
 
 app.use((req, res) => {
@@ -585,6 +599,13 @@ const server = app.listen(config.port, () => {
       masterplan.boot();
     } catch (err) {
       console.error('[masterplan] boot failed; Kris AI is unaffected:', err);
+    }
+  }
+  if (agency) {
+    try {
+      agency.boot();
+    } catch (err) {
+      console.error('[agency] boot failed; Kris AI is unaffected:', err);
     }
   }
 });
