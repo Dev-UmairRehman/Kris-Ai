@@ -54,6 +54,7 @@ const config = {
     ideas: int('YMA_IDEA_BATCHES_PER_DAY', 4),
     packs: int('YMA_PACKS_PER_DAY', 8),
     covers: int('YMA_COVERS_PER_DAY', 8),
+    insights: int('YMA_INSIGHTS_PER_DAY', 3),
     globalCost: int('YMA_GLOBAL_DOLLARS_PER_DAY', 40),
   },
   maxAudioBytes: int('YMA_MAX_AUDIO_BYTES', 40 * 1024 * 1024),

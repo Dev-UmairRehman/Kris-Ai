@@ -33,6 +33,7 @@ const config = require('../config');
 /* ---- model stubs ---------------------------------------------------------------- */
 
 const calls = [];
+const ideaPrompts = [];
 let packDrafts = 0;
 llm.generate = async (p) => {
   const text = typeof p.content === 'string' ? p.content : p.content.map((b) => b.text || '').join('\n');
@@ -42,8 +43,13 @@ llm.generate = async (p) => {
   const json = (o) => ({ text: '```json\n' + JSON.stringify(o) + '\n```', usage });
   /* Profile and ideas may use the same model: tell the jobs apart by their instructions. */
   const sys = typeof p.system === 'string' ? p.system : (p.system || []).map((b) => b.text).join('\n');
-  const job = /brand identity profile/.test(sys) ? 'profile' : /content strategist/.test(sys) ? 'ideas' : /short-video content/.test(sys) ? 'write' : 'transcribe';
+  const job = /brand identity profile/.test(sys) ? 'profile' : /YouTube channel to tell them/.test(sys) ? 'insights' : /content strategist/.test(sys) ? 'ideas' : /short-video content/.test(sys) ? 'write' : 'transcribe';
 
+  if (job === 'insights') {
+    assert.match(text, /latest videos/);
+    return json({ summary: 'Personal stories win.', working: ['Stories from childhood'], notWorking: ['Generic tips'], doMore: ['One story per Short'], topicsThatWork: ['childhood'] });
+  }
+  if (job === 'ideas') ideaPrompts.push(text);
   if (job === 'transcribe') {
     assert.ok(Array.isArray(p.content) && p.content[0].type === 'audio', 'audio goes to the model');
     return { text: 'When I was a child I dreamt of writing books.', usage };
@@ -109,6 +115,21 @@ global.fetch = async (url, opts) => {
 
 const express = require('express');
 const masterplan = require('../../masterplan');
+/* YouTube is not called in tests: the channel reader is stubbed. */
+const channelsMod = require('../channels');
+const day = (n) => new Date(Date.now() - n * 86400000).toISOString();
+channelsMod.channel = async () => ({
+  channelId: 'UC' + 'x'.repeat(22),
+  title: 'Ana on stories',
+  source: 'feed',
+  videos: [
+    { id: 'aaaaaaaaaa1', title: 'My first short', published: day(3), views: 900, short: true },
+    { id: 'aaaaaaaaaa2', title: 'Another short', published: day(10), views: 1100, short: true },
+    { id: 'aaaaaaaaaa3', title: 'A third short', published: day(20), views: 1000, short: true },
+    { id: 'aaaaaaaaaa4', title: 'A long talk', published: day(30), views: 20000, short: false },
+  ],
+});
+channelsMod.videoViews = async (id) => ({ views: id === 'bbbbbbbbbb1' ? 5000 : 0, title: 'Posted short', channelId: null });
 const agency = require('..');
 let base;
 let server;
@@ -290,6 +311,40 @@ test('daily limits stop runaway costs', async () => {
   const over = await call('POST', '/agency/api/ideas/' + iid + '/pack', {}, t);
   assert.strictEqual(over.status, 429);
   assert.strictEqual(over.data.reason, 'limit');
+});
+
+test('results: channels, what was posted, and whether it gets more views', async () => {
+  const t = await signIn('ana@example.com');
+  assert.strictEqual((await call('POST', '/agency/api/insights', {}, t)).status, 400, 'needs a channel first');
+  const c = await call('POST', '/agency/api/channels', { platform: 'youtube', input: '@ana' }, t);
+  assert.strictEqual(c.status, 200);
+  assert.strictEqual(c.data.title, 'Ana on stories');
+
+  const iid = (await call('GET', '/agency/api/ideas', null, t)).data.ideas[0].id;
+  assert.strictEqual((await call('POST', '/agency/api/ideas/' + iid + '/posted', { platform: 'youtube', url: 'https://example.com/x' }, t)).status, 400, 'a non-YouTube link is refused');
+  const yt = await call('POST', '/agency/api/ideas/' + iid + '/posted', { platform: 'youtube', url: 'https://youtube.com/shorts/bbbbbbbbbb1' }, t);
+  assert.strictEqual(yt.data.views, 5000, 'YouTube views are read automatically');
+  await call('POST', '/agency/api/ideas/' + iid + '/posted', { platform: 'instagram', url: 'https://www.instagram.com/reel/abc/', views: 800 }, t);
+  await call('POST', '/agency/api/channels', { platform: 'instagram', url: 'https://instagram.com/ana', baseline: 400 }, t);
+
+  const r = await call('GET', '/agency/api/results', null, t);
+  assert.strictEqual(r.status, 200);
+  assert.deepStrictEqual(r.data.compare.youtube.madeHere, { n: 1, avg: 5000 });
+  assert.strictEqual(r.data.compare.youtube.before.avg, 1000, 'compared with the channel"s other Shorts, not its long videos');
+  assert.deepStrictEqual(r.data.compare.instagram, { madeHere: { n: 1, avg: 800 }, before: { n: null, avg: 400, what: 'your usual views' } });
+  assert.strictEqual(r.data.posted[0].posts.length, 2);
+
+  assert.strictEqual((await call('POST', '/agency/api/insights', {}, t)).status, 202);
+  const ins = await until(async () => (await call('GET', '/agency/api/results', null, t)).data.insights, 'insights');
+  assert.deepStrictEqual(ins.working, ['Stories from childhood']);
+  /* New ideas learn from what works on the channel. */
+  await call('POST', '/agency/api/ideas', {}, t);
+  await until(async () => ideaPrompts.some((p) => /What already works on their own channel/.test(p) && /Stories from childhood/.test(p)), 'ideas use insights');
+
+  const other = await signIn('bo@example.com');
+  const theirs = await call('GET', '/agency/api/results', null, other);
+  assert.strictEqual(theirs.data.youtube, null);
+  assert.deepStrictEqual(theirs.data.posted, []);
 });
 
 test('delete everything removes the member\'s data', async () => {

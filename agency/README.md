@@ -90,7 +90,28 @@ npm run test:agency          # no API credit spent; models are stubbed
 npm run build:agency-page
 ```
 
-## Later
+## Results: is it working?
 
-Linking YouTube / Instagram / TikTok to measure views, and analysing existing
-channels, need Google and Meta app approval; planned as the next phase.
+The Results tab answers the client's question "are the videos made with this
+getting more views?" and analyses the member's existing channel.
+
+- **YouTube channel** (`channels.js`): the member gives their @handle; the
+  channel's own Videos and Shorts pages (what any visitor sees) give the latest
+  ~50 videos with views (as YouTube rounds them) and age, in two requests. No
+  login to their account, no key. The public feed is a second source (YouTube
+  takes it offline for long stretches). Set `YMA_YOUTUBE_API_KEY` (a free
+  YouTube Data API key) to read exact numbers from the official API instead.
+- **What works on your channel**: a cheap model reads titles, views and ages
+  and says what works, what does not, what to do more of (about 1¢,
+  `YMA_INSIGHTS_PER_DAY`). New topic ideas use it.
+- **Posted from here**: on each content pack the member marks where it went
+  live (link). YouTube views are read from the video page and refreshed when
+  the member opens Results (at most every 30 minutes, data older than 6 hours).
+  Instagram and TikTok do not let other sites read views without an approved
+  app, so the member types them, plus their usual views as the baseline.
+- **The comparison**: average views of videos made here against the channel's
+  other Shorts (or other videos), and against the usual views on Instagram and
+  TikTok.
+
+Reading members' private analytics (watch time, reach) by logging into their
+accounts needs Google and Meta app review; not needed for the comparison above.

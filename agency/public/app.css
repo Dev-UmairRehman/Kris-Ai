@@ -96,6 +96,39 @@
 .yma .y-cover-tools input:focus { outline: none; border-bottom-color: var(--navy); }
 .yma .y-cover-tools .mp-actions { margin: 0 0 10px; }
 
+/* results */
+.yma .y-compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin: 14px 0 0; }
+.yma .y-cmp { padding: 16px 18px; border: 1px solid var(--line); border-top: 3px solid var(--navy); }
+.yma .y-cmp h3 { margin: 0 0 10px; font: 600 12.5px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.yma .y-cmp .y-big { font: 500 34px/1.1 var(--serif); color: var(--ink); }
+.yma .y-cmp .y-vs { margin: 4px 0 10px; font-size: 14px; color: var(--ink-3); }
+.yma .y-bar { height: 8px; background: var(--soft); margin: 6px 0 2px; }
+.yma .y-bar span { display: block; height: 100%; background: var(--navy); }
+.yma .y-bar.is-before span { background: var(--field); }
+.yma .y-cmp small { font-size: 13px; color: var(--ink-3); }
+.yma .y-channel { margin: 0 0 16px; }
+.yma .y-inline { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.yma .y-inline input { flex: 1; min-width: 160px; padding: 10px 0 8px; border: 0; border-bottom: 1px solid var(--field); border-radius: 0; font: 16px var(--sans); background: transparent; color: var(--ink); }
+.yma .y-inline input[type="number"] { flex: 0 1 200px; }
+.yma .y-inline input:focus { outline: none; border-bottom-color: var(--navy); }
+.yma .y-inline .mp-btn { padding: 10px 20px; }
+.yma .y-insight h4 { margin: 14px 0 6px; font: 600 12.5px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.yma .y-insight ul { margin: 0; padding-left: 20px; font-size: 15.5px; color: var(--ink-2); }
+.yma .y-insight p { margin: 8px 0 0; font-size: 16.5px; }
+.yma .y-videos { width: 100%; border-collapse: collapse; font-size: 15px; }
+.yma .y-videos td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.yma .y-videos td.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.yma .y-videos .y-made { margin-left: 6px; padding: 1px 6px; background: var(--navy); color: #fff; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.yma .y-posted { list-style: none; margin: 10px 0 0; padding: 0; }
+.yma .y-posted li { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.yma .y-posted h3 { margin: 0 0 6px; font: 500 21px var(--serif); }
+.yma .y-post-row { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; font-size: 15px; color: var(--ink-2); margin: 4px 0; }
+.yma .y-post-row b { min-width: 86px; font-weight: 600; color: var(--ink); }
+.yma .y-post-row input { width: 130px; padding: 4px 0; border: 0; border-bottom: 1px solid var(--field); font: 15px var(--sans); background: transparent; }
+.yma .y-postbox { margin: 10px 0 0; padding: 14px; background: var(--soft); }
+.yma .y-postbox select { padding: 8px; border: 1px solid var(--field); background: #fff; font: 15px var(--sans); }
+.yma .y-postbox .y-inline input { min-width: 140px; }
+
 @media (max-width: 640px) {
   .yma .y-starters { grid-template-columns: repeat(2, 1fr); }
   .yma .y-card { padding: 20px 16px 18px; }
@@ -106,4 +139,6 @@
   .yma .y-script td { display: block; border: 0; padding: 6px 0; }
   .yma .y-cover canvas { width: 162px; height: 288px; }
   .yma .y-cover canvas.is-post { width: 162px; height: 203px; }
+  .yma .y-inline input[type="number"] { flex: 1 1 140px; }
+  .yma .y-videos td:nth-child(3) { display: none; }
 }

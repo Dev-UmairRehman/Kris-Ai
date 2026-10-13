@@ -133,8 +133,11 @@ Method:
 
 Reply with one JSON object in a \`\`\`json fence: {"ideas": [{"topic": "short name", "angle": "one sentence", "goal": "trust|expertise|growth|sales", "storyId": "id or null", "why": "why it fits them, one sentence"}]}`;
 
-async function ideas({ profile, stories, existing, count, usage }) {
+async function ideas({ profile, stories, existing, insights, count, usage }) {
   const pub = (stories || []).filter((s) => s.tier === 'P').map((s) => ({ id: s.id, title: s.title, theme: s.theme, summary: s.summary }));
+  const learned = insights && (insights.working || []).length
+    ? '\n\nWhat already works on their own channel (use it):\n' + JSON.stringify({ working: insights.working, doMore: insights.doMore, notWorking: insights.notWorking })
+    : '';
   const { text } = await llm.generate({
     model: config.models.ideas,
     effort: 'low',
@@ -142,7 +145,7 @@ async function ideas({ profile, stories, existing, count, usage }) {
     usage,
     system: IDEAS_SYSTEM,
     content:
-      '<profile>\n' + JSON.stringify(profile || {}) + '\n</profile>\n\n<stories>\n' + JSON.stringify(pub) + '\n</stories>\n\n' +
+      '<profile>\n' + JSON.stringify(profile || {}) + '\n</profile>\n\n<stories>\n' + JSON.stringify(pub) + '\n</stories>' + learned + '\n\n' +
       'Topics they already have: ' + JSON.stringify((existing || []).slice(0, 60)) + '\n\nPropose ' + count + ' new topics.',
   });
   const out = llm.parseJson(text);
@@ -246,6 +249,48 @@ async function pack({ profile, story, idea, memberRules, usage }) {
   return out;
 }
 
+/* ---- what works on their channel ------------------------------------------------------ */
+
+const INSIGHTS_SYSTEM = `You analyse a creator's YouTube channel to tell them, plainly, what is working and what is not. You get their latest videos (title, views, how many days ago, whether it is a Short) and, when known, what they do and who they want to reach.
+
+- Judge views relative to this channel (its median), and account for age: a video from yesterday has had less time.
+- Look for patterns in the titles and topics of the strongest and weakest videos: subject, angle, personal story versus advice, question versus statement, length of title, Shorts versus long videos.
+- Be specific and short. Refer to their actual videos. No generic advice, no hype.
+- If there are too few videos to see a pattern, say so in the summary and keep the lists short.
+
+Reply with one JSON object in a \`\`\`json fence:
+{"summary": "two sentences", "working": ["..."], "notWorking": ["..."], "doMore": ["..."], "topicsThatWork": ["short topic phrases"]}`;
+
+async function insights({ channel, profile, usage }) {
+  const now = Date.now();
+  const vids = (channel.videos || []).slice(0, 50).map((v) => ({
+    title: v.title,
+    views: v.views,
+    daysAgo: v.published ? Math.max(0, Math.round((now - Date.parse(v.published)) / 86400000)) : null,
+    short: v.short === true,
+  }));
+  const { text } = await llm.generate({
+    model: config.models.ideas,
+    effort: 'low',
+    maxTokens: 3000,
+    usage,
+    system: INSIGHTS_SYSTEM,
+    content:
+      'Channel: ' + JSON.stringify(channel.title || '') + '\n\nWhat they do and for whom: ' +
+      JSON.stringify({ expertise: (profile || {}).expertise || '', audience: (profile || {}).audience || '' }) +
+      '\n\nTheir latest videos:\n' + JSON.stringify(vids),
+  });
+  const out = llm.parseJson(text);
+  const list = (v) => (Array.isArray(v) ? v.map((x) => String(x).slice(0, 300)).filter(Boolean).slice(0, 6) : []);
+  return {
+    summary: String(out.summary || '').slice(0, 600),
+    working: list(out.working),
+    notWorking: list(out.notWorking),
+    doMore: list(out.doMore),
+    topicsThatWork: list(out.topicsThatWork),
+  };
+}
+
 /* ---- cover picture ----------------------------------------------------------------- */
 
 async function cover({ scene, photo, usage }) {
@@ -295,4 +340,4 @@ async function cover({ scene, photo, usage }) {
   throw last;
 }
 
-module.exports = { transcribe, absorb, ideas, pack, cover, PROFILE_FIELDS, LIST_FIELDS };
+module.exports = { transcribe, absorb, ideas, pack, cover, insights, PROFILE_FIELDS, LIST_FIELDS };

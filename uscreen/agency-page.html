@@ -379,6 +379,39 @@
 .yma .y-cover-tools input:focus { outline: none; border-bottom-color: var(--navy); }
 .yma .y-cover-tools .mp-actions { margin: 0 0 10px; }
 
+/* results */
+.yma .y-compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin: 14px 0 0; }
+.yma .y-cmp { padding: 16px 18px; border: 1px solid var(--line); border-top: 3px solid var(--navy); }
+.yma .y-cmp h3 { margin: 0 0 10px; font: 600 12.5px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.yma .y-cmp .y-big { font: 500 34px/1.1 var(--serif); color: var(--ink); }
+.yma .y-cmp .y-vs { margin: 4px 0 10px; font-size: 14px; color: var(--ink-3); }
+.yma .y-bar { height: 8px; background: var(--soft); margin: 6px 0 2px; }
+.yma .y-bar span { display: block; height: 100%; background: var(--navy); }
+.yma .y-bar.is-before span { background: var(--field); }
+.yma .y-cmp small { font-size: 13px; color: var(--ink-3); }
+.yma .y-channel { margin: 0 0 16px; }
+.yma .y-inline { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.yma .y-inline input { flex: 1; min-width: 160px; padding: 10px 0 8px; border: 0; border-bottom: 1px solid var(--field); border-radius: 0; font: 16px var(--sans); background: transparent; color: var(--ink); }
+.yma .y-inline input[type="number"] { flex: 0 1 200px; }
+.yma .y-inline input:focus { outline: none; border-bottom-color: var(--navy); }
+.yma .y-inline .mp-btn { padding: 10px 20px; }
+.yma .y-insight h4 { margin: 14px 0 6px; font: 600 12.5px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.yma .y-insight ul { margin: 0; padding-left: 20px; font-size: 15.5px; color: var(--ink-2); }
+.yma .y-insight p { margin: 8px 0 0; font-size: 16.5px; }
+.yma .y-videos { width: 100%; border-collapse: collapse; font-size: 15px; }
+.yma .y-videos td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.yma .y-videos td.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.yma .y-videos .y-made { margin-left: 6px; padding: 1px 6px; background: var(--navy); color: #fff; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.yma .y-posted { list-style: none; margin: 10px 0 0; padding: 0; }
+.yma .y-posted li { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.yma .y-posted h3 { margin: 0 0 6px; font: 500 21px var(--serif); }
+.yma .y-post-row { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; font-size: 15px; color: var(--ink-2); margin: 4px 0; }
+.yma .y-post-row b { min-width: 86px; font-weight: 600; color: var(--ink); }
+.yma .y-post-row input { width: 130px; padding: 4px 0; border: 0; border-bottom: 1px solid var(--field); font: 15px var(--sans); background: transparent; }
+.yma .y-postbox { margin: 10px 0 0; padding: 14px; background: var(--soft); }
+.yma .y-postbox select { padding: 8px; border: 1px solid var(--field); background: #fff; font: 15px var(--sans); }
+.yma .y-postbox .y-inline input { min-width: 140px; }
+
 @media (max-width: 640px) {
   .yma .y-starters { grid-template-columns: repeat(2, 1fr); }
   .yma .y-card { padding: 20px 16px 18px; }
@@ -389,6 +422,8 @@
   .yma .y-script td { display: block; border: 0; padding: 6px 0; }
   .yma .y-cover canvas { width: 162px; height: 288px; }
   .yma .y-cover canvas.is-post { width: 162px; height: 203px; }
+  .yma .y-inline input[type="number"] { flex: 1 1 140px; }
+  .yma .y-videos td:nth-child(3) { display: none; }
 }
 </style>
 
@@ -415,6 +450,7 @@
       <button role="tab" data-tab="questions" aria-selected="true">Questions</button>
       <button role="tab" data-tab="brand" aria-selected="false">My Brand</button>
       <button role="tab" data-tab="content" aria-selected="false">Content</button>
+      <button role="tab" data-tab="results" aria-selected="false">Results</button>
     </div>
 
     <!-- ===== questions ===== -->
@@ -527,6 +563,56 @@
       <p class="mp-hint" id="y-ideas-status" role="status" hidden></p>
       <p class="mp-empty-line" id="y-ideas-empty" hidden>No ideas yet. Answer a few questions, then press Suggest ideas.</p>
       <ul class="mp-list" id="y-ideas"></ul>
+    </div>
+
+    <!-- ===== results ===== -->
+    <div class="mp-panel" data-panel="results" hidden>
+      <section class="y-sec">
+        <h2 class="y-h">Is it working?</h2>
+        <p class="mp-hint">Views of the videos you made here, against your other videos. YouTube views update by themselves; for Instagram and TikTok, type in the views.</p>
+        <div class="y-compare" id="y-compare"></div>
+        <p class="mp-empty-line" id="y-compare-empty">Post a video from the Content tab, mark it as posted, and its views appear here.</p>
+      </section>
+
+      <section class="y-sec">
+        <h2 class="y-h">Your channels</h2>
+        <div class="y-channel">
+          <label class="mp-label" for="y-yt-input">YouTube</label>
+          <div class="y-inline"><input type="text" id="y-yt-input" placeholder="@yourhandle or your channel link" autocomplete="off"><button type="button" class="mp-btn mp-btn-ghost" id="y-yt-go">Connect</button></div>
+          <p class="mp-hint" id="y-yt-status" role="status" hidden></p>
+        </div>
+        <div class="y-channel">
+          <label class="mp-label" for="y-ig-url">Instagram</label>
+          <div class="y-inline"><input type="url" id="y-ig-url" placeholder="https://instagram.com/yourname"><input type="number" id="y-ig-base" min="0" placeholder="Usual views per Reel"><button type="button" class="mp-btn mp-btn-ghost" data-save="instagram">Save</button></div>
+        </div>
+        <div class="y-channel">
+          <label class="mp-label" for="y-tt-url">TikTok</label>
+          <div class="y-inline"><input type="url" id="y-tt-url" placeholder="https://tiktok.com/@yourname"><input type="number" id="y-tt-base" min="0" placeholder="Usual views per video"><button type="button" class="mp-btn mp-btn-ghost" data-save="tiktok">Save</button></div>
+        </div>
+        <p class="mp-hint">Instagram and TikTok do not let other sites read your views, so enter them yourself: your usual views before, and each post's views below.</p>
+      </section>
+
+      <section class="y-sec" id="y-insights-sec" hidden>
+        <div class="y-ideas-bar">
+          <div>
+            <h2 class="y-h">What works on your channel</h2>
+            <p class="mp-hint" id="y-insights-when"></p>
+          </div>
+          <button type="button" class="mp-btn" id="y-insights-go">Analyse my channel</button>
+        </div>
+        <p class="mp-hint" id="y-insights-status" role="status" hidden></p>
+        <div id="y-insights"></div>
+      </section>
+
+      <section class="y-sec" id="y-videos-sec" hidden>
+        <h2 class="y-h">Latest videos</h2>
+        <table class="y-videos" id="y-videos"></table>
+      </section>
+
+      <section class="y-sec" id="y-posted-sec" hidden>
+        <h2 class="y-h">Posted from here</h2>
+        <ul class="y-posted" id="y-posted"></ul>
+      </section>
     </div>
   </div>
 </div>
@@ -891,6 +977,7 @@
     Array.prototype.forEach.call(root.querySelectorAll('[data-panel]'), function (p) { p.hidden = p.dataset.panel !== name; });
     if (name === 'brand') loadBrand();
     if (name === 'content') loadIdeas();
+    if (name === 'results') loadResults();
   }
   tabs.forEach(function (t) { t.addEventListener('click', function () { selectTab(t.dataset.tab); }); });
   root.addEventListener('click', function (e) {
@@ -1469,7 +1556,261 @@
 
     box.appendChild(heading('Cover'));
     box.appendChild(coverView(idea, c));
+
+    box.appendChild(heading('Posted it?'));
+    box.appendChild(postedBox(idea));
   }
+
+  /* ---- posted: where this went live, for the Results tab ------------------------------------- */
+
+  var PLATFORM_NAMES = { youtube: 'YouTube', instagram: 'Instagram', tiktok: 'TikTok' };
+
+  function postedBox(idea) {
+    var wrap = el('div', 'y-postbox');
+    (idea.posted || []).forEach(function (p) {
+      var row = el('div', 'y-post-row');
+      row.appendChild(el('b', null, PLATFORM_NAMES[p.platform]));
+      var a = el('a', null, 'View the post');
+      a.href = p.url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      row.appendChild(a);
+      row.appendChild(el('span', null, p.views != null ? fmt(p.views) + ' views' : 'views not entered'));
+      wrap.appendChild(row);
+    });
+    var form = el('div', 'y-inline');
+    var sel = el('select');
+    ['youtube', 'instagram', 'tiktok'].forEach(function (pf) {
+      var o = el('option', null, PLATFORM_NAMES[pf]);
+      o.value = pf;
+      sel.appendChild(o);
+    });
+    var url = el('input');
+    url.type = 'url';
+    url.placeholder = 'Link to your post';
+    var views = el('input');
+    views.type = 'number';
+    views.min = '0';
+    views.placeholder = 'Views so far';
+    views.hidden = true;
+    sel.addEventListener('change', function () { views.hidden = sel.value === 'youtube'; });
+    var save = el('button', 'mp-btn mp-btn-ghost', 'Save');
+    save.type = 'button';
+    var note = el('p', 'mp-hint', 'YouTube views are read automatically. For Instagram and TikTok, type the views now and update them later under Results.');
+    save.addEventListener('click', function () {
+      save.disabled = true;
+      api.post('/ideas/' + idea.id + '/posted', { platform: sel.value, url: url.value.trim(), views: views.hidden ? undefined : views.value }).then(function (r) {
+        save.disabled = false;
+        if (!r.ok) return (note.textContent = r.data.error);
+        note.textContent = 'Saved' + (r.data.views != null ? ': ' + fmt(r.data.views) + ' views so far.' : '.') + ' See the Results tab.';
+        url.value = '';
+        views.value = '';
+      });
+    });
+    form.appendChild(sel);
+    form.appendChild(url);
+    form.appendChild(views);
+    form.appendChild(save);
+    wrap.appendChild(form);
+    wrap.appendChild(note);
+    return wrap;
+  }
+
+  function fmt(n) {
+    if (n == null) return '–';
+    if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M';
+    if (n >= 1e4) return Math.round(n / 1e3) + 'K';
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  /* ---- results --------------------------------------------------------------------------------- */
+
+  var resultsData = null;
+  function loadResults() {
+    return api.get('/results').then(function (r) {
+      if (!r.ok) return;
+      resultsData = r.data;
+      var d = r.data;
+      renderCompare(d.compare || {});
+      if (d.youtube && !$('y-yt-input').value) $('y-yt-input').value = d.youtube.input || '';
+      if (d.youtube) msg('y-yt-status', 'Connected: ' + (d.youtube.title || 'your channel') + ' · ' + (d.youtube.videos || []).length + ' recent videos');
+      ['instagram', 'tiktok'].forEach(function (pf) {
+        var c = d[pf] || {};
+        var short = pf === 'instagram' ? 'ig' : 'tt';
+        if (c.url && !$('y-' + short + '-url').value) $('y-' + short + '-url').value = c.url;
+        if (c.baseline != null && !$('y-' + short + '-base').value) $('y-' + short + '-base').value = c.baseline;
+      });
+      renderInsights(d);
+      renderVideos(d);
+      renderPosted(d.posted || []);
+      if (d.insightsJob && d.insightsJob.status === 'running') schedulePoll(true);
+    });
+  }
+
+  function renderCompare(cmp) {
+    var box = $('y-compare');
+    box.textContent = '';
+    var any = false;
+    ['youtube', 'instagram', 'tiktok'].forEach(function (pf) {
+      var c = cmp[pf];
+      if (!c || (!c.madeHere.n && !c.before.avg)) return;
+      any = true;
+      var card = el('div', 'y-cmp');
+      card.appendChild(el('h3', null, PLATFORM_NAMES[pf]));
+      var mine = c.madeHere.avg;
+      var before = c.before.avg;
+      card.appendChild(el('div', 'y-big', mine != null ? fmt(mine) : '–'));
+      card.appendChild(el('p', 'y-vs', c.madeHere.n ? 'average views of ' + c.madeHere.n + ' video' + (c.madeHere.n > 1 ? 's' : '') + ' made here' : 'nothing posted from here yet'));
+      var top = Math.max(mine || 0, before || 0, 1);
+      var b1 = el('div', 'y-bar');
+      var s1 = el('span');
+      s1.style.width = Math.round(((mine || 0) / top) * 100) + '%';
+      b1.appendChild(s1);
+      card.appendChild(b1);
+      card.appendChild(el('small', null, 'Made here'));
+      var b2 = el('div', 'y-bar is-before');
+      var s2 = el('span');
+      s2.style.width = Math.round(((before || 0) / top) * 100) + '%';
+      b2.appendChild(s2);
+      card.appendChild(b2);
+      card.appendChild(el('small', null, (before != null ? fmt(before) : '–') + ' · ' + c.before.what));
+      if (mine != null && before) {
+        var change = Math.round(((mine - before) / before) * 100);
+        card.appendChild(el('p', 'y-vs', change >= 0 ? change + '% more than ' + c.before.what : Math.abs(change) + '% fewer than ' + c.before.what));
+      }
+      box.appendChild(card);
+    });
+    show('y-compare-empty', !any);
+  }
+
+  function renderInsights(d) {
+    show('y-insights-sec', !!d.youtube);
+    var job = d.insightsJob;
+    var running = job && job.status === 'running';
+    $('y-insights-go').disabled = running;
+    $('y-insights-go').textContent = d.insights ? 'Analyse again' : 'Analyse my channel';
+    msg('y-insights-status', running ? 'Reading your videos…' : job && job.status === 'failed' ? job.error : '');
+    var box = $('y-insights');
+    box.textContent = '';
+    var i = d.insights;
+    $('y-insights-when').textContent = i ? 'From your latest ' + i.videos + ' videos, ' + new Date(i.at).toLocaleDateString() + '. New content ideas use this.' : 'A short read of your latest videos: what works, what does not, what to do more of. New content ideas then use it.';
+    if (!i) return;
+    var w = el('div', 'y-insight');
+    if (i.summary) w.appendChild(el('p', null, i.summary));
+    [['What works', i.working], ['What does not', i.notWorking], ['Do more of', i.doMore]].forEach(function (s) {
+      if (!s[1] || !s[1].length) return;
+      w.appendChild(el('h4', null, s[0]));
+      var ul = el('ul');
+      s[1].forEach(function (t) { ul.appendChild(el('li', null, t)); });
+      w.appendChild(ul);
+    });
+    box.appendChild(w);
+  }
+
+  function renderVideos(d) {
+    var vids = (d.youtube && d.youtube.videos) || [];
+    show('y-videos-sec', vids.length > 0);
+    var mine = {};
+    (d.posted || []).forEach(function (p) { p.posts.forEach(function (x) { if (x.videoId) mine[x.videoId] = true; }); });
+    var t = $('y-videos');
+    t.textContent = '';
+    var all = t.dataset.all === '1';
+    vids.slice(0, all ? vids.length : 12).forEach(function (v) {
+      var tr = el('tr');
+      var td = el('td', null, v.title);
+      if (mine[v.id]) td.appendChild(el('span', 'y-made', 'made here'));
+      tr.appendChild(td);
+      tr.appendChild(el('td', 'n', v.short ? 'Short' : 'Video'));
+      tr.appendChild(el('td', 'n', v.published ? new Date(v.published).toLocaleDateString() : ''));
+      tr.appendChild(el('td', 'n', fmt(v.views)));
+      t.appendChild(tr);
+    });
+    if (vids.length > 12) {
+      var more = el('tr');
+      var td2 = el('td');
+      td2.colSpan = 4;
+      var b = el('button', 'mp-link', all ? 'Show fewer' : 'Show all ' + vids.length + ' videos');
+      b.type = 'button';
+      b.addEventListener('click', function () {
+        t.dataset.all = all ? '' : '1';
+        renderVideos(d);
+      });
+      td2.appendChild(b);
+      more.appendChild(td2);
+      t.appendChild(more);
+    }
+  }
+
+  function renderPosted(list) {
+    show('y-posted-sec', list.length > 0);
+    var ul = $('y-posted');
+    ul.textContent = '';
+    list.forEach(function (item) {
+      var li = el('li');
+      li.appendChild(el('h3', null, item.topic));
+      item.posts.forEach(function (p) {
+        var row = el('div', 'y-post-row');
+        row.appendChild(el('b', null, PLATFORM_NAMES[p.platform]));
+        var a = el('a', null, 'View the post');
+        a.href = p.url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        row.appendChild(a);
+        if (p.platform === 'youtube') {
+          row.appendChild(el('span', null, (p.views != null ? fmt(p.views) + ' views' : 'views not read yet') + (p.viewsAt ? ' · updated ' + new Date(p.viewsAt).toLocaleDateString() : '')));
+        } else {
+          var input = el('input');
+          input.type = 'number';
+          input.min = '0';
+          input.placeholder = 'Views';
+          if (p.views != null) input.value = p.views;
+          var save = el('button', 'mp-link', 'Update views');
+          save.type = 'button';
+          save.addEventListener('click', function () {
+            api.post('/ideas/' + item.ideaId + '/posted', { platform: p.platform, url: p.url, views: input.value }).then(loadResults);
+          });
+          row.appendChild(input);
+          row.appendChild(save);
+        }
+        li.appendChild(row);
+      });
+      ul.appendChild(li);
+    });
+  }
+
+  $('y-yt-go').addEventListener('click', function () {
+    var v = $('y-yt-input').value.trim();
+    if (!v) return msg('y-yt-status', 'Enter your YouTube @handle or channel link.');
+    $('y-yt-go').disabled = true;
+    msg('y-yt-status', 'Reading your channel…');
+    api.post('/channels', { platform: 'youtube', input: v }).then(function (r) {
+      $('y-yt-go').disabled = false;
+      if (!r.ok) return msg('y-yt-status', r.data.error);
+      loadResults();
+    });
+  });
+  Array.prototype.forEach.call(root.querySelectorAll('[data-save]'), function (b) {
+    b.addEventListener('click', function () {
+      var pf = b.dataset.save;
+      var short = pf === 'instagram' ? 'ig' : 'tt';
+      api.post('/channels', { platform: pf, url: $('y-' + short + '-url').value.trim(), baseline: $('y-' + short + '-base').value }).then(function (r) {
+        if (!r.ok) return window.alert(r.data.error);
+        b.textContent = 'Saved';
+        setTimeout(function () { b.textContent = 'Save'; }, 1500);
+        loadResults();
+      });
+    });
+  });
+  $('y-insights-go').addEventListener('click', function () {
+    $('y-insights-go').disabled = true;
+    api.post('/insights').then(function (r) {
+      if (!r.ok) {
+        $('y-insights-go').disabled = false;
+        return msg('y-insights-status', r.data.error);
+      }
+      loadResults();
+    });
+  });
 
   /* ---- covers -------------------------------------------------------------------------- */
 
@@ -1626,6 +1967,7 @@
       var tab = (root.querySelector('.mp-tabs [aria-selected="true"]') || {}).dataset;
       tab = tab ? tab.tab : 'questions';
       if (tab === 'content') loadIdeas();
+      else if (tab === 'results') loadResults();
       else if (tab === 'brand') {
         loadState(false);
         loadBrand();

@@ -21,6 +21,7 @@
       <button role="tab" data-tab="questions" aria-selected="true">Questions</button>
       <button role="tab" data-tab="brand" aria-selected="false">My Brand</button>
       <button role="tab" data-tab="content" aria-selected="false">Content</button>
+      <button role="tab" data-tab="results" aria-selected="false">Results</button>
     </div>
 
     <!-- ===== questions ===== -->
@@ -133,6 +134,56 @@
       <p class="mp-hint" id="y-ideas-status" role="status" hidden></p>
       <p class="mp-empty-line" id="y-ideas-empty" hidden>No ideas yet. Answer a few questions, then press Suggest ideas.</p>
       <ul class="mp-list" id="y-ideas"></ul>
+    </div>
+
+    <!-- ===== results ===== -->
+    <div class="mp-panel" data-panel="results" hidden>
+      <section class="y-sec">
+        <h2 class="y-h">Is it working?</h2>
+        <p class="mp-hint">Views of the videos you made here, against your other videos. YouTube views update by themselves; for Instagram and TikTok, type in the views.</p>
+        <div class="y-compare" id="y-compare"></div>
+        <p class="mp-empty-line" id="y-compare-empty">Post a video from the Content tab, mark it as posted, and its views appear here.</p>
+      </section>
+
+      <section class="y-sec">
+        <h2 class="y-h">Your channels</h2>
+        <div class="y-channel">
+          <label class="mp-label" for="y-yt-input">YouTube</label>
+          <div class="y-inline"><input type="text" id="y-yt-input" placeholder="@yourhandle or your channel link" autocomplete="off"><button type="button" class="mp-btn mp-btn-ghost" id="y-yt-go">Connect</button></div>
+          <p class="mp-hint" id="y-yt-status" role="status" hidden></p>
+        </div>
+        <div class="y-channel">
+          <label class="mp-label" for="y-ig-url">Instagram</label>
+          <div class="y-inline"><input type="url" id="y-ig-url" placeholder="https://instagram.com/yourname"><input type="number" id="y-ig-base" min="0" placeholder="Usual views per Reel"><button type="button" class="mp-btn mp-btn-ghost" data-save="instagram">Save</button></div>
+        </div>
+        <div class="y-channel">
+          <label class="mp-label" for="y-tt-url">TikTok</label>
+          <div class="y-inline"><input type="url" id="y-tt-url" placeholder="https://tiktok.com/@yourname"><input type="number" id="y-tt-base" min="0" placeholder="Usual views per video"><button type="button" class="mp-btn mp-btn-ghost" data-save="tiktok">Save</button></div>
+        </div>
+        <p class="mp-hint">Instagram and TikTok do not let other sites read your views, so enter them yourself: your usual views before, and each post's views below.</p>
+      </section>
+
+      <section class="y-sec" id="y-insights-sec" hidden>
+        <div class="y-ideas-bar">
+          <div>
+            <h2 class="y-h">What works on your channel</h2>
+            <p class="mp-hint" id="y-insights-when"></p>
+          </div>
+          <button type="button" class="mp-btn" id="y-insights-go">Analyse my channel</button>
+        </div>
+        <p class="mp-hint" id="y-insights-status" role="status" hidden></p>
+        <div id="y-insights"></div>
+      </section>
+
+      <section class="y-sec" id="y-videos-sec" hidden>
+        <h2 class="y-h">Latest videos</h2>
+        <table class="y-videos" id="y-videos"></table>
+      </section>
+
+      <section class="y-sec" id="y-posted-sec" hidden>
+        <h2 class="y-h">Posted from here</h2>
+        <ul class="y-posted" id="y-posted"></ul>
+      </section>
     </div>
   </div>
 </div>

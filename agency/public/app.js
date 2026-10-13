@@ -134,6 +134,7 @@
     Array.prototype.forEach.call(root.querySelectorAll('[data-panel]'), function (p) { p.hidden = p.dataset.panel !== name; });
     if (name === 'brand') loadBrand();
     if (name === 'content') loadIdeas();
+    if (name === 'results') loadResults();
   }
   tabs.forEach(function (t) { t.addEventListener('click', function () { selectTab(t.dataset.tab); }); });
   root.addEventListener('click', function (e) {
@@ -712,7 +713,261 @@
 
     box.appendChild(heading('Cover'));
     box.appendChild(coverView(idea, c));
+
+    box.appendChild(heading('Posted it?'));
+    box.appendChild(postedBox(idea));
   }
+
+  /* ---- posted: where this went live, for the Results tab ------------------------------------- */
+
+  var PLATFORM_NAMES = { youtube: 'YouTube', instagram: 'Instagram', tiktok: 'TikTok' };
+
+  function postedBox(idea) {
+    var wrap = el('div', 'y-postbox');
+    (idea.posted || []).forEach(function (p) {
+      var row = el('div', 'y-post-row');
+      row.appendChild(el('b', null, PLATFORM_NAMES[p.platform]));
+      var a = el('a', null, 'View the post');
+      a.href = p.url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      row.appendChild(a);
+      row.appendChild(el('span', null, p.views != null ? fmt(p.views) + ' views' : 'views not entered'));
+      wrap.appendChild(row);
+    });
+    var form = el('div', 'y-inline');
+    var sel = el('select');
+    ['youtube', 'instagram', 'tiktok'].forEach(function (pf) {
+      var o = el('option', null, PLATFORM_NAMES[pf]);
+      o.value = pf;
+      sel.appendChild(o);
+    });
+    var url = el('input');
+    url.type = 'url';
+    url.placeholder = 'Link to your post';
+    var views = el('input');
+    views.type = 'number';
+    views.min = '0';
+    views.placeholder = 'Views so far';
+    views.hidden = true;
+    sel.addEventListener('change', function () { views.hidden = sel.value === 'youtube'; });
+    var save = el('button', 'mp-btn mp-btn-ghost', 'Save');
+    save.type = 'button';
+    var note = el('p', 'mp-hint', 'YouTube views are read automatically. For Instagram and TikTok, type the views now and update them later under Results.');
+    save.addEventListener('click', function () {
+      save.disabled = true;
+      api.post('/ideas/' + idea.id + '/posted', { platform: sel.value, url: url.value.trim(), views: views.hidden ? undefined : views.value }).then(function (r) {
+        save.disabled = false;
+        if (!r.ok) return (note.textContent = r.data.error);
+        note.textContent = 'Saved' + (r.data.views != null ? ': ' + fmt(r.data.views) + ' views so far.' : '.') + ' See the Results tab.';
+        url.value = '';
+        views.value = '';
+      });
+    });
+    form.appendChild(sel);
+    form.appendChild(url);
+    form.appendChild(views);
+    form.appendChild(save);
+    wrap.appendChild(form);
+    wrap.appendChild(note);
+    return wrap;
+  }
+
+  function fmt(n) {
+    if (n == null) return '–';
+    if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M';
+    if (n >= 1e4) return Math.round(n / 1e3) + 'K';
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  /* ---- results --------------------------------------------------------------------------------- */
+
+  var resultsData = null;
+  function loadResults() {
+    return api.get('/results').then(function (r) {
+      if (!r.ok) return;
+      resultsData = r.data;
+      var d = r.data;
+      renderCompare(d.compare || {});
+      if (d.youtube && !$('y-yt-input').value) $('y-yt-input').value = d.youtube.input || '';
+      if (d.youtube) msg('y-yt-status', 'Connected: ' + (d.youtube.title || 'your channel') + ' · ' + (d.youtube.videos || []).length + ' recent videos');
+      ['instagram', 'tiktok'].forEach(function (pf) {
+        var c = d[pf] || {};
+        var short = pf === 'instagram' ? 'ig' : 'tt';
+        if (c.url && !$('y-' + short + '-url').value) $('y-' + short + '-url').value = c.url;
+        if (c.baseline != null && !$('y-' + short + '-base').value) $('y-' + short + '-base').value = c.baseline;
+      });
+      renderInsights(d);
+      renderVideos(d);
+      renderPosted(d.posted || []);
+      if (d.insightsJob && d.insightsJob.status === 'running') schedulePoll(true);
+    });
+  }
+
+  function renderCompare(cmp) {
+    var box = $('y-compare');
+    box.textContent = '';
+    var any = false;
+    ['youtube', 'instagram', 'tiktok'].forEach(function (pf) {
+      var c = cmp[pf];
+      if (!c || (!c.madeHere.n && !c.before.avg)) return;
+      any = true;
+      var card = el('div', 'y-cmp');
+      card.appendChild(el('h3', null, PLATFORM_NAMES[pf]));
+      var mine = c.madeHere.avg;
+      var before = c.before.avg;
+      card.appendChild(el('div', 'y-big', mine != null ? fmt(mine) : '–'));
+      card.appendChild(el('p', 'y-vs', c.madeHere.n ? 'average views of ' + c.madeHere.n + ' video' + (c.madeHere.n > 1 ? 's' : '') + ' made here' : 'nothing posted from here yet'));
+      var top = Math.max(mine || 0, before || 0, 1);
+      var b1 = el('div', 'y-bar');
+      var s1 = el('span');
+      s1.style.width = Math.round(((mine || 0) / top) * 100) + '%';
+      b1.appendChild(s1);
+      card.appendChild(b1);
+      card.appendChild(el('small', null, 'Made here'));
+      var b2 = el('div', 'y-bar is-before');
+      var s2 = el('span');
+      s2.style.width = Math.round(((before || 0) / top) * 100) + '%';
+      b2.appendChild(s2);
+      card.appendChild(b2);
+      card.appendChild(el('small', null, (before != null ? fmt(before) : '–') + ' · ' + c.before.what));
+      if (mine != null && before) {
+        var change = Math.round(((mine - before) / before) * 100);
+        card.appendChild(el('p', 'y-vs', change >= 0 ? change + '% more than ' + c.before.what : Math.abs(change) + '% fewer than ' + c.before.what));
+      }
+      box.appendChild(card);
+    });
+    show('y-compare-empty', !any);
+  }
+
+  function renderInsights(d) {
+    show('y-insights-sec', !!d.youtube);
+    var job = d.insightsJob;
+    var running = job && job.status === 'running';
+    $('y-insights-go').disabled = running;
+    $('y-insights-go').textContent = d.insights ? 'Analyse again' : 'Analyse my channel';
+    msg('y-insights-status', running ? 'Reading your videos…' : job && job.status === 'failed' ? job.error : '');
+    var box = $('y-insights');
+    box.textContent = '';
+    var i = d.insights;
+    $('y-insights-when').textContent = i ? 'From your latest ' + i.videos + ' videos, ' + new Date(i.at).toLocaleDateString() + '. New content ideas use this.' : 'A short read of your latest videos: what works, what does not, what to do more of. New content ideas then use it.';
+    if (!i) return;
+    var w = el('div', 'y-insight');
+    if (i.summary) w.appendChild(el('p', null, i.summary));
+    [['What works', i.working], ['What does not', i.notWorking], ['Do more of', i.doMore]].forEach(function (s) {
+      if (!s[1] || !s[1].length) return;
+      w.appendChild(el('h4', null, s[0]));
+      var ul = el('ul');
+      s[1].forEach(function (t) { ul.appendChild(el('li', null, t)); });
+      w.appendChild(ul);
+    });
+    box.appendChild(w);
+  }
+
+  function renderVideos(d) {
+    var vids = (d.youtube && d.youtube.videos) || [];
+    show('y-videos-sec', vids.length > 0);
+    var mine = {};
+    (d.posted || []).forEach(function (p) { p.posts.forEach(function (x) { if (x.videoId) mine[x.videoId] = true; }); });
+    var t = $('y-videos');
+    t.textContent = '';
+    var all = t.dataset.all === '1';
+    vids.slice(0, all ? vids.length : 12).forEach(function (v) {
+      var tr = el('tr');
+      var td = el('td', null, v.title);
+      if (mine[v.id]) td.appendChild(el('span', 'y-made', 'made here'));
+      tr.appendChild(td);
+      tr.appendChild(el('td', 'n', v.short ? 'Short' : 'Video'));
+      tr.appendChild(el('td', 'n', v.published ? new Date(v.published).toLocaleDateString() : ''));
+      tr.appendChild(el('td', 'n', fmt(v.views)));
+      t.appendChild(tr);
+    });
+    if (vids.length > 12) {
+      var more = el('tr');
+      var td2 = el('td');
+      td2.colSpan = 4;
+      var b = el('button', 'mp-link', all ? 'Show fewer' : 'Show all ' + vids.length + ' videos');
+      b.type = 'button';
+      b.addEventListener('click', function () {
+        t.dataset.all = all ? '' : '1';
+        renderVideos(d);
+      });
+      td2.appendChild(b);
+      more.appendChild(td2);
+      t.appendChild(more);
+    }
+  }
+
+  function renderPosted(list) {
+    show('y-posted-sec', list.length > 0);
+    var ul = $('y-posted');
+    ul.textContent = '';
+    list.forEach(function (item) {
+      var li = el('li');
+      li.appendChild(el('h3', null, item.topic));
+      item.posts.forEach(function (p) {
+        var row = el('div', 'y-post-row');
+        row.appendChild(el('b', null, PLATFORM_NAMES[p.platform]));
+        var a = el('a', null, 'View the post');
+        a.href = p.url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        row.appendChild(a);
+        if (p.platform === 'youtube') {
+          row.appendChild(el('span', null, (p.views != null ? fmt(p.views) + ' views' : 'views not read yet') + (p.viewsAt ? ' · updated ' + new Date(p.viewsAt).toLocaleDateString() : '')));
+        } else {
+          var input = el('input');
+          input.type = 'number';
+          input.min = '0';
+          input.placeholder = 'Views';
+          if (p.views != null) input.value = p.views;
+          var save = el('button', 'mp-link', 'Update views');
+          save.type = 'button';
+          save.addEventListener('click', function () {
+            api.post('/ideas/' + item.ideaId + '/posted', { platform: p.platform, url: p.url, views: input.value }).then(loadResults);
+          });
+          row.appendChild(input);
+          row.appendChild(save);
+        }
+        li.appendChild(row);
+      });
+      ul.appendChild(li);
+    });
+  }
+
+  $('y-yt-go').addEventListener('click', function () {
+    var v = $('y-yt-input').value.trim();
+    if (!v) return msg('y-yt-status', 'Enter your YouTube @handle or channel link.');
+    $('y-yt-go').disabled = true;
+    msg('y-yt-status', 'Reading your channel…');
+    api.post('/channels', { platform: 'youtube', input: v }).then(function (r) {
+      $('y-yt-go').disabled = false;
+      if (!r.ok) return msg('y-yt-status', r.data.error);
+      loadResults();
+    });
+  });
+  Array.prototype.forEach.call(root.querySelectorAll('[data-save]'), function (b) {
+    b.addEventListener('click', function () {
+      var pf = b.dataset.save;
+      var short = pf === 'instagram' ? 'ig' : 'tt';
+      api.post('/channels', { platform: pf, url: $('y-' + short + '-url').value.trim(), baseline: $('y-' + short + '-base').value }).then(function (r) {
+        if (!r.ok) return window.alert(r.data.error);
+        b.textContent = 'Saved';
+        setTimeout(function () { b.textContent = 'Save'; }, 1500);
+        loadResults();
+      });
+    });
+  });
+  $('y-insights-go').addEventListener('click', function () {
+    $('y-insights-go').disabled = true;
+    api.post('/insights').then(function (r) {
+      if (!r.ok) {
+        $('y-insights-go').disabled = false;
+        return msg('y-insights-status', r.data.error);
+      }
+      loadResults();
+    });
+  });
 
   /* ---- covers -------------------------------------------------------------------------- */
 
@@ -869,6 +1124,7 @@
       var tab = (root.querySelector('.mp-tabs [aria-selected="true"]') || {}).dataset;
       tab = tab ? tab.tab : 'questions';
       if (tab === 'content') loadIdeas();
+      else if (tab === 'results') loadResults();
       else if (tab === 'brand') {
         loadState(false);
         loadBrand();

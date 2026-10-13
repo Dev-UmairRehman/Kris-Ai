@@ -29,6 +29,10 @@
      POST /agency/api/photo                 raw image: the member's photo for covers
      GET  /agency/api/photo
      POST /agency/api/photo/delete
+     GET  /agency/api/results               channels, posted content, views, comparison
+     POST /agency/api/channels              connect YouTube / save Instagram, TikTok
+     POST /agency/api/insights              what works on their YouTube channel
+     POST /agency/api/ideas/:iid/posted     where a pack went live (+ views)
      POST /agency/api/delete-all            remove everything we hold for the member
    --------------------------------------------------------------------------- */
 
@@ -55,6 +59,7 @@ if (ready) {
   llm = require('../masterplan/llm');
   engine = require('./engine');
 }
+const channels = require('./channels');
 
 const MEMBER = (id) => 'yma/members/' + id + '.json';
 const ANSWER = (id, qid) => 'yma/answers/' + id + '/' + qid + '.json';
@@ -109,7 +114,7 @@ async function spend(id, kind, amount = 1) {
     if (!m.usage || m.usage.day !== today()) m.usage = { day: today() };
     const used = m.usage[kind] || 0;
     if (used + amount > cap) {
-      const what = { answers: 'answers', audioMinutes: 'minutes of recordings', ideas: 'rounds of ideas', packs: 'content packs', covers: 'covers' }[kind];
+      const what = { answers: 'answers', audioMinutes: 'minutes of recordings', ideas: 'rounds of ideas', packs: 'content packs', covers: 'covers', insights: 'channel analyses' }[kind];
       throw userError('You have reached today\'s limit of ' + cap + ' ' + what + '. It resets tomorrow.', 429, 'limit');
     }
     m.usage[kind] = used + amount;
@@ -450,7 +455,7 @@ router.post('/api/rules', wrap(async (req, res) => {
 function publicIdea(memberId, m, i) {
   const pack = jobState({ jobs: i.jobs || {} }, memberId, 'pack:' + i.id) || (i.packed ? { status: 'ready' } : null);
   const cover = jobState({ jobs: i.jobs || {} }, memberId, 'cover:' + i.id) || (i.covered ? { status: 'ready' } : null);
-  return { id: i.id, topic: i.topic, angle: i.angle, goal: i.goal, why: i.why, story: i.storyId ? (m.stories.find((s) => s.id === i.storyId) || {}).title || null : null, createdAt: i.createdAt, pack, cover };
+  return { id: i.id, topic: i.topic, angle: i.angle, goal: i.goal, why: i.why, posted: i.posted || [], story: i.storyId ? (m.stories.find((s) => s.id === i.storyId) || {}).title || null : null, createdAt: i.createdAt, pack, cover };
 }
 
 router.get('/api/ideas', wrap(async (req, res) => {
@@ -472,7 +477,7 @@ router.post('/api/ideas', wrap(async (req, res) => {
     const usage = {};
     try {
       const fresh = await getMember(id);
-      const list = await engine.ideas({ profile: fresh.profile, stories: fresh.stories, existing: fresh.ideas.map((i) => i.topic), count: 6, usage });
+      const list = await engine.ideas({ profile: fresh.profile, stories: fresh.stories, existing: fresh.ideas.map((i) => i.topic), insights: fresh.insights, count: 6, usage });
       await updateMember(id, (mm) => {
         const now = new Date().toISOString();
         mm.ideas = [...list.map((i) => ({ id: newId(), ...i, createdAt: now, jobs: {} })), ...mm.ideas].slice(0, 120);
@@ -593,6 +598,217 @@ router.post('/api/ideas/:iid/delete', wrap(async (req, res) => {
   });
   await store.del(PACK(id, iid)).catch(() => {});
   await store.del(COVER(id, iid)).catch(() => {});
+  res.json({ ok: true });
+}));
+
+/* ---- results: their channels, what was posted, and the views ---------------------------------- */
+
+const PLATFORMS = ['youtube', 'instagram', 'tiktok'];
+const REFRESH_EVERY = 6 * 3600 * 1000; // YouTube data is re-read when older than this
+const REFRESH_FLOOR = 30 * 60 * 1000; // and never more often than this per member
+
+const avg = (list) => (list.length ? Math.round(list.reduce((n, x) => n + x, 0) / list.length) : null);
+
+function comparison(m) {
+  const posted = [];
+  for (const i of m.ideas || []) for (const p of i.posted || []) posted.push({ ...p, ideaId: i.id });
+  const out = {};
+  /* YouTube: videos made here against the channel's other videos, Shorts
+     against Shorts when there are any. */
+  const yt = (m.channels || {}).youtube;
+  const madeHere = posted.filter((p) => p.platform === 'youtube' && typeof p.views === 'number');
+  if (yt || madeHere.length) {
+    const ids = new Set(madeHere.map((p) => p.videoId));
+    const others = ((yt && yt.videos) || []).filter((v) => !ids.has(v.id) && v.views > 0);
+    const otherShorts = others.filter((v) => v.short);
+    const base = otherShorts.length >= 3 ? otherShorts : others;
+    out.youtube = {
+      madeHere: { n: madeHere.length, avg: avg(madeHere.map((p) => p.views)) },
+      before: { n: base.length, avg: avg(base.map((v) => v.views)), what: base === otherShorts ? 'your other Shorts' : 'your other videos' },
+    };
+  }
+  for (const pf of ['instagram', 'tiktok']) {
+    const mine = posted.filter((p) => p.platform === pf && typeof p.views === 'number');
+    const baseline = ((m.channels || {})[pf] || {}).baseline;
+    if (mine.length || baseline) {
+      out[pf] = { madeHere: { n: mine.length, avg: avg(mine.map((p) => p.views)) }, before: { n: null, avg: baseline || null, what: 'your usual views' } };
+    }
+  }
+  return out;
+}
+
+/* Re-read the YouTube channel and the views of posted YouTube videos. */
+async function refreshYoutube(id, force) {
+  const m = await getMember(id);
+  const last = m.resultsAt ? Date.parse(m.resultsAt) : 0;
+  if (!force && Date.now() - last < REFRESH_EVERY) return;
+  if (Date.now() - last < REFRESH_FLOOR) return;
+  await updateMember(id, (mm) => {
+    mm.resultsAt = new Date().toISOString();
+    return mm;
+  });
+  let ch = null;
+  const yt = (m.channels || {}).youtube;
+  if (yt && yt.channelId) ch = await channels.channel(yt.channelId).catch(() => null);
+  const views = {};
+  for (const i of m.ideas || []) {
+    for (const p of i.posted || []) {
+      if (p.platform !== 'youtube' || !p.videoId) continue;
+      const fromFeed = ch && ch.videos.find((v) => v.id === p.videoId);
+      const v = fromFeed ? { views: fromFeed.views } : await channels.videoViews(p.videoId).catch(() => null);
+      if (v) views[p.videoId] = v.views;
+    }
+  }
+  await updateMember(id, (mm) => {
+    if (ch && mm.channels && mm.channels.youtube) Object.assign(mm.channels.youtube, { title: ch.title, videos: ch.videos, fetchedAt: new Date().toISOString(), source: ch.source });
+    for (const i of mm.ideas || []) for (const p of i.posted || []) {
+      if (p.videoId && views[p.videoId] != null) {
+        p.views = views[p.videoId];
+        p.viewsAt = new Date().toISOString();
+      }
+    }
+    return mm;
+  });
+}
+
+router.get('/api/results', wrap(async (req, res) => {
+  const id = req.memberId;
+  await refreshYoutube(id, false).catch((err) => console.warn('[agency] youtube refresh failed: %s', err.message));
+  const m = await getMember(id);
+  const yt = (m.channels || {}).youtube || null;
+  res.json({
+    youtube: yt ? { input: yt.input, title: yt.title, fetchedAt: yt.fetchedAt, source: yt.source, videos: (yt.videos || []).slice(0, 50) } : null,
+    instagram: (m.channels || {}).instagram || null,
+    tiktok: (m.channels || {}).tiktok || null,
+    insights: m.insights || null,
+    insightsJob: jobState(m, id, 'insights'),
+    posted: (m.ideas || [])
+      .filter((i) => (i.posted || []).length)
+      .map((i) => ({ ideaId: i.id, topic: i.topic, posts: i.posted })),
+    compare: comparison(m),
+    refreshedAt: m.resultsAt || null,
+  });
+}));
+
+router.post('/api/channels', wrap(async (req, res) => {
+  const id = req.memberId;
+  const platform = req.body && req.body.platform;
+  if (!PLATFORMS.includes(platform)) throw userError('Choose YouTube, Instagram or TikTok.');
+  if (platform === 'youtube') {
+    const input = clip(req.body.input, 300);
+    if (!input) throw userError('Enter your YouTube @handle or channel link.');
+    const ch = await channels.channel(input);
+    await updateMember(id, (m) => {
+      m.channels = m.channels || {};
+      m.channels.youtube = { input, channelId: ch.channelId, title: ch.title, videos: ch.videos, source: ch.source, fetchedAt: new Date().toISOString() };
+      m.resultsAt = new Date().toISOString();
+      return m;
+    });
+    return res.json({ ok: true, title: ch.title, videos: ch.videos.length });
+  }
+  const url = clip(req.body.url, 300);
+  if (url && !/^https:\/\/(www\.)?(instagram\.com|tiktok\.com)\//i.test(url)) throw userError('That does not look like an Instagram or TikTok profile link.');
+  const baseline = req.body.baseline === '' || req.body.baseline == null ? null : Math.max(0, Math.round(Number(req.body.baseline)));
+  if (baseline !== null && !Number.isFinite(baseline)) throw userError('Usual views must be a number.');
+  await updateMember(id, (m) => {
+    m.channels = m.channels || {};
+    m.channels[platform] = { url, baseline };
+    return m;
+  });
+  res.json({ ok: true });
+}));
+
+router.post('/api/channels/:platform/delete', wrap(async (req, res) => {
+  if (!PLATFORMS.includes(req.params.platform)) return res.status(404).json({ error: 'Not found.' });
+  await updateMember(req.memberId, (m) => {
+    if (m.channels) delete m.channels[req.params.platform];
+    if (req.params.platform === 'youtube') m.insights = null;
+    return m;
+  });
+  res.json({ ok: true });
+}));
+
+router.post('/api/results/refresh', wrap(async (req, res) => {
+  await refreshYoutube(req.memberId, true);
+  res.json({ ok: true });
+}));
+
+router.post('/api/insights', wrap(async (req, res) => {
+  const id = req.memberId;
+  const m = await getMember(id);
+  const yt = (m.channels || {}).youtube;
+  if (!yt || !(yt.videos || []).length) throw userError('Connect a YouTube channel with some videos first.');
+  if (isActive(id, 'insights')) return res.status(202).json({ ok: true });
+  await spend(id, 'insights');
+  await updateMember(id, (mm) => {
+    mm.jobs.insights = { status: 'running', at: new Date().toISOString() };
+    return mm;
+  });
+  runJob(id, 'insights', async () => {
+    const usage = {};
+    try {
+      const fresh = await getMember(id);
+      const out = await engine.insights({ channel: fresh.channels.youtube, profile: fresh.profile, usage });
+      await updateMember(id, (mm) => {
+        mm.insights = { ...out, at: new Date().toISOString(), videos: (fresh.channels.youtube.videos || []).length };
+        mm.jobs.insights = { status: 'ready', at: new Date().toISOString() };
+        return mm;
+      });
+    } catch (err) {
+      await updateMember(id, (mm) => {
+        mm.jobs.insights = { status: 'failed', error: 'The analysis could not be written. Please try again.' };
+        return mm;
+      });
+      throw err;
+    } finally {
+      await addCost(usage, 'channel insights');
+    }
+  });
+  res.status(202).json({ ok: true });
+}));
+
+/* Mark a content pack as posted on a platform, with its link. YouTube views
+   are read automatically; Instagram and TikTok views are entered. */
+router.post('/api/ideas/:iid/posted', wrap(async (req, res) => {
+  const id = req.memberId;
+  const platform = req.body && req.body.platform;
+  if (!PLATFORMS.includes(platform)) throw userError('Choose YouTube, Instagram or TikTok.');
+  const url = clip(req.body.url, 400);
+  const patterns = { youtube: /^https:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\//i, instagram: /^https:\/\/(www\.)?instagram\.com\//i, tiktok: /^https:\/\/(www\.|vm\.)?tiktok\.com\//i };
+  if (!patterns[platform].test(url)) throw userError('Paste the link to the post on ' + { youtube: 'YouTube', instagram: 'Instagram', tiktok: 'TikTok' }[platform] + '.');
+  const m = await getMember(id);
+  if (!m.ideas.find((x) => x.id === req.params.iid)) return res.status(404).json({ error: 'Not found.' });
+  const entry = { platform, url, at: new Date().toISOString(), views: null, viewsAt: null };
+  if (platform === 'youtube') {
+    entry.videoId = channels.videoIdFrom(url);
+    if (!entry.videoId) throw userError('That YouTube link has no video in it.');
+    const v = await channels.videoViews(entry.videoId).catch(() => null);
+    if (v) {
+      entry.views = v.views;
+      entry.viewsAt = new Date().toISOString();
+    }
+  } else if (req.body.views !== undefined && req.body.views !== '' && req.body.views !== null) {
+    const n = Math.round(Number(req.body.views));
+    if (!Number.isFinite(n) || n < 0) throw userError('Views must be a number.');
+    entry.views = n;
+    entry.viewsAt = new Date().toISOString();
+    entry.manual = true;
+  }
+  await updateMember(id, (mm) => {
+    const i = mm.ideas.find((x) => x.id === req.params.iid);
+    if (i) i.posted = [...(i.posted || []).filter((p) => p.platform !== platform), entry];
+    return mm;
+  });
+  res.json({ ok: true, views: entry.views });
+}));
+
+router.post('/api/ideas/:iid/posted/delete', wrap(async (req, res) => {
+  const platform = req.body && req.body.platform;
+  await updateMember(req.memberId, (m) => {
+    const i = m.ideas.find((x) => x.id === req.params.iid);
+    if (i) i.posted = (i.posted || []).filter((p) => p.platform !== platform);
+    return m;
+  });
   res.json({ ok: true });
 }));
 
