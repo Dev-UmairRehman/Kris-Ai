@@ -249,20 +249,61 @@ async function generateOpenRouter(p) {
   throw last;
 }
 
+/* Models writing long prose inside JSON sometimes put real line breaks, tabs
+   or a bare quote mark inside a string. Escape those: a quote ends a string
+   only when what follows can come after a string (, } ] :). */
+function repairJson(s) {
+  let out = '';
+  let inStr = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (!inStr) {
+      if (ch === '"') inStr = true;
+      out += ch;
+      continue;
+    }
+    if (ch === '\\') {
+      out += ch + (s[i + 1] || '');
+      i++;
+    } else if (ch === '"') {
+      const rest = s.slice(i + 1).match(/^\s*(.)/);
+      if (!rest || /[,}\]:]/.test(rest[1])) {
+        inStr = false;
+        out += ch;
+      } else out += '\\"';
+    } else if (ch === '\n') out += '\\n';
+    else if (ch === '\r') out += '';
+    else if (ch === '\t') out += '\\t';
+    else out += ch;
+  }
+  return out;
+}
+
 /** Pull the last JSON object out of a reply (fenced or bare). */
 function parseJson(text) {
-  const fenced = [...text.matchAll(/```(?:json)?\s*([\s\S]*?)```/g)];
+  /* A fence is only taken from a line start, so a ``` inside a string does not cut it. */
+  const fenced = [...text.matchAll(/(?:^|\n)```(?:json)?[ \t]*\n([\s\S]*?)\n```/g)];
   const candidates = fenced.length ? fenced.map((m) => m[1]).reverse() : [];
   const first = text.indexOf('{');
   const last = text.lastIndexOf('}');
   if (first >= 0 && last > first) candidates.push(text.slice(first, last + 1));
+  let firstError = null;
   for (const c of candidates) {
     try {
       return JSON.parse(c);
+    } catch (err) {
+      firstError = firstError || err;
+    }
+  }
+  for (const c of candidates) {
+    try {
+      return JSON.parse(repairJson(c));
     } catch {
       /* try the next one */
     }
   }
+  const at = Number((String(firstError && firstError.message).match(/position (\d+)/) || [])[1]);
+  console.warn('[llm] unreadable JSON (%s chars): %s%s', text.length, firstError ? firstError.message : 'no JSON object', Number.isFinite(at) && candidates[0] ? ' near ' + JSON.stringify(candidates[0].slice(Math.max(0, at - 80), at + 40)) : '');
   throw new LlmError('The model did not return readable JSON.', 'bad_json');
 }
 
