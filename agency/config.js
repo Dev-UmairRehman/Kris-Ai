@@ -42,6 +42,21 @@ const config = {
     write: str('YMA_MODEL_WRITE', 'anthropic/claude-opus-5.5'),
     /* Cover pictures; the title text is drawn by the page, not the model. */
     image: str('YMA_MODEL_IMAGE', 'google/gemini-3.1-flash-image'),
+    /* Reads the numbers off an analytics screenshot. */
+    vision: str('YMA_MODEL_VISION', 'google/gemini-3.5-flash-lite'),
+  },
+
+  /* Instagram and TikTok numbers from the member's @handle (social.js), read
+     through Apify. Off without a token; the member can still type views. */
+  social: {
+    apifyToken: str('YMA_APIFY_TOKEN', ''),
+    instagramActor: str('YMA_APIFY_INSTAGRAM_ACTOR', 'apify~instagram-reel-scraper'),
+    tiktokActor: str('YMA_APIFY_TIKTOK_ACTOR', 'clockworks~tiktok-scraper'),
+    /* Charged per video: the first read takes this many, later reads only the newest few. */
+    videosPerRead: int('YMA_SOCIAL_VIDEOS_PER_READ', 12),
+    refreshVideos: int('YMA_SOCIAL_REFRESH_VIDEOS', 6),
+    /* Re-read a connected account when its numbers are older than this. */
+    refreshHours: int('YMA_SOCIAL_REFRESH_HOURS', 24),
   },
 
   /* A new question every few days once the starter questions are answered. */
@@ -55,11 +70,14 @@ const config = {
     packs: int('YMA_PACKS_PER_DAY', 8),
     covers: int('YMA_COVERS_PER_DAY', 8),
     insights: int('YMA_INSIGHTS_PER_DAY', 3),
+    socialReads: int('YMA_SOCIAL_READS_PER_DAY', 8),
+    screenshots: int('YMA_SCREENSHOTS_PER_DAY', 15),
     globalCost: int('YMA_GLOBAL_DOLLARS_PER_DAY', 40),
   },
   maxAudioBytes: int('YMA_MAX_AUDIO_BYTES', 40 * 1024 * 1024),
   maxAudioMinutes: int('YMA_MAX_AUDIO_MINUTES', 45),
   maxPhotoBytes: int('YMA_MAX_PHOTO_BYTES', 6 * 1024 * 1024),
+  maxScreenshotBytes: int('YMA_MAX_SCREENSHOT_BYTES', 8 * 1024 * 1024),
   maxAnswerChars: int('YMA_MAX_ANSWER_CHARS', 60000),
 
   /* The page the member works on (used in links). */

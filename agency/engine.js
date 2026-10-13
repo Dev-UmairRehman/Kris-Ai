@@ -136,7 +136,7 @@ Reply with one JSON object in a \`\`\`json fence: {"ideas": [{"topic": "short na
 async function ideas({ profile, stories, existing, insights, count, usage }) {
   const pub = (stories || []).filter((s) => s.tier === 'P').map((s) => ({ id: s.id, title: s.title, theme: s.theme, summary: s.summary }));
   const learned = insights && (insights.working || []).length
-    ? '\n\nWhat already works on their own channel (use it):\n' + JSON.stringify({ working: insights.working, doMore: insights.doMore, notWorking: insights.notWorking })
+    ? '\n\nWhat already works on their own accounts (use it):\n' + JSON.stringify({ working: insights.working, doMore: insights.doMore, notWorking: insights.notWorking })
     : '';
   const { text } = await llm.generate({
     model: config.models.ideas,
@@ -249,25 +249,35 @@ async function pack({ profile, story, idea, memberRules, usage }) {
   return out;
 }
 
-/* ---- what works on their channel ------------------------------------------------------ */
+/* ---- what works on their accounts ------------------------------------------------------ */
 
-const INSIGHTS_SYSTEM = `You analyse a creator's YouTube channel to tell them, plainly, what is working and what is not. You get their latest videos (title, views, how many days ago, whether it is a Short) and, when known, what they do and who they want to reach.
+const INSIGHTS_SYSTEM = `You analyse a creator's own accounts (YouTube, Instagram, TikTok) to tell them, plainly, what is working and what is not. You get their latest videos per platform (title or caption, views, likes, comments, how many days ago, whether it is a Short) and, when known, what they do and who they want to reach.
 
-- Judge views relative to this channel (its median), and account for age: a video from yesterday has had less time.
+- Judge views relative to the same account (its median), never across platforms, and account for age: a video from yesterday has had less time.
+- Likes and comments per view show how much a video moved people, beyond reach.
 - Look for patterns in the titles and topics of the strongest and weakest videos: subject, angle, personal story versus advice, question versus statement, length of title, Shorts versus long videos.
+- Name the platform when a point is true on one platform only.
 - Be specific and short. Refer to their actual videos. No generic advice, no hype.
 - If there are too few videos to see a pattern, say so in the summary and keep the lists short.
 
 Reply with one JSON object in a \`\`\`json fence:
 {"summary": "two sentences", "working": ["..."], "notWorking": ["..."], "doMore": ["..."], "topicsThatWork": ["short topic phrases"]}`;
 
-async function insights({ channel, profile, usage }) {
+const PLATFORM_NAMES = { youtube: 'YouTube', instagram: 'Instagram', tiktok: 'TikTok' };
+
+/** accounts: [{ platform, title, videos }] - the member's connected accounts. */
+async function insights({ accounts, profile, usage }) {
   const now = Date.now();
-  const vids = (channel.videos || []).slice(0, 50).map((v) => ({
-    title: v.title,
-    views: v.views,
-    daysAgo: v.published ? Math.max(0, Math.round((now - Date.parse(v.published)) / 86400000)) : null,
-    short: v.short === true,
+  const per = accounts.map((a) => ({
+    platform: PLATFORM_NAMES[a.platform] || a.platform,
+    account: a.title || '',
+    videos: (a.videos || []).slice(0, 50).map((v) => {
+      const x = { title: v.title, views: v.views, daysAgo: v.published ? Math.max(0, Math.round((now - Date.parse(v.published)) / 86400000)) : null };
+      if (a.platform === 'youtube') x.short = v.short === true;
+      if (v.likes != null) x.likes = v.likes;
+      if (v.comments != null) x.comments = v.comments;
+      return x;
+    }),
   }));
   const { text } = await llm.generate({
     model: config.models.ideas,
@@ -276,9 +286,9 @@ async function insights({ channel, profile, usage }) {
     usage,
     system: INSIGHTS_SYSTEM,
     content:
-      'Channel: ' + JSON.stringify(channel.title || '') + '\n\nWhat they do and for whom: ' +
+      'What they do and for whom: ' +
       JSON.stringify({ expertise: (profile || {}).expertise || '', audience: (profile || {}).audience || '' }) +
-      '\n\nTheir latest videos:\n' + JSON.stringify(vids),
+      '\n\nTheir accounts and latest videos:\n' + JSON.stringify(per),
   });
   const out = llm.parseJson(text);
   const list = (v) => (Array.isArray(v) ? v.map((x) => String(x).slice(0, 300)).filter(Boolean).slice(0, 6) : []);
@@ -289,6 +299,36 @@ async function insights({ channel, profile, usage }) {
     doMore: list(out.doMore),
     topicsThatWork: list(out.topicsThatWork),
   };
+}
+
+/* ---- the numbers on an analytics screenshot ---------------------------------------- */
+
+const SCREENSHOT_SYSTEM = `You read the numbers off a screenshot of a social media post's analytics screen (Instagram Insights, TikTok Analytics, YouTube Studio). Copy only numbers that are shown; never estimate or guess. Write numbers in full (12.4K = 12400, 1,2 mln = 1200000). Average watch time in seconds; total watch time in minutes ("Watch time 9h 12m" = 552). Percentages as numbers (43.5% = 43.5).
+
+Reply with one JSON object in a \`\`\`json fence; use null for anything not shown:
+{"isAnalytics": true or false, "platform": "instagram" | "tiktok" | "youtube" | null, "views": n, "reach": n, "likes": n, "comments": n, "shares": n, "saves": n, "followsGained": n, "avgWatchSeconds": n, "watchedFullPercent": n, "totalWatchMinutes": n, "nonFollowersPercent": n}`;
+
+const SCREENSHOT_FIELDS = ['views', 'reach', 'likes', 'comments', 'shares', 'saves', 'followsGained', 'avgWatchSeconds', 'watchedFullPercent', 'totalWatchMinutes', 'nonFollowersPercent'];
+
+async function readScreenshot({ image, usage }) {
+  const { text } = await llm.generate({
+    model: config.models.vision,
+    effort: 'none',
+    maxTokens: 800,
+    usage,
+    system: SCREENSHOT_SYSTEM,
+    content: [
+      { type: 'image_data', data: image.data.toString('base64'), media: image.type },
+      { type: 'text', text: 'The analytics screenshot.' },
+    ],
+  });
+  const out = llm.parseJson(text);
+  const stats = {};
+  for (const k of SCREENSHOT_FIELDS) {
+    const n = Number(out[k]);
+    if (out[k] !== null && out[k] !== '' && out[k] !== undefined && Number.isFinite(n) && n >= 0) stats[k] = Math.round(n * 10) / 10;
+  }
+  return { isAnalytics: out.isAnalytics !== false && Object.keys(stats).length > 0, platform: PLATFORM_NAMES[out.platform] ? out.platform : null, stats };
 }
 
 /* ---- cover picture ----------------------------------------------------------------- */
@@ -340,4 +380,4 @@ async function cover({ scene, photo, usage }) {
   throw last;
 }
 
-module.exports = { transcribe, absorb, ideas, pack, cover, insights, PROFILE_FIELDS, LIST_FIELDS };
+module.exports = { transcribe, absorb, ideas, pack, cover, insights, readScreenshot, PROFILE_FIELDS, LIST_FIELDS, SCREENSHOT_FIELDS };

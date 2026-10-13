@@ -732,7 +732,7 @@
       a.target = '_blank';
       a.rel = 'noopener';
       row.appendChild(a);
-      row.appendChild(el('span', null, p.views != null ? fmt(p.views) + ' views' : 'views not entered'));
+      row.appendChild(el('span', null, p.views != null ? fmt(p.views) + ' views' : 'views under Results'));
       wrap.appendChild(row);
     });
     var form = el('div', 'y-inline');
@@ -745,28 +745,20 @@
     var url = el('input');
     url.type = 'url';
     url.placeholder = 'Link to your post';
-    var views = el('input');
-    views.type = 'number';
-    views.min = '0';
-    views.placeholder = 'Views so far';
-    views.hidden = true;
-    sel.addEventListener('change', function () { views.hidden = sel.value === 'youtube'; });
     var save = el('button', 'mp-btn mp-btn-ghost', 'Save');
     save.type = 'button';
-    var note = el('p', 'mp-hint', 'YouTube views are read automatically. For Instagram and TikTok, type the views now and update them later under Results.');
+    var note = el('p', 'mp-hint', 'Paste the link to the post. Its views are read by themselves (for Instagram and TikTok once your account is connected under Results).');
     save.addEventListener('click', function () {
       save.disabled = true;
-      api.post('/ideas/' + idea.id + '/posted', { platform: sel.value, url: url.value.trim(), views: views.hidden ? undefined : views.value }).then(function (r) {
+      api.post('/ideas/' + idea.id + '/posted', { platform: sel.value, url: url.value.trim() }).then(function (r) {
         save.disabled = false;
         if (!r.ok) return (note.textContent = r.data.error);
-        note.textContent = 'Saved' + (r.data.views != null ? ': ' + fmt(r.data.views) + ' views so far.' : '.') + ' See the Results tab.';
+        note.textContent = 'Saved' + (r.data.views != null ? ': ' + fmt(r.data.views) + ' views so far.' : r.data.reading ? '. We are finding it on your account now; its views appear under Results in a minute.' : '.') + ' See the Results tab.';
         url.value = '';
-        views.value = '';
       });
     });
     form.appendChild(sel);
     form.appendChild(url);
-    form.appendChild(views);
     form.appendChild(save);
     wrap.appendChild(form);
     wrap.appendChild(note);
@@ -783,6 +775,7 @@
   /* ---- results --------------------------------------------------------------------------------- */
 
   var resultsData = null;
+  var SHORT = { instagram: 'ig', tiktok: 'tt' };
   function loadResults() {
     return api.get('/results').then(function (r) {
       if (!r.ok) return;
@@ -791,17 +784,47 @@
       renderCompare(d.compare || {});
       if (d.youtube && !$('y-yt-input').value) $('y-yt-input').value = d.youtube.input || '';
       if (d.youtube) msg('y-yt-status', 'Connected: ' + (d.youtube.title || 'your channel') + ' · ' + (d.youtube.videos || []).length + ' recent videos');
+      /* With reading switched off, the profile link and usual views are typed. */
+      Array.prototype.forEach.call(root.querySelectorAll('[data-panel="results"] [data-auto]'), function (x) { x.hidden = !d.socialAvailable; });
+      Array.prototype.forEach.call(root.querySelectorAll('[data-panel="results"] [data-manual]'), function (x) { x.hidden = !!d.socialAvailable; });
+      var reading = false;
       ['instagram', 'tiktok'].forEach(function (pf) {
         var c = d[pf] || {};
-        var short = pf === 'instagram' ? 'ig' : 'tt';
-        if (c.url && !$('y-' + short + '-url').value) $('y-' + short + '-url').value = c.url;
-        if (c.baseline != null && !$('y-' + short + '-base').value) $('y-' + short + '-base').value = c.baseline;
+        var s = SHORT[pf];
+        if (c.url && !$('y-' + s + '-url').value) $('y-' + s + '-url').value = c.url;
+        if (c.baseline != null && !$('y-' + s + '-base').value) $('y-' + s + '-base').value = c.baseline;
+        if (!d.socialAvailable) return msg('y-' + s + '-status', '');
+        if (c.handle && !$('y-' + s + '-handle').value) $('y-' + s + '-handle').value = '@' + c.handle;
+        var job = (d.socialJobs || {})[pf];
+        var running = job && job.status === 'running';
+        reading = reading || running;
+        root.querySelector('[data-connect="' + pf + '"]').disabled = !!running;
+        var line = '';
+        if (running) line = 'Reading @' + c.handle + ' on ' + PLATFORM_NAMES[pf] + '… about half a minute.';
+        else if (job && job.status === 'failed') line = job.error;
+        if (c.handle && (c.videos || []).length) {
+          var done = 'Connected: @' + c.handle + ' · ' + c.videos.length + ' recent videos' + (c.followers ? ' · ' + fmt(c.followers) + ' followers' : '') + (c.fetchedAt ? ' · read ' + ago(c.fetchedAt) : '');
+          line = line ? line + ' ' + done : done;
+        }
+        msg('y-' + s + '-status', line);
       });
       renderInsights(d);
       renderVideos(d);
       renderPosted(d.posted || []);
-      if (d.insightsJob && d.insightsJob.status === 'running') schedulePoll(true);
+      if (reading || (d.insightsJob && d.insightsJob.status === 'running')) schedulePoll(true);
     });
+  }
+
+  function ago(iso) {
+    var mins = Math.round((Date.now() - Date.parse(iso)) / 60000);
+    if (mins < 2) return 'just now';
+    if (mins < 60) return mins + ' minutes ago';
+    if (mins < 48 * 60) return Math.round(mins / 60) + ' hours ago';
+    return new Date(iso).toLocaleDateString();
+  }
+
+  function accountsWithVideos(d) {
+    return ['youtube', 'instagram', 'tiktok'].filter(function (pf) { return d[pf] && (d[pf].videos || []).length; });
   }
 
   function renderCompare(cmp) {
@@ -830,7 +853,7 @@
       s2.style.width = Math.round(((before || 0) / top) * 100) + '%';
       b2.appendChild(s2);
       card.appendChild(b2);
-      card.appendChild(el('small', null, (before != null ? fmt(before) : '–') + ' · ' + c.before.what));
+      card.appendChild(el('small', null, (before != null ? fmt(before) : '–') + ' · ' + c.before.what + (c.before.n ? ' (' + c.before.n + ')' : '')));
       if (mine != null && before) {
         var change = Math.round(((mine - before) / before) * 100);
         card.appendChild(el('p', 'y-vs', change >= 0 ? change + '% more than ' + c.before.what : Math.abs(change) + '% fewer than ' + c.before.what));
@@ -841,16 +864,20 @@
   }
 
   function renderInsights(d) {
-    show('y-insights-sec', !!d.youtube);
+    var have = accountsWithVideos(d);
+    show('y-insights-sec', have.length > 0);
     var job = d.insightsJob;
     var running = job && job.status === 'running';
     $('y-insights-go').disabled = running;
-    $('y-insights-go').textContent = d.insights ? 'Analyse again' : 'Analyse my channel';
+    $('y-insights-go').textContent = d.insights ? 'Analyse again' : 'Analyse my videos';
     msg('y-insights-status', running ? 'Reading your videos…' : job && job.status === 'failed' ? job.error : '');
     var box = $('y-insights');
     box.textContent = '';
     var i = d.insights;
-    $('y-insights-when').textContent = i ? 'From your latest ' + i.videos + ' videos, ' + new Date(i.at).toLocaleDateString() + '. New content ideas use this.' : 'A short read of your latest videos: what works, what does not, what to do more of. New content ideas then use it.';
+    var names = have.map(function (pf) { return PLATFORM_NAMES[pf]; }).join(', ');
+    $('y-insights-when').textContent = i
+      ? 'From your latest ' + i.videos + ' videos' + (i.platforms ? ' on ' + i.platforms.map(function (pf) { return PLATFORM_NAMES[pf]; }).join(', ') : '') + ', ' + new Date(i.at).toLocaleDateString() + '. New content ideas use this.'
+      : 'A short read of your latest videos on ' + names + ': what works, what does not, what to do more of. New content ideas then use it.';
     if (!i) return;
     var w = el('div', 'y-insight');
     if (i.summary) w.appendChild(el('p', null, i.summary));
@@ -864,20 +891,52 @@
     box.appendChild(w);
   }
 
+  var videosPlatform = null;
   function renderVideos(d) {
-    var vids = (d.youtube && d.youtube.videos) || [];
-    show('y-videos-sec', vids.length > 0);
+    var have = accountsWithVideos(d);
+    show('y-videos-sec', have.length > 0);
+    if (!have.length) return;
+    if (have.indexOf(videosPlatform) < 0) videosPlatform = have[0];
+    var sw = $('y-videos-switch');
+    sw.textContent = '';
+    if (have.length > 1) {
+      have.forEach(function (pf) {
+        var b = el('button', 'y-switch-btn', PLATFORM_NAMES[pf]);
+        b.type = 'button';
+        b.setAttribute('role', 'tab');
+        b.setAttribute('aria-selected', pf === videosPlatform ? 'true' : 'false');
+        b.addEventListener('click', function () {
+          videosPlatform = pf;
+          $('y-videos').dataset.all = '';
+          renderVideos(d);
+        });
+        sw.appendChild(b);
+      });
+    }
+    var pf = videosPlatform;
+    var vids = d[pf].videos || [];
     var mine = {};
-    (d.posted || []).forEach(function (p) { p.posts.forEach(function (x) { if (x.videoId) mine[x.videoId] = true; }); });
+    (d.posted || []).forEach(function (p) {
+      p.posts.forEach(function (x) {
+        if (x.platform === pf) mine[x.videoId || x.postId] = true;
+      });
+    });
     var t = $('y-videos');
     t.textContent = '';
     var all = t.dataset.all === '1';
     vids.slice(0, all ? vids.length : 12).forEach(function (v) {
       var tr = el('tr');
-      var td = el('td', null, v.title);
+      var td = el('td');
+      if (v.url) {
+        var a = el('a', null, v.title || 'Video');
+        a.href = v.url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        td.appendChild(a);
+      } else td.textContent = v.title;
       if (mine[v.id]) td.appendChild(el('span', 'y-made', 'made here'));
       tr.appendChild(td);
-      tr.appendChild(el('td', 'n', v.short ? 'Short' : 'Video'));
+      tr.appendChild(el('td', 'n', pf === 'youtube' ? (v.short ? 'Short' : 'Video') : fmt(v.likes) + ' likes'));
       tr.appendChild(el('td', 'n', v.published ? new Date(v.published).toLocaleDateString() : ''));
       tr.appendChild(el('td', 'n', fmt(v.views)));
       t.appendChild(tr);
@@ -898,6 +957,17 @@
     }
   }
 
+  var STAT_NAMES = [
+    ['reach', 'Reach', ''], ['avgWatchSeconds', 'Average watch', ' s'], ['watchedFullPercent', 'Watched to the end', '%'],
+    ['totalWatchMinutes', 'Total watch time', ' min'], ['likes', 'Likes', ''], ['comments', 'Comments', ''], ['shares', 'Shares', ''],
+    ['saves', 'Saves', ''], ['followsGained', 'New followers', ''], ['nonFollowersPercent', 'Non-followers', '%'],
+  ];
+  function statsLine(stats) {
+    return STAT_NAMES.filter(function (s) { return stats[s[0]] != null; }).map(function (s) {
+      return s[1] + ' ' + (s[2] ? stats[s[0]] + s[2] : fmt(stats[s[0]]));
+    }).join(' · ');
+  }
+
   function renderPosted(list) {
     show('y-posted-sec', list.length > 0);
     var ul = $('y-posted');
@@ -913,9 +983,15 @@
         a.target = '_blank';
         a.rel = 'noopener';
         row.appendChild(a);
-        if (p.platform === 'youtube') {
-          row.appendChild(el('span', null, (p.views != null ? fmt(p.views) + ' views' : 'views not read yet') + (p.viewsAt ? ' · updated ' + new Date(p.viewsAt).toLocaleDateString() : '')));
+        var acct = resultsData && resultsData[p.platform];
+        var auto = p.platform === 'youtube' || (resultsData && resultsData.socialAvailable && acct && acct.handle);
+        if (p.source === 'read' || (p.platform === 'youtube')) {
+          var bits = p.views != null ? fmt(p.views) + ' views' : 'views not read yet';
+          if (p.likes != null) bits += ' · ' + fmt(p.likes) + ' likes';
+          if (p.viewsAt) bits += ' · updated ' + ago(p.viewsAt);
+          row.appendChild(el('span', null, bits));
         } else {
+          if (auto) row.appendChild(el('span', 'y-wait', 'not found on @' + acct.handle + ' yet'));
           var input = el('input');
           input.type = 'number';
           input.min = '0';
@@ -929,10 +1005,61 @@
           row.appendChild(input);
           row.appendChild(save);
         }
+        var shotMsg = el('p', 'mp-hint y-shot-msg');
+        shotMsg.hidden = true;
+        row.appendChild(screenshotButton(item.ideaId, p.platform, shotMsg));
         li.appendChild(row);
+        if (p.stats) li.appendChild(el('p', 'y-stats', 'From your screenshot: ' + (statsLine(p.stats) || 'views only')));
+        li.appendChild(shotMsg);
       });
       ul.appendChild(li);
     });
+  }
+
+  /* A screenshot of the post's Insights / Analytics screen: the numbers on it
+     (reach, watch time, ...) are read and kept; the picture is not. Made
+     smaller here first so it is quick to send. */
+  function screenshotButton(ideaId, platform, note) {
+    var label = el('label', 'mp-link y-shot', 'Add insights screenshot');
+    var file = el('input');
+    file.type = 'file';
+    file.accept = 'image/*';
+    file.hidden = true;
+    label.appendChild(file);
+    file.addEventListener('change', function () {
+      var f = file.files[0];
+      file.value = '';
+      if (!f) return;
+      var say = function (t) {
+        note.textContent = t;
+        note.hidden = !t;
+      };
+      say('Reading the numbers on your screenshot…');
+      var img = new Image();
+      var url = URL.createObjectURL(f);
+      img.onload = function () {
+        var scale = Math.min(1, 1800 / Math.max(img.width, img.height));
+        var c = document.createElement('canvas');
+        c.width = Math.round(img.width * scale);
+        c.height = Math.round(img.height * scale);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        c.toBlob(function (b) {
+          request(API + '/ideas/' + ideaId + '/posted/screenshot?platform=' + platform, { method: 'POST', body: b, headers: { 'Content-Type': 'image/jpeg' } }).then(function (r) {
+            if (!r.ok) return say(r.data.error || 'That screenshot could not be read.');
+            loadResults().then(function () {
+              if (r.data.otherPlatform) window.alert('That looks like a ' + r.data.otherPlatform + ' screen. The numbers were saved under ' + PLATFORM_NAMES[platform] + '; if that is wrong, add the right screenshot.');
+            });
+          });
+        }, 'image/jpeg', 0.9);
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        say('That picture could not be opened.');
+      };
+      img.src = url;
+    });
+    return label;
   }
 
   $('y-yt-go').addEventListener('click', function () {
@@ -946,11 +1073,28 @@
       loadResults();
     });
   });
+  Array.prototype.forEach.call(root.querySelectorAll('[data-connect]'), function (b) {
+    b.addEventListener('click', function () {
+      var pf = b.dataset.connect;
+      var s = SHORT[pf];
+      var v = $('y-' + s + '-handle').value.trim();
+      if (!v) return msg('y-' + s + '-status', 'Enter your ' + PLATFORM_NAMES[pf] + ' @handle.');
+      b.disabled = true;
+      msg('y-' + s + '-status', 'Reading your ' + PLATFORM_NAMES[pf] + '… about half a minute.');
+      api.post('/channels', { platform: pf, handle: v }).then(function (r) {
+        if (!r.ok) {
+          b.disabled = false;
+          return msg('y-' + s + '-status', r.data.error);
+        }
+        loadResults();
+      });
+    });
+  });
   Array.prototype.forEach.call(root.querySelectorAll('[data-save]'), function (b) {
     b.addEventListener('click', function () {
       var pf = b.dataset.save;
-      var short = pf === 'instagram' ? 'ig' : 'tt';
-      api.post('/channels', { platform: pf, url: $('y-' + short + '-url').value.trim(), baseline: $('y-' + short + '-base').value }).then(function (r) {
+      var s = SHORT[pf];
+      api.post('/channels', { platform: pf, url: $('y-' + s + '-url').value.trim(), baseline: $('y-' + s + '-base').value }).then(function (r) {
         if (!r.ok) return window.alert(r.data.error);
         b.textContent = 'Saved';
         setTimeout(function () { b.textContent = 'Save'; }, 1500);

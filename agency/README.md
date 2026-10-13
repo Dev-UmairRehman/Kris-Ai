@@ -48,6 +48,7 @@ gets nothing.
 | Ideas | `anthropic/claude-sonnet-5.5` | 1¢ for six |
 | Script, post, titles | `anthropic/claude-opus-5.5` | 6¢ a pack |
 | Cover picture | `google/gemini-3.1-flash-image` | 7¢ a cover |
+| Analytics screenshot → numbers | `google/gemini-3.5-flash-lite` | 0.07¢ a screenshot |
 
 All are `YMA_MODEL_*` settings. Measured on a real run: one answer → profile →
 6 ideas → 1 pack → 1 cover cost $0.17. Everything is generated only when the
@@ -66,7 +67,10 @@ agency/
   questions.json   the question bank (from the client's spreadsheet)
   questions.js     starters, the order of new questions, what is open
   rules.js         writing rules + lint
-  engine.js        the model jobs: transcribe, absorb, ideas, pack, cover
+  engine.js        the model jobs: transcribe, absorb, ideas, pack, cover,
+                   insights, readScreenshot
+  channels.js      YouTube channel and video views (public pages)
+  social.js        Instagram / TikTok by @handle (Apify)
   index.js         routes under /agency, storage, limits, background jobs
   views/app.html   the page markup
   public/app.css   the page's own styles (on top of masterplan/public/app.css)
@@ -101,17 +105,31 @@ getting more views?" and analyses the member's existing channel.
   login to their account, no key. The public feed is a second source (YouTube
   takes it offline for long stretches). Set `YMA_YOUTUBE_API_KEY` (a free
   YouTube Data API key) to read exact numbers from the official API instead.
-- **What works on your channel**: a cheap model reads titles, views and ages
-  and says what works, what does not, what to do more of (about 1¢,
-  `YMA_INSIGHTS_PER_DAY`). New topic ideas use it.
-- **Posted from here**: on each content pack the member marks where it went
-  live (link). YouTube views are read from the video page and refreshed when
-  the member opens Results (at most every 30 minutes, data older than 6 hours).
-  Instagram and TikTok do not let other sites read views without an approved
-  app, so the member types them, plus their usual views as the baseline.
-- **The comparison**: average views of videos made here against the channel's
-  other Shorts (or other videos), and against the usual views on Instagram and
-  TikTok.
-
-Reading members' private analytics (watch time, reach) by logging into their
-accounts needs Google and Meta app review; not needed for the comparison above.
+- **Instagram and TikTok** (`social.js`): the member types their @handle; their
+  public Reels / videos with views, likes, comments and dates are read through
+  Apify (`YMA_APIFY_TOKEN`; readers `apify~instagram-reel-scraper` and
+  `clockworks~tiktok-scraper`). No login to their account, no Meta/TikTok app
+  review. A read takes 15-40 s and runs in the background. Apify charges per
+  video (free plan: Instagram $0.0026, TikTok $0.0037; less on paid plans), so
+  the first read takes 12 videos (about 3-5¢), later reads only the newest 6,
+  at most once a day when the member opens Results, or when a link they posted
+  is not in the last read yet. Each run is capped (`maxItems`), member reads
+  are limited per day (`YMA_SOCIAL_READS_PER_DAY`) and count toward the
+  site-wide dollar ceiling. Without a token the page falls back to typed
+  views.
+- **What works for you**: a cheap model reads titles, views, likes and ages on
+  every connected account and says what works, what does not, what to do more
+  of (about 1¢, `YMA_INSIGHTS_PER_DAY`). New topic ideas use it.
+- **Posted from here**: on each content pack the member pastes the link of
+  where it went live. YouTube views are read from the video; Instagram and
+  TikTok views are matched from the connected account by the post's code in
+  the link (TikTok short links are followed). Refreshed as above (YouTube at
+  most every 30 minutes, data older than 6 hours).
+- **Insights screenshot**: for numbers no public page shows (reach, watch
+  time, watched to the end, saves, new followers), the member adds a
+  screenshot of the post's Insights / Analytics screen. A vision model
+  (`YMA_MODEL_VISION`, about 0.07¢) copies the numbers off it; the picture is
+  not kept. If the views were not read automatically, the screenshot's count.
+- **The comparison**: average views of videos made here against the same
+  account's other videos (Shorts against Shorts on YouTube), or against the
+  usual views the member typed when no account is connected.

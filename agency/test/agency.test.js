@@ -34,6 +34,8 @@ const config = require('../config');
 
 const calls = [];
 const ideaPrompts = [];
+const insightPrompts = [];
+let nextShot = null;
 let packDrafts = 0;
 llm.generate = async (p) => {
   const text = typeof p.content === 'string' ? p.content : p.content.map((b) => b.text || '').join('\n');
@@ -43,10 +45,15 @@ llm.generate = async (p) => {
   const json = (o) => ({ text: '```json\n' + JSON.stringify(o) + '\n```', usage });
   /* Profile and ideas may use the same model: tell the jobs apart by their instructions. */
   const sys = typeof p.system === 'string' ? p.system : (p.system || []).map((b) => b.text).join('\n');
-  const job = /brand identity profile/.test(sys) ? 'profile' : /YouTube channel to tell them/.test(sys) ? 'insights' : /content strategist/.test(sys) ? 'ideas' : /short-video content/.test(sys) ? 'write' : 'transcribe';
+  const job = /brand identity profile/.test(sys) ? 'profile' : /analytics screen/.test(sys) ? 'screenshot' : /own accounts \(YouTube, Instagram, TikTok\)/.test(sys) ? 'insights' : /content strategist/.test(sys) ? 'ideas' : /short-video content/.test(sys) ? 'write' : 'transcribe';
 
+  if (job === 'screenshot') {
+    assert.strictEqual(p.content[0].type, 'image_data', 'the screenshot goes to the model');
+    return json(nextShot);
+  }
   if (job === 'insights') {
     assert.match(text, /latest videos/);
+    insightPrompts.push(text);
     return json({ summary: 'Personal stories win.', working: ['Stories from childhood'], notWorking: ['Generic tips'], doMore: ['One story per Short'], topicsThatWork: ['childhood'] });
   }
   if (job === 'ideas') ideaPrompts.push(text);
@@ -129,6 +136,18 @@ channelsMod.channel = async () => ({
     { id: 'aaaaaaaaaa4', title: 'A long talk', published: day(30), views: 20000, short: false },
   ],
 });
+/* Nor Apify: the Instagram / TikTok reader is stubbed. */
+const socialMod = require('../social');
+socialMod.available = () => true;
+const socialReads = [];
+socialMod.read = async (platform, handle) => {
+  socialReads.push(platform + ':' + handle);
+  if (handle === 'nobody') throw Object.assign(new Error('We could not read @nobody.'), { userFacing: true, status: 404 });
+  const v = (id, views, d) => ({ id, url: 'https://x/' + id, title: 'Video ' + id, views, likes: 10, comments: 2, published: day(d), short: true });
+  return platform === 'instagram'
+    ? { handle, title: 'Ana', followers: null, costUsd: 0.002, videos: [v('abc', 1500, 1), v('R1', 300, 5), v('R2', 500, 8), v('R3', 400, 12)] }
+    : { handle, title: 'Ana TT', followers: 900, costUsd: 0.002, videos: [v('7000000000000000009', 2000, 2), v('7000000000000000001', 600, 6), v('7000000000000000002', 1000, 9)] };
+};
 channelsMod.videoViews = async (id) => ({ views: id === 'bbbbbbbbbb1' ? 5000 : 0, title: 'Posted short', channelId: null });
 const agency = require('..');
 let base;
@@ -339,12 +358,87 @@ test('results: channels, what was posted, and whether it gets more views', async
   assert.deepStrictEqual(ins.working, ['Stories from childhood']);
   /* New ideas learn from what works on the channel. */
   await call('POST', '/agency/api/ideas', {}, t);
-  await until(async () => ideaPrompts.some((p) => /What already works on their own channel/.test(p) && /Stories from childhood/.test(p)), 'ideas use insights');
+  await until(async () => ideaPrompts.some((p) => /What already works on their own accounts/.test(p) && /Stories from childhood/.test(p)), 'ideas use insights');
 
   const other = await signIn('bo@example.com');
   const theirs = await call('GET', '/agency/api/results', null, other);
   assert.strictEqual(theirs.data.youtube, null);
   assert.deepStrictEqual(theirs.data.posted, []);
+});
+
+test('Instagram and TikTok by @handle: posted views read automatically; screenshots add the rest', async () => {
+  const t = await signIn('ana@example.com');
+  const ideas = (await call('GET', '/agency/api/ideas', null, t)).data.ideas;
+  /* The idea posted on YouTube and Instagram in the test above, and another one. */
+  const first = ideas.find((i) => i.posted.some((p) => p.platform === 'instagram')).id;
+  const second = ideas.find((i) => i.id !== first).id;
+
+  /* Posted on TikTok before the account is connected: no views yet. */
+  const tt = await call('POST', '/agency/api/ideas/' + first + '/posted', { platform: 'tiktok', url: 'https://www.tiktok.com/@ana/video/7000000000000000009?lang=en' }, t);
+  assert.strictEqual(tt.status, 200);
+  assert.strictEqual(tt.data.views, null);
+  assert.strictEqual((await call('POST', '/agency/api/ideas/' + first + '/posted', { platform: 'instagram', url: 'https://www.instagram.com/ana/' }, t)).status, 400, 'a profile link is not a post');
+
+  assert.strictEqual((await call('POST', '/agency/api/channels', { platform: 'instagram', handle: 'not a handle!' }, t)).status, 400);
+  for (const [platform, handle] of [['instagram', 'https://www.instagram.com/ana.stories/'], ['tiktok', '@Ana']]) {
+    const c = await call('POST', '/agency/api/channels', { platform, handle }, t);
+    assert.strictEqual(c.status, 202, platform);
+  }
+  const r = await until(async () => {
+    const x = await call('GET', '/agency/api/results', null, t);
+    const j = x.data.socialJobs;
+    return j.instagram && j.instagram.status === 'ready' && j.tiktok && j.tiktok.status === 'ready' ? x.data : null;
+  }, 'social reads');
+  assert.ok(socialReads.includes('instagram:ana.stories') && socialReads.includes('tiktok:ana'));
+  assert.strictEqual(r.instagram.handle, 'ana.stories');
+  assert.strictEqual(r.instagram.baseline, 400, 'the usual views typed before are kept');
+  assert.strictEqual(r.tiktok.followers, 900);
+
+  /* The Reel typed as 800 views earlier is in the account: its real count wins. */
+  const posts = r.posted.find((p) => p.ideaId === first).posts;
+  const ig = posts.find((p) => p.platform === 'instagram');
+  assert.strictEqual(ig.views, 1500);
+  assert.strictEqual(ig.source, 'read');
+  assert.strictEqual(posts.find((p) => p.platform === 'tiktok').views, 2000);
+  assert.deepStrictEqual(r.compare.instagram, { madeHere: { n: 1, avg: 1500 }, before: { n: 3, avg: 400, what: 'your other Reels' } });
+  assert.deepStrictEqual(r.compare.tiktok, { madeHere: { n: 1, avg: 2000 }, before: { n: 2, avg: 800, what: 'your other videos' } });
+
+  /* A post the account read does not have yet: views typed or from a screenshot. */
+  const fresh = await call('POST', '/agency/api/ideas/' + second + '/posted', { platform: 'tiktok', url: 'https://www.tiktok.com/@ana/video/7000000000000000077' }, t);
+  assert.strictEqual(fresh.data.views, null);
+  const png = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.alloc(3000, 3)]);
+  assert.strictEqual((await call('POST', '/agency/api/ideas/' + second + '/posted/screenshot?platform=instagram', png, t, 'image/png')).status, 400, 'only for a saved post');
+  nextShot = { isAnalytics: false, platform: null, views: null };
+  assert.strictEqual((await call('POST', '/agency/api/ideas/' + second + '/posted/screenshot?platform=tiktok', png, t, 'image/png')).status, 422, 'a picture with no numbers');
+  nextShot = { isAnalytics: true, platform: 'tiktok', views: 12400, reach: null, avgWatchSeconds: 7.5, watchedFullPercent: 31.2, likes: 'many' };
+  const shot = await call('POST', '/agency/api/ideas/' + second + '/posted/screenshot?platform=tiktok', png, t, 'image/png');
+  assert.strictEqual(shot.status, 200);
+  assert.deepStrictEqual(shot.data.stats, { views: 12400, avgWatchSeconds: 7.5, watchedFullPercent: 31.2 });
+  assert.strictEqual(shot.data.views, 12400);
+  const files = fs.readdirSync(tmp, { recursive: true }).map(String);
+  assert.ok(!files.some((x) => /\.png$/.test(x)), 'the screenshot is not kept');
+
+  /* The analysis now covers every connected account. */
+  insightPrompts.length = 0;
+  assert.strictEqual((await call('POST', '/agency/api/insights', {}, t)).status, 202);
+  await until(async () => insightPrompts.some((p) => /Instagram/.test(p) && /TikTok/.test(p) && /YouTube/.test(p)), 'insights on all platforms');
+
+  /* An account that cannot be read says so. */
+  await call('POST', '/agency/api/channels', { platform: 'instagram', handle: '@nobody' }, t);
+  const failed = await until(async () => {
+    const x = await call('GET', '/agency/api/results', null, t);
+    return x.data.socialJobs.instagram && x.data.socialJobs.instagram.status === 'failed' ? x.data.socialJobs.instagram : null;
+  }, 'failed read');
+  assert.match(failed.error, /nobody/);
+
+  socialMod.available = () => false;
+  assert.strictEqual((await call('POST', '/agency/api/channels', { platform: 'tiktok', handle: '@ana' }, t)).status, 503, 'off without an Apify token');
+  socialMod.available = () => true;
+
+  const other = await signIn('bo@example.com');
+  const theirs = (await call('GET', '/agency/api/results', null, other)).data;
+  assert.strictEqual(theirs.instagram, null);
+  assert.strictEqual(theirs.tiktok, null);
 });
 
 test('delete everything removes the member\'s data', async () => {

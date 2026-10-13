@@ -30,9 +30,10 @@
      GET  /agency/api/photo
      POST /agency/api/photo/delete
      GET  /agency/api/results               channels, posted content, views, comparison
-     POST /agency/api/channels              connect YouTube / save Instagram, TikTok
-     POST /agency/api/insights              what works on their YouTube channel
+     POST /agency/api/channels              connect YouTube, Instagram, TikTok by @handle
+     POST /agency/api/insights              what works on their accounts
      POST /agency/api/ideas/:iid/posted     where a pack went live (+ views)
+     POST /agency/api/ideas/:iid/posted/screenshot   numbers read off an analytics screenshot
      POST /agency/api/delete-all            remove everything we hold for the member
    --------------------------------------------------------------------------- */
 
@@ -60,6 +61,7 @@ if (ready) {
   engine = require('./engine');
 }
 const channels = require('./channels');
+const social = require('./social');
 
 const MEMBER = (id) => 'yma/members/' + id + '.json';
 const ANSWER = (id, qid) => 'yma/answers/' + id + '/' + qid + '.json';
@@ -114,7 +116,7 @@ async function spend(id, kind, amount = 1) {
     if (!m.usage || m.usage.day !== today()) m.usage = { day: today() };
     const used = m.usage[kind] || 0;
     if (used + amount > cap) {
-      const what = { answers: 'answers', audioMinutes: 'minutes of recordings', ideas: 'rounds of ideas', packs: 'content packs', covers: 'covers', insights: 'channel analyses' }[kind];
+      const what = { answers: 'answers', audioMinutes: 'minutes of recordings', ideas: 'rounds of ideas', packs: 'content packs', covers: 'covers', insights: 'analyses', socialReads: 'account reads', screenshots: 'screenshots read' }[kind];
       throw userError('You have reached today\'s limit of ' + cap + ' ' + what + '. It resets tomorrow.', 429, 'limit');
     }
     m.usage[kind] = used + amount;
@@ -219,6 +221,7 @@ router.get('/healthz', (req, res) => {
     problems: config.problems,
     models: config.models,
     questions: questions.total,
+    social: social.available(),
   });
 });
 
@@ -601,38 +604,44 @@ router.post('/api/ideas/:iid/delete', wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
-/* ---- results: their channels, what was posted, and the views ---------------------------------- */
+/* ---- results: their accounts, what was posted, and the views ---------------------------------- */
 
 const PLATFORMS = ['youtube', 'instagram', 'tiktok'];
+const SOCIAL = ['instagram', 'tiktok'];
+const NAMES = { youtube: 'YouTube', instagram: 'Instagram', tiktok: 'TikTok' };
 const REFRESH_EVERY = 6 * 3600 * 1000; // YouTube data is re-read when older than this
-const REFRESH_FLOOR = 30 * 60 * 1000; // and never more often than this per member
+const REFRESH_FLOOR = 30 * 60 * 1000; // and never more often than this per member (also Instagram, TikTok)
+const NEW_POST_DAYS = 30; // a posted link not found in the account yet is looked for this long
 
 const avg = (list) => (list.length ? Math.round(list.reduce((n, x) => n + x, 0) / list.length) : null);
+const socialKey = (pf) => 'social_' + pf;
+const postKey = (p) => p.videoId || p.postId || social.postId(p.platform, p.url);
 
 function comparison(m) {
   const posted = [];
   for (const i of m.ideas || []) for (const p of i.posted || []) posted.push({ ...p, ideaId: i.id });
   const out = {};
-  /* YouTube: videos made here against the channel's other videos, Shorts
-     against Shorts when there are any. */
-  const yt = (m.channels || {}).youtube;
-  const madeHere = posted.filter((p) => p.platform === 'youtube' && typeof p.views === 'number');
-  if (yt || madeHere.length) {
-    const ids = new Set(madeHere.map((p) => p.videoId));
-    const others = ((yt && yt.videos) || []).filter((v) => !ids.has(v.id) && v.views > 0);
-    const otherShorts = others.filter((v) => v.short);
-    const base = otherShorts.length >= 3 ? otherShorts : others;
-    out.youtube = {
-      madeHere: { n: madeHere.length, avg: avg(madeHere.map((p) => p.views)) },
-      before: { n: base.length, avg: avg(base.map((v) => v.views)), what: base === otherShorts ? 'your other Shorts' : 'your other videos' },
-    };
-  }
-  for (const pf of ['instagram', 'tiktok']) {
+  /* Per platform: videos made here against the account's other videos (Shorts
+     against Shorts on YouTube when there are any). Without a connected account,
+     the usual views the member typed. */
+  for (const pf of PLATFORMS) {
+    const acct = (m.channels || {})[pf];
     const mine = posted.filter((p) => p.platform === pf && typeof p.views === 'number');
-    const baseline = ((m.channels || {})[pf] || {}).baseline;
-    if (mine.length || baseline) {
-      out[pf] = { madeHere: { n: mine.length, avg: avg(mine.map((p) => p.views)) }, before: { n: null, avg: baseline || null, what: 'your usual views' } };
+    if (!acct && !mine.length) continue;
+    const ids = new Set(mine.map(postKey).filter(Boolean));
+    const others = ((acct && acct.videos) || []).filter((v) => !ids.has(v.id) && v.views > 0);
+    let base = others;
+    let what = pf === 'instagram' ? 'your other Reels' : 'your other videos';
+    if (pf === 'youtube') {
+      const shorts = others.filter((v) => v.short);
+      if (shorts.length >= 3) {
+        base = shorts;
+        what = 'your other Shorts';
+      }
     }
+    let before = { n: base.length, avg: avg(base.map((v) => v.views)), what };
+    if (!base.length && acct && acct.baseline) before = { n: null, avg: acct.baseline, what: 'your usual views' };
+    out[pf] = { madeHere: { n: mine.length, avg: avg(mine.map((p) => p.views)) }, before };
   }
   return out;
 }
@@ -665,21 +674,118 @@ async function refreshYoutube(id, force) {
       if (p.videoId && views[p.videoId] != null) {
         p.views = views[p.videoId];
         p.viewsAt = new Date().toISOString();
+        p.source = 'read';
       }
     }
     return mm;
   });
 }
 
+/* Posted Reels / TikToks found in what was read get their views from it. */
+function applyReadViews(m, platform, videos) {
+  const byId = new Map(videos.map((v) => [v.id, v]));
+  for (const i of m.ideas || []) {
+    for (const p of i.posted || []) {
+      if (p.platform !== platform) continue;
+      const v = byId.get(postKey(p));
+      if (!v) continue;
+      Object.assign(p, { views: v.views, likes: v.likes, comments: v.comments, viewsAt: new Date().toISOString(), source: 'read' });
+      delete p.manual;
+    }
+  }
+}
+
+/* Read a connected Instagram / TikTok account in the background (15-40 s).
+   A refresh reads only the newest videos and keeps the older ones. */
+function startSocialRead(id, platform, handle, refresh) {
+  const key = socialKey(platform);
+  return runJob(id, key, async () => {
+    const usage = {};
+    try {
+      const acct = await social.read(platform, handle, refresh ? config.social.refreshVideos : config.social.videosPerRead);
+      usage.cost_usd = acct.costUsd;
+      await updateMember(id, (mm) => {
+        const prev = (mm.channels || {})[platform];
+        if (!prev || prev.handle !== handle) return mm; // changed or removed meanwhile
+        const fresh = new Set(acct.videos.map((v) => v.id));
+        const videos = refresh ? acct.videos.concat((prev.videos || []).filter((v) => !fresh.has(v.id))).slice(0, 30) : acct.videos;
+        Object.assign(prev, { title: acct.title, followers: acct.followers || prev.followers || null, videos, fetchedAt: new Date().toISOString() });
+        applyReadViews(mm, platform, acct.videos);
+        mm.jobs[key] = { status: 'ready', at: new Date().toISOString() };
+        return mm;
+      });
+    } catch (err) {
+      await updateMember(id, (mm) => {
+        mm.jobs[key] = {
+          status: 'failed',
+          error: err.userFacing ? err.message : 'We could not read @' + handle + ' on ' + NAMES[platform] + ' just now. Please try again later.',
+        };
+        return mm;
+      });
+      if (!err.userFacing) throw err;
+    } finally {
+      await addCost(usage, NAMES[platform] + ' read');
+    }
+  });
+}
+
+/* Re-read a connected account when its numbers are old, or when a link the
+   member posted is not in it yet. Counted in the daily reads; quietly skipped
+   past the limit. */
+async function refreshSocial(id, m) {
+  if (!social.available()) return;
+  for (const pf of SOCIAL) {
+    const acct = (m.channels || {})[pf];
+    if (!acct || !acct.handle || isActive(id, socialKey(pf))) continue;
+    const tried = acct.triedAt ? Date.parse(acct.triedAt) : 0;
+    if (Date.now() - tried < REFRESH_FLOOR) continue;
+    const fetched = acct.fetchedAt ? Date.parse(acct.fetchedAt) : 0;
+    const stale = Date.now() - fetched > config.social.refreshHours * 3600 * 1000;
+    const known = new Set((acct.videos || []).map((v) => v.id));
+    const waiting = (m.ideas || []).some((i) =>
+      (i.posted || []).some((p) => p.platform === pf && p.source !== 'read' && Date.now() - Date.parse(p.at) < NEW_POST_DAYS * 86400000 && !known.has(postKey(p)))
+    );
+    if (!stale && !waiting) continue;
+    try {
+      await spend(id, 'socialReads');
+    } catch {
+      continue;
+    }
+    await updateMember(id, (mm) => {
+      const a = (mm.channels || {})[pf];
+      if (a) a.triedAt = new Date().toISOString();
+      mm.jobs[socialKey(pf)] = { status: 'running', at: new Date().toISOString() };
+      return mm;
+    });
+    startSocialRead(id, pf, acct.handle, (acct.videos || []).length > 0);
+  }
+}
+
+function publicAccount(a) {
+  if (!a) return null;
+  return {
+    handle: a.handle || null,
+    url: a.url || null,
+    baseline: a.baseline == null ? null : a.baseline,
+    title: a.title || null,
+    followers: a.followers || null,
+    fetchedAt: a.fetchedAt || null,
+    videos: (a.videos || []).slice(0, 50),
+  };
+}
+
 router.get('/api/results', wrap(async (req, res) => {
   const id = req.memberId;
   await refreshYoutube(id, false).catch((err) => console.warn('[agency] youtube refresh failed: %s', err.message));
+  await refreshSocial(id, await getMember(id)).catch((err) => console.warn('[agency] social refresh failed: %s', err.message));
   const m = await getMember(id);
   const yt = (m.channels || {}).youtube || null;
   res.json({
     youtube: yt ? { input: yt.input, title: yt.title, fetchedAt: yt.fetchedAt, source: yt.source, videos: (yt.videos || []).slice(0, 50) } : null,
-    instagram: (m.channels || {}).instagram || null,
-    tiktok: (m.channels || {}).tiktok || null,
+    instagram: publicAccount((m.channels || {}).instagram),
+    tiktok: publicAccount((m.channels || {}).tiktok),
+    socialAvailable: social.available(),
+    socialJobs: { instagram: jobState(m, id, socialKey('instagram')), tiktok: jobState(m, id, socialKey('tiktok')) },
     insights: m.insights || null,
     insightsJob: jobState(m, id, 'insights'),
     posted: (m.ideas || [])
@@ -706,13 +812,46 @@ router.post('/api/channels', wrap(async (req, res) => {
     });
     return res.json({ ok: true, title: ch.title, videos: ch.videos.length });
   }
-  const url = clip(req.body.url, 300);
-  if (url && !/^https:\/\/(www\.)?(instagram\.com|tiktok\.com)\//i.test(url)) throw userError('That does not look like an Instagram or TikTok profile link.');
   const baseline = req.body.baseline === '' || req.body.baseline == null ? null : Math.max(0, Math.round(Number(req.body.baseline)));
   if (baseline !== null && !Number.isFinite(baseline)) throw userError('Usual views must be a number.');
+
+  /* Instagram / TikTok by @handle: read in the background. */
+  const handleInput = clip(req.body.handle, 300);
+  if (handleInput) {
+    if (!social.available()) throw userError('Reading ' + NAMES[platform] + ' is not switched on yet. Type your usual views instead.', 503);
+    const handle = social.parseHandle(platform, handleInput);
+    if (!handle) throw userError('That does not look like an ' + NAMES[platform] + ' @handle. Type it like @yourname.');
+    const key = socialKey(platform);
+    if (isActive(id, key)) return res.status(202).json({ ok: true, handle });
+    await spend(id, 'socialReads');
+    await updateMember(id, (m) => {
+      m.channels = m.channels || {};
+      const prev = m.channels[platform] || {};
+      const same = prev.handle === handle;
+      m.channels[platform] = {
+        handle,
+        url: platform === 'instagram' ? 'https://www.instagram.com/' + handle + '/' : 'https://www.tiktok.com/@' + handle,
+        baseline: baseline !== null ? baseline : prev.baseline == null ? null : prev.baseline,
+        title: same ? prev.title : null,
+        followers: same ? prev.followers : null,
+        videos: same ? prev.videos || [] : [],
+        fetchedAt: same ? prev.fetchedAt : null,
+        triedAt: new Date().toISOString(),
+      };
+      m.jobs[key] = { status: 'running', at: new Date().toISOString() };
+      return m;
+    });
+    startSocialRead(id, platform, handle, false);
+    return res.status(202).json({ ok: true, handle });
+  }
+
+  /* Without a handle: the profile link and usual views, typed. */
+  const url = clip(req.body.url, 300);
+  if (url && !/^https:\/\/(www\.)?(instagram\.com|tiktok\.com)\//i.test(url)) throw userError('That does not look like an Instagram or TikTok profile link.');
   await updateMember(id, (m) => {
     m.channels = m.channels || {};
-    m.channels[platform] = { url, baseline };
+    const prev = m.channels[platform] || {};
+    m.channels[platform] = { ...prev, url: url || prev.url || null, baseline };
     return m;
   });
   res.json({ ok: true });
@@ -721,8 +860,11 @@ router.post('/api/channels', wrap(async (req, res) => {
 router.post('/api/channels/:platform/delete', wrap(async (req, res) => {
   if (!PLATFORMS.includes(req.params.platform)) return res.status(404).json({ error: 'Not found.' });
   await updateMember(req.memberId, (m) => {
+    const had = m.channels && m.channels[req.params.platform];
     if (m.channels) delete m.channels[req.params.platform];
-    if (req.params.platform === 'youtube') m.insights = null;
+    delete m.jobs[socialKey(req.params.platform)];
+    /* The analysis was made from this account's videos. */
+    if (had && (had.videos || []).length) m.insights = null;
     return m;
   });
   res.json({ ok: true });
@@ -733,11 +875,12 @@ router.post('/api/results/refresh', wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+const withVideos = (m) => PLATFORMS.map((pf) => ({ platform: pf, ...((m.channels || {})[pf] || {}) })).filter((a) => (a.videos || []).length);
+
 router.post('/api/insights', wrap(async (req, res) => {
   const id = req.memberId;
   const m = await getMember(id);
-  const yt = (m.channels || {}).youtube;
-  if (!yt || !(yt.videos || []).length) throw userError('Connect a YouTube channel with some videos first.');
+  if (!withVideos(m).length) throw userError('Connect an account with some videos first.');
   if (isActive(id, 'insights')) return res.status(202).json({ ok: true });
   await spend(id, 'insights');
   await updateMember(id, (mm) => {
@@ -748,9 +891,15 @@ router.post('/api/insights', wrap(async (req, res) => {
     const usage = {};
     try {
       const fresh = await getMember(id);
-      const out = await engine.insights({ channel: fresh.channels.youtube, profile: fresh.profile, usage });
+      const accounts = withVideos(fresh);
+      const out = await engine.insights({ accounts, profile: fresh.profile, usage });
       await updateMember(id, (mm) => {
-        mm.insights = { ...out, at: new Date().toISOString(), videos: (fresh.channels.youtube.videos || []).length };
+        mm.insights = {
+          ...out,
+          at: new Date().toISOString(),
+          videos: accounts.reduce((n, a) => n + a.videos.length, 0),
+          platforms: accounts.map((a) => a.platform),
+        };
         mm.jobs.insights = { status: 'ready', at: new Date().toISOString() };
         return mm;
       });
@@ -761,45 +910,58 @@ router.post('/api/insights', wrap(async (req, res) => {
       });
       throw err;
     } finally {
-      await addCost(usage, 'channel insights');
+      await addCost(usage, 'account insights');
     }
   });
   res.status(202).json({ ok: true });
 }));
 
-/* Mark a content pack as posted on a platform, with its link. YouTube views
-   are read automatically; Instagram and TikTok views are entered. */
+/* Mark a content pack as posted on a platform, with its link. Views are read
+   automatically (YouTube from the video, Instagram and TikTok from the
+   connected account); otherwise the member types them or adds a screenshot. */
 router.post('/api/ideas/:iid/posted', wrap(async (req, res) => {
   const id = req.memberId;
   const platform = req.body && req.body.platform;
   if (!PLATFORMS.includes(platform)) throw userError('Choose YouTube, Instagram or TikTok.');
   const url = clip(req.body.url, 400);
-  const patterns = { youtube: /^https:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\//i, instagram: /^https:\/\/(www\.)?instagram\.com\//i, tiktok: /^https:\/\/(www\.|vm\.)?tiktok\.com\//i };
-  if (!patterns[platform].test(url)) throw userError('Paste the link to the post on ' + { youtube: 'YouTube', instagram: 'Instagram', tiktok: 'TikTok' }[platform] + '.');
+  const patterns = { youtube: /^https:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\//i, instagram: /^https:\/\/(www\.)?instagram\.com\//i, tiktok: /^https:\/\/(www\.|vm\.|vt\.|m\.)?tiktok\.com\//i };
+  if (!patterns[platform].test(url)) throw userError('Paste the link to the post on ' + NAMES[platform] + '.');
   const m = await getMember(id);
-  if (!m.ideas.find((x) => x.id === req.params.iid)) return res.status(404).json({ error: 'Not found.' });
-  const entry = { platform, url, at: new Date().toISOString(), views: null, viewsAt: null };
+  const idea = m.ideas.find((x) => x.id === req.params.iid);
+  if (!idea) return res.status(404).json({ error: 'Not found.' });
+  const prev = (idea.posted || []).find((p) => p.platform === platform);
+  const entry = { platform, url, at: prev && prev.url === url ? prev.at : new Date().toISOString(), views: null, viewsAt: null };
+  if (prev && prev.url === url && prev.stats) Object.assign(entry, { stats: prev.stats, statsAt: prev.statsAt });
+  let reading = false;
   if (platform === 'youtube') {
     entry.videoId = channels.videoIdFrom(url);
     if (!entry.videoId) throw userError('That YouTube link has no video in it.');
     const v = await channels.videoViews(entry.videoId).catch(() => null);
-    if (v) {
-      entry.views = v.views;
-      entry.viewsAt = new Date().toISOString();
+    if (v) Object.assign(entry, { views: v.views, viewsAt: new Date().toISOString(), source: 'read' });
+  } else {
+    entry.postId = await social.resolvePostId(platform, url);
+    if (!entry.postId) throw userError('That link does not point to one ' + (platform === 'instagram' ? 'Reel or post' : 'video') + '. Open the post, tap Share, Copy link, and paste it here.');
+    const acct = (m.channels || {})[platform];
+    const found = acct && (acct.videos || []).find((v) => v.id === entry.postId);
+    if (found) {
+      Object.assign(entry, { views: found.views, likes: found.likes, comments: found.comments, viewsAt: acct.fetchedAt, source: 'read' });
+    } else if (req.body.views !== undefined && req.body.views !== '' && req.body.views !== null) {
+      const n = Math.round(Number(req.body.views));
+      if (!Number.isFinite(n) || n < 0) throw userError('Views must be a number.');
+      Object.assign(entry, { views: n, viewsAt: new Date().toISOString(), source: 'typed' });
+    } else if (entry.stats && entry.stats.views != null) {
+      Object.assign(entry, { views: entry.stats.views, viewsAt: entry.statsAt, source: 'screenshot' });
     }
-  } else if (req.body.views !== undefined && req.body.views !== '' && req.body.views !== null) {
-    const n = Math.round(Number(req.body.views));
-    if (!Number.isFinite(n) || n < 0) throw userError('Views must be a number.');
-    entry.views = n;
-    entry.viewsAt = new Date().toISOString();
-    entry.manual = true;
+    reading = !found && !!(acct && acct.handle && social.available());
   }
   await updateMember(id, (mm) => {
     const i = mm.ideas.find((x) => x.id === req.params.iid);
     if (i) i.posted = [...(i.posted || []).filter((p) => p.platform !== platform), entry];
     return mm;
   });
-  res.json({ ok: true, views: entry.views });
+  /* A new post is not in the account's last read: look for it now. */
+  if (reading) await refreshSocial(id, await getMember(id)).catch(() => {});
+  res.json({ ok: true, views: entry.views, source: entry.source || null, reading: reading && isActive(id, socialKey(platform)) });
 }));
 
 router.post('/api/ideas/:iid/posted/delete', wrap(async (req, res) => {
@@ -811,6 +973,52 @@ router.post('/api/ideas/:iid/posted/delete', wrap(async (req, res) => {
   });
   res.json({ ok: true });
 }));
+
+/* A screenshot of the post's Insights / Analytics screen: a cheap vision model
+   reads the numbers off it (views, reach, watch time, ...). The picture is
+   not kept. */
+router.post(
+  '/api/ideas/:iid/posted/screenshot',
+  express.raw({ type: () => true, limit: config.maxScreenshotBytes }),
+  wrap(async (req, res) => {
+    const id = req.memberId;
+    const platform = String(req.query.platform || '');
+    if (!PLATFORMS.includes(platform)) throw userError('Choose YouTube, Instagram or TikTok.');
+    const type = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+    if (!IMAGE_TYPES.includes(type)) throw userError('Please use a screenshot (PNG, JPG or WebP).', 415);
+    if (!Buffer.isBuffer(req.body) || req.body.length < 1000) throw userError('That picture is empty.');
+    const m = await getMember(id);
+    const idea = m.ideas.find((x) => x.id === req.params.iid);
+    if (!idea) return res.status(404).json({ error: 'Not found.' });
+    if (!(idea.posted || []).some((p) => p.platform === platform)) throw userError('Save the link to the post first.');
+    await spend(id, 'screenshots');
+    const usage = {};
+    let read;
+    try {
+      read = await engine.readScreenshot({ image: { type, data: req.body }, usage });
+    } catch (err) {
+      console.error('[agency] screenshot read failed: %s', err.message);
+      throw userError('We could not read that screenshot just now. Please try again.', 502);
+    } finally {
+      await addCost(usage, 'screenshot');
+    }
+    if (!read.isAnalytics) throw userError('We found no numbers on that picture. Open the post\'s Insights (Instagram) or Analytics (TikTok, YouTube Studio) and take a screenshot of that screen.', 422);
+    let entry = null;
+    await updateMember(id, (mm) => {
+      const i = mm.ideas.find((x) => x.id === req.params.iid);
+      const p = i && (i.posted || []).find((x) => x.platform === platform);
+      if (!p) return mm;
+      p.stats = read.stats;
+      p.statsAt = new Date().toISOString();
+      /* Views read from the platform stay; otherwise the screenshot's count it. */
+      if (p.source !== 'read' && read.stats.views != null) Object.assign(p, { views: read.stats.views, viewsAt: p.statsAt, source: 'screenshot' });
+      delete p.manual;
+      entry = p;
+      return mm;
+    });
+    res.json({ ok: true, stats: read.stats, views: entry ? entry.views : null, otherPlatform: read.platform && read.platform !== platform ? NAMES[read.platform] : null });
+  })
+);
 
 /* ---- the member's photo, for covers ------------------------------------------------------- */
 
