@@ -111,6 +111,9 @@ const config = {
     voiceA: str('MP_PODCAST_VOICE_A', 'ash'),
     voiceB: str('MP_PODCAST_VOICE_B', 'coral'),
     parallel: int('MP_PODCAST_PARALLEL', 4),
+    /* How much the top end of each voice is softened (0 to 1), against the speech model's sizzle. */
+    softenA: Math.min(1, Math.max(0, Number(process.env.MP_PODCAST_SOFTEN_A || 0.35))),
+    softenB: Math.min(1, Math.max(0, Number(process.env.MP_PODCAST_SOFTEN_B || 0.35))),
   },
 
   /* Brand line in every PDF footer, as the client asked: "Produced on
