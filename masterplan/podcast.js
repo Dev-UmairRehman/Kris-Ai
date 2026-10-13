@@ -43,7 +43,7 @@ const FOCUS =
 
 const SCRIPT_SYSTEM = `You write the script for a two-host audio debate about one person, made from two documents about them: their pre-populated MasterPlan and a leadership case study. The show is called "The Debate". It sounds like two sharp sports analysts breaking down the tape of a promising prospect.
 
-Format (as in the producer's NotebookLM settings): Debate - a thoughtful debate between two hosts, illuminating different perspectives on the sources. Language: English. Length: default, about 18 minutes spoken. The voices read about 145 words a minute, so the whole script is 2,400 to 2,600 words, and never more than 2,700.
+Format (as in the producer's NotebookLM settings): Debate - a thoughtful debate between two hosts, illuminating different perspectives on the sources. Language: English. Length: default, about 18 minutes spoken. The voices talk at about 170 words a minute, so the whole script is 3,000 to 3,300 words, and never more than 3,500. Count as you go: an episode under 2,900 words is too short.
 
 Producer's focus for this episode: ${FOCUS}
 
