@@ -98,6 +98,7 @@ html, body { margin: 0; background: #fff; }
 .mp-check { display: flex; gap: 10px; align-items: flex-start; margin: 28px 0 0; font-size: 15px; line-height: 1.55; color: var(--ink-2); cursor: pointer; }
 .mp-check input { width: 17px; height: 17px; margin: 3px 0 0; accent-color: var(--navy); flex: none; }
 .mp-note { margin: 22px 0 26px; font-size: 14.5px; line-height: 1.65; color: var(--ink-2); }
+.mp-ps { margin: 14px 0 0; max-width: 560px; font-size: 15px; line-height: 1.6; color: var(--ink-2); font-style: italic; }
 .mp-foot { margin: 40px 0 0; font-size: 13.5px; color: var(--ink-3); }
 .mp-foot a { color: var(--ink-3); }
 
