@@ -97,8 +97,9 @@ test('with a Gemini key the episode is voiced by Google in parts, both hosts per
   const gemini = require('../podcast-gemini');
   const llm = require('../llm');
   const g = config.podcast.gemini;
-  const saved = { key: g.apiKey, fetch: global.fetch, generate: llm.generate };
+  const saved = { key: g.apiKey, model: g.model, fetch: global.fetch, generate: llm.generate };
   g.apiKey = 'test-key';
+  g.model = 'gemini-3.8-flash-tts'; // the 3.x request shape first; 2.5 below
   const sent = [];
   global.fetch = async (url, opts) => {
     assert.match(String(url), /generativelanguage\.googleapis\.com\/v1beta\/models\/.+:generateContent$/);
@@ -167,6 +168,7 @@ test('with a Gemini key the episode is voiced by Google in parts, both hosts per
     assert.match(sent[1].contents[0].parts[0].text, /continues a conversation already under way/);
   } finally {
     g.apiKey = saved.key;
+    g.model = saved.model;
     global.fetch = saved.fetch;
     llm.generate = saved.generate;
   }

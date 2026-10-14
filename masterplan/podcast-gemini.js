@@ -64,10 +64,14 @@ function parts(dialogue) {
   return out;
 }
 
+/* The hosts as they sound in the client's NotebookLM sample (described by
+   an audio model from the sample, 2026-10-14): the woman leads and argues the
+   hopeful side, the man is the sceptic. */
 const STYLE =
-  'Voice this as an unscripted, lively two-host podcast conversation called "The Debate": two friends who borrow sports-analyst language, talking in one room, never like announcers or narrators. ' +
-  SPEAKERS.A + ' is warm, upbeat and optimistic; ' + SPEAKERS.B + ' is calm, dry and sceptical with a wry edge. ' +
-  'Natural pace that speeds up and slows down with the thought, quick back-and-forth, real reactions to each other, breaths, and laughs where the words laugh. Read every word exactly as written.';
+  'Voice this as a fast-paced, unscripted two-host debate podcast called "The Debate": the energy of sports talk radio applied to a career, rapid back-and-forth, polished but conversational, never like announcers reading. ' +
+  SPEAKERS.A + ' (woman, mid-30s, General American) leads: warm, full, chest-resonant voice with no vocal fry, bright and forward, high and engaging energy with an upbeat, bouncy optimism and a wide pitch range, lifts her pitch on key words, smiles while she talks, says "Exactly" and "Spot on" with real enthusiasm, about 150 words a minute. ' +
+  SPEAKERS.B + ' (man, around 40, General American) is the sceptical analyst: low-mid, dry, clear and grounded, a little vocal fry, punchy consonants, drops his pitch at the end of a point, clipped "Right" before pivoting to the counterpoint, quickens during analysis, about 160 words a minute. ' +
+  'They react to each other in the moment, with breaths and light laughs where the words laugh. Read every word exactly as written.';
 
 /* The 2.5 models: one transcript with the style above it. */
 const transcriptStyle = (model) => /^gemini-2./.test(model);

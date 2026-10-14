@@ -102,8 +102,8 @@ async function writeScript(name, narrative, article, usage) {
 
 /* One steady character per host, so the voice does not drift from line to line. */
 const HOSTS = {
-  A: 'Host A: warm, relaxed and optimistic, sees the upside in every play. Talks like a friend over coffee, never like an announcer. Smiles while talking.',
-  B: 'Host B: calm, dry and sceptical, pokes holes but respects the player. Thoughtful, lower-key, with a wry edge.',
+  A: 'Host A, a woman in her thirties, leads and argues the hopeful side: warm, bright and forward, high engaging energy, lifts her pitch on key words, smiles while she talks, about 150 words a minute.',
+  B: 'Host B, a man around forty, is the sceptical analyst: low-mid, dry, clear and grounded, punchy on the key words, drops his pitch at the end of a point, a clipped "Right" before his counterpoint, quickening during analysis.',
 };
 
 function voiceSystem(host, reaction) {

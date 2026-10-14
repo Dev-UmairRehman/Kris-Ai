@@ -108,8 +108,9 @@ const config = {
   podcast: {
     enabled: bool('MP_PODCAST', true),
     model: str('MP_PODCAST_MODEL', 'openai/gpt-audio'),
-    voiceA: str('MP_PODCAST_VOICE_A', 'ash'),
-    voiceB: str('MP_PODCAST_VOICE_B', 'coral'),
+    /* As in the client's sample: a woman leads (host A), a man is the sceptic (host B). */
+    voiceA: str('MP_PODCAST_VOICE_A', 'coral'),
+    voiceB: str('MP_PODCAST_VOICE_B', 'ash'),
     parallel: int('MP_PODCAST_PARALLEL', 4),
     /* How much the top end of each voice is softened (0 to 1), against the speech model's sizzle. */
     softenA: Math.min(1, Math.max(0, Number(process.env.MP_PODCAST_SOFTEN_A || 0.35))),
@@ -117,9 +118,12 @@ const config = {
     /* Google's two-speaker speech (podcast-gemini.js), used when the key is set: the closest to NotebookLM. */
     gemini: {
       apiKey: str('MP_GEMINI_API_KEY', ''),
-      model: str('MP_GEMINI_TTS_MODEL', 'gemini-3.8-flash-tts'),
-      voiceA: str('MP_GEMINI_VOICE_A', 'Puck'),
-      voiceB: str('MP_GEMINI_VOICE_B', 'Aoede'),
+      /* Chosen 2026-10-14 against the client's NotebookLM sample: of 10 set-ups,
+         the 2.5 model directed with the sample's own description, Gacrux (the
+         woman who leads) and Orus (the sceptic), sounded closest. */
+      model: str('MP_GEMINI_TTS_MODEL', 'gemini-2.5-flash-preview-tts'),
+      voiceA: str('MP_GEMINI_VOICE_A', 'Gacrux'),
+      voiceB: str('MP_GEMINI_VOICE_B', 'Orus'),
       /* Dollars per million tokens, for the cost log and the daily ceiling. */
       inputPerMillion: Number(process.env.MP_GEMINI_TTS_INPUT_PER_M || 0.5),
       outputPerMillion: Number(process.env.MP_GEMINI_TTS_OUTPUT_PER_M || 10),
