@@ -212,3 +212,65 @@ test('when Google cannot voice it, the episode is made with the line-by-line voi
     console.warn = saved.warn;
   }
 });
+
+test('with an OpenAI key every line is voiced by OpenAI\'s speech model with the host\'s direction; a refused line goes through OpenRouter', async () => {
+  const config = require('../config');
+  const llm = require('../llm');
+  const o = config.podcast.openai;
+  const saved = { key: o.apiKey, fetch: global.fetch, generate: llm.generate, warn: console.warn, gkey: config.podcast.gemini.apiKey };
+  o.apiKey = 'sk-test';
+  config.podcast.gemini.apiKey = '';
+  console.warn = () => {};
+  const tts = [];
+  let openrouter = 0;
+  const tone = () => {
+    const pcm = Buffer.alloc(RATE * 2);
+    for (let i = 0; i < pcm.length / 2; i++) pcm.writeInt16LE(Math.round(Math.sin(i / 9) * 5000), i * 2);
+    return pcm;
+  };
+  global.fetch = async (url, opts) => {
+    if (String(url) === 'https://api.openai.com/v1/audio/speech') {
+      assert.strictEqual(opts.headers.authorization, 'Bearer sk-test');
+      const body = JSON.parse(opts.body);
+      tts.push(body);
+      if (/refuse me/.test(body.input)) return new Response('{"error":{"message":"bad"}}', { status: 400 });
+      return new Response(tone(), { status: 200, headers: { 'content-type': 'audio/pcm' } });
+    }
+    openrouter++;
+    const sse = 'data: ' + JSON.stringify({ choices: [{ delta: { audio: { data: tone().toString('base64') } } }], usage: { cost: 0.001 } }) + '\n\ndata: [DONE]\n\n';
+    return new Response(sse, { status: 200, headers: { 'content-type': 'text/event-stream' } });
+  };
+  const turns = [
+    { host: 'A', text: 'Welcome to the debate. Today a promising prospect with a long record behind her.' },
+    { host: 'B', text: 'And a record that might be a comfortable trap, if you look at the tape closely.', react: 'Mm-hmm.' },
+    { host: 'A', text: 'Okay, refuse me this one line, please, for the test.' },
+    { host: 'B', text: 'Right. But the numbers tell a different story about the next drive.' },
+  ];
+  llm.generate = async () => ({ text: '```json\n' + JSON.stringify({ title: 'Camp or Cage', turns: [...turns, ...turns, ...turns] }) + '\n```', usage: {} });
+  try {
+    const usage = {};
+    const ep = await podcast.makePodcast({ name: 'Ana', narrative: 'n', article: 'a', usage });
+    const first = tts.find((b) => /^Welcome/.test(b.input));
+    assert.strictEqual(first.model, o.model);
+    assert.strictEqual(first.response_format, 'pcm');
+    assert.strictEqual(first.voice, o.voiceA, 'the lead is host A\'s voice');
+    assert.match(first.instructions, /a woman in her mid-thirties/);
+    assert.match(first.instructions, /opening the show/);
+    const second = tts.find((b) => /comfortable trap/.test(b.input));
+    assert.strictEqual(second.voice, o.voiceB);
+    assert.match(second.instructions, /a man around forty/);
+    assert.match(second.instructions, /Your co-host just said: ".*long record behind her\./, 'answers the line before, in tone');
+    const react = tts.find((b) => b.input === 'Mm-hmm.');
+    assert.strictEqual(react.voice, o.voiceA, 'the reaction is the other host');
+    assert.match(react.instructions, /only listening/);
+    assert.strictEqual(openrouter, 3, 'only the three refused lines went through OpenRouter');
+    assert.ok(usage.cost_usd > 0, 'cost counted');
+    assert.ok(ep.seconds >= 12, 'a whole episode: ' + ep.seconds + ' s');
+  } finally {
+    o.apiKey = saved.key;
+    config.podcast.gemini.apiKey = saved.gkey;
+    global.fetch = saved.fetch;
+    llm.generate = saved.generate;
+    console.warn = saved.warn;
+  }
+});

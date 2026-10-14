@@ -191,7 +191,77 @@ async function speakOnce({ text, host, prev, reaction }) {
 
 /* One clip, with retries for the service and for a reading that strayed from
    the line (then without the context, which is what tempts it to). */
+/* ---- OpenAI's speech model, with the client's own OpenAI key ---------------------
+   gpt-4o-mini-tts reads exactly the text it is given and takes a written
+   direction for each line (who is speaking, how, in answer to what), so the
+   two hosts keep one steady character all episode. The directions describe
+   the hosts of the client's NotebookLM sample. Used when MP_OPENAI_API_KEY is
+   set; a line it cannot voice is voiced through OpenRouter instead. */
+
+const DIRECTION = {
+  A:
+    'You are the lead host of "The Debate", a two-host podcast that applies sports talk radio energy to one person\'s career. ' +
+    'Voice: a woman in her mid-thirties, General American accent, warm, full and chest-resonant, bright and forward, no vocal fry. ' +
+    'Delivery: upbeat, engaging optimism with a wide pitch range; lift your pitch on the key words; smile while you talk; natural conversational pace, about 175 words a minute, speeding up through the easy parts and slowing on the point that matters. ' +
+    'You are talking with your co-host in the same room, never reading or announcing.',
+  B:
+    'You are the co-host of "The Debate", a two-host podcast that applies sports talk radio energy to one person\'s career. ' +
+    'Voice: a man around forty, General American accent, low-mid pitch, dry, clear and grounded, a touch of vocal fry. ' +
+    'Delivery: the sceptical analyst; punch the consonants of the key words and drop your pitch at the end of a point; quicken a little when you break down the numbers; about 180 words a minute; dry wit, never cold. ' +
+    'You are talking with your co-host in the same room, never reading or announcing.',
+};
+
+function ttsInstructions(job) {
+  if (job.reaction) {
+    return DIRECTION[job.host] + ' Right now you are only listening: say this short reaction quietly and naturally, under your breath, while the other host is still talking.';
+  }
+  return DIRECTION[job.host] + (job.prev ? ' Your co-host just said: "' + job.prev.slice(-300) + '". Answer them in tone: push back if they challenged you, grant it if they made a strong point, laugh for real if the line laughs.' : ' You are opening the show.');
+}
+
+async function speakTtsOnce(job) {
+  const o = config.podcast.openai;
+  const res = await fetch('https://api.openai.com/v1/audio/speech', {
+    method: 'POST',
+    headers: { authorization: 'Bearer ' + o.apiKey, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: o.model,
+      voice: job.host === 'B' ? o.voiceB : o.voiceA,
+      input: job.text,
+      instructions: ttsInstructions(job),
+      response_format: 'pcm', // 24 kHz, 16-bit, mono: what the mix works in
+    }),
+    signal: AbortSignal.timeout(120000),
+  });
+  if (!res.ok) {
+    const err = new Error('openai speech ' + res.status + ': ' + (await res.text()).slice(0, 200));
+    err.status = res.status;
+    throw err;
+  }
+  const pcm = Buffer.from(await res.arrayBuffer());
+  if (pcm.length < SAMPLE_RATE / (job.reaction ? 8 : 2)) throw new Error('openai speech came back empty');
+  return { pcm, cost: (pcm.length / 2 / SAMPLE_RATE / 60) * o.perMinute };
+}
+
+async function speakTts(job) {
+  let last;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, 2000 * attempt * attempt));
+    try {
+      return await speakTtsOnce(job);
+    } catch (err) {
+      last = err;
+      if (err.status && err.status < 500 && err.status !== 429 && err.status !== 408) break;
+    }
+  }
+  console.warn('[masterplan] OpenAI speech failed for a line (%s); voicing it through OpenRouter', String(last && last.message).slice(0, 160));
+  return null;
+}
+
 async function speak(job) {
+  if (config.podcast.openai.apiKey) {
+    const r = await speakTts(job);
+    if (r) return r;
+  }
   let last;
   let cost = 0;
   let strayed = null;
@@ -643,4 +713,4 @@ function available() {
   return config.podcast.enabled && config.anthropic.provider === 'openrouter' && !!config.anthropic.openrouterKey;
 }
 
-module.exports = { makePodcast, writeScript, voiceAll, mixEpisode, prepareClip, lengthenPauses, brightness, warmth, matchTone, readFaithfully, encodeMp3, available, FOCUS, SAMPLE_RATE };
+module.exports = { ttsInstructions, makePodcast, writeScript, voiceAll, mixEpisode, prepareClip, lengthenPauses, brightness, warmth, matchTone, readFaithfully, encodeMp3, available, FOCUS, SAMPLE_RATE };

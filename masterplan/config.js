@@ -115,6 +115,15 @@ const config = {
     /* How much the top end of each voice is softened (0 to 1), against the speech model's sizzle. */
     softenA: Math.min(1, Math.max(0, Number(process.env.MP_PODCAST_SOFTEN_A || 0.35))),
     softenB: Math.min(1, Math.max(0, Number(process.env.MP_PODCAST_SOFTEN_B || 0.35))),
+    /* OpenAI's speech model with the client's own OpenAI key (podcast.js): each
+       line voiced with a written direction matching the sample's hosts. */
+    openai: {
+      apiKey: str('MP_OPENAI_API_KEY', ''),
+      model: str('MP_OPENAI_TTS_MODEL', 'gpt-4o-mini-tts'),
+      voiceA: str('MP_OPENAI_VOICE_A', 'marin'), // the woman who leads
+      voiceB: str('MP_OPENAI_VOICE_B', 'cedar'), // the sceptic
+      perMinute: Number(process.env.MP_OPENAI_TTS_PER_MINUTE || 0.015), // dollars per minute of speech, for the cost log
+    },
     /* Google's two-speaker speech (podcast-gemini.js), used when the key is set: the closest to NotebookLM. */
     gemini: {
       apiKey: str('MP_GEMINI_API_KEY', ''),
