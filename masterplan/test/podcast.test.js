@@ -171,3 +171,39 @@ test('with a Gemini key the episode is voiced by Google in parts, both hosts per
     llm.generate = saved.generate;
   }
 });
+
+test('when Google cannot voice it, the episode is made with the line-by-line voices', async () => {
+  const config = require('../config');
+  const llm = require('../llm');
+  const g = config.podcast.gemini;
+  const saved = { key: g.apiKey, fetch: global.fetch, generate: llm.generate, warn: console.warn };
+  g.apiKey = 'test-key';
+  let google = 0;
+  let lines = 0;
+  console.warn = () => {};
+  global.fetch = async (url) => {
+    if (/generativelanguage/.test(String(url))) {
+      google++;
+      return new Response(JSON.stringify({ error: { code: 400, message: 'bad request' } }), { status: 400, headers: { 'content-type': 'application/json' } });
+    }
+    lines++;
+    const pcm = Buffer.alloc(RATE * 2);
+    for (let i = 0; i < pcm.length / 2; i++) pcm.writeInt16LE(Math.round(Math.sin(i / 9) * 5000), i * 2);
+    const sse = 'data: ' + JSON.stringify({ choices: [{ delta: { audio: { data: pcm.toString('base64') } } }], usage: { cost: 0.001 } }) + '\n\ndata: [DONE]\n\n';
+    return new Response(sse, { status: 200, headers: { 'content-type': 'text/event-stream' } });
+  };
+  const turns = [];
+  for (let i = 0; i < 12; i++) turns.push({ host: i % 2 ? 'B' : 'A', text: 'A line of the debate number ' + i + ', said with some feeling.' });
+  llm.generate = async () => ({ text: '```json\n' + JSON.stringify({ title: 'Fallback', turns }) + '\n```', usage: {} });
+  try {
+    const ep = await podcast.makePodcast({ name: 'Ana', narrative: 'n', article: 'a', usage: {} });
+    assert.strictEqual(google, 1, 'Google tried once (a 400 is not retried)');
+    assert.strictEqual(lines, 12, 'then every line voiced the other way');
+    assert.ok(ep.seconds >= 12, 'a whole episode: ' + ep.seconds + ' s');
+  } finally {
+    g.apiKey = saved.key;
+    global.fetch = saved.fetch;
+    llm.generate = saved.generate;
+    console.warn = saved.warn;
+  }
+});

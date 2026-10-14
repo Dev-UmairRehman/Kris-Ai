@@ -476,10 +476,17 @@ async function makePodcast({ name, narrative, article, usage, log }) {
   if (log) log('podcast script: ' + script.turns.length + ' turns, ' + count + ' words, ' + script.turns.filter((t) => t.react).length + ' reactions, ' + script.turns.filter((t) => t.cut).length + ' cut-ins');
   let mix;
   if (gemini.available()) {
-    const parts = await gemini.voiceAll(script.turns, usage);
-    if (log) log('podcast voiced by ' + config.podcast.gemini.model + ' in ' + parts.length + ' parts');
-    mix = mixEpisode(parts.map(() => ({ host: 'A', text: '' })), parts, null, { natural: true });
-  } else {
+    /* Google's voices; if Google cannot voice it (quota, outage), the
+       line-by-line voices do, so the member still gets the episode. */
+    try {
+      const parts = await gemini.voiceAll(script.turns, usage);
+      if (log) log('podcast voiced by ' + config.podcast.gemini.model + ' in ' + parts.length + ' parts');
+      mix = mixEpisode(parts.map(() => ({ host: 'A', text: '' })), parts, null, { natural: true });
+    } catch (err) {
+      console.warn('[masterplan] Google speech failed (%s); using the line-by-line voices', err.message.slice(0, 160));
+    }
+  }
+  if (!mix) {
     const { lines, reacts } = await voiceAll(script.turns, usage);
     mix = mixEpisode(script.turns, lines, reacts);
   }
