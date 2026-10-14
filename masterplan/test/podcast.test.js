@@ -276,3 +276,22 @@ test('with an OpenAI key every line is voiced by OpenAI\'s speech model with the
     console.warn = saved.warn;
   }
 });
+
+test('the pace changes, the pitch does not', () => {
+  const { stretch } = require('../tempo');
+  /* Two seconds of a 220 Hz tone. */
+  const s = new Int16Array(RATE * 2);
+  for (let i = 0; i < s.length; i++) s[i] = Math.round(Math.sin((2 * Math.PI * 220 * i) / RATE) * 8000);
+  const fast = stretch(s, 1.11);
+  assert.ok(Math.abs(fast.length - s.length / 1.11) < RATE * 0.01, 'about 1.11 times shorter');
+  /* Pitch from zero crossings in the middle second: the same 220 Hz. */
+  const hz = (x) => {
+    const a = Math.floor(x.length / 4);
+    const b = Math.floor((x.length * 3) / 4);
+    let n = 0;
+    for (let i = a + 1; i < b; i++) if ((x[i - 1] < 0) !== (x[i] < 0)) n++;
+    return n / 2 / ((b - a) / RATE);
+  };
+  assert.ok(Math.abs(hz(fast) - 220) < 4, 'pitch kept: ' + hz(fast).toFixed(1) + ' Hz');
+  assert.strictEqual(stretch(s, 1), s, 'a rate of 1 changes nothing');
+});

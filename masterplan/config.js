@@ -108,9 +108,13 @@ const config = {
   podcast: {
     enabled: bool('MP_PODCAST', true),
     model: str('MP_PODCAST_MODEL', 'openai/gpt-audio'),
-    /* As in the client's sample: a woman leads (host A), a man is the sceptic (host B). */
-    voiceA: str('MP_PODCAST_VOICE_A', 'coral'),
-    voiceB: str('MP_PODCAST_VOICE_B', 'ash'),
+    /* As in the client's sample: a woman leads (host A), a man is the sceptic (host B).
+       Chosen 2026-10-14: of five pairs judged against the sample, sage + verse came
+       closest (best in 3 of 4 rounds). They talk at about 161 words a minute against
+       the sample's 179, so the episode is played 1.11 times as fast at the same pitch. */
+    voiceA: str('MP_PODCAST_VOICE_A', 'sage'),
+    voiceB: str('MP_PODCAST_VOICE_B', 'verse'),
+    tempo: Math.min(1.4, Math.max(0.8, Number(process.env.MP_PODCAST_TEMPO || 1.11))),
     parallel: int('MP_PODCAST_PARALLEL', 4),
     /* How much the top end of each voice is softened (0 to 1), against the speech model's sizzle. */
     softenA: Math.min(1, Math.max(0, Number(process.env.MP_PODCAST_SOFTEN_A || 0.35))),
@@ -120,8 +124,8 @@ const config = {
     openai: {
       apiKey: str('MP_OPENAI_API_KEY', ''),
       model: str('MP_OPENAI_TTS_MODEL', 'gpt-4o-mini-tts'),
-      voiceA: str('MP_OPENAI_VOICE_A', 'marin'), // the woman who leads
-      voiceB: str('MP_OPENAI_VOICE_B', 'cedar'), // the sceptic
+      voiceA: str('MP_OPENAI_VOICE_A', 'sage'), // the woman who leads
+      voiceB: str('MP_OPENAI_VOICE_B', 'verse'), // the sceptic
       perMinute: Number(process.env.MP_OPENAI_TTS_PER_MINUTE || 0.015), // dollars per minute of speech, for the cost log
     },
     /* Google's two-speaker speech (podcast-gemini.js), used when the key is set: the closest to NotebookLM. */

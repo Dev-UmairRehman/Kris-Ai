@@ -9,13 +9,15 @@ const { parentPort, workerData } = require('worker_threads');
 (async () => {
   try {
     const { Mp3Encoder } = await import('@breezystack/lamejs');
-    const { pcm, sampleRate, kbps } = workerData;
+    const { pcm, sampleRate, kbps, tempo } = workerData;
     /* The buffer arrives whole and even-sized, so the samples are read in
        place; a misaligned view (never expected) is copied first. */
-    const samples =
+    let samples =
       pcm.byteOffset % 2 === 0
         ? new Int16Array(pcm.buffer, pcm.byteOffset, pcm.byteLength >> 1)
         : new Int16Array(pcm.buffer.slice(pcm.byteOffset, pcm.byteOffset + (pcm.byteLength & ~1)));
+    /* The pace, at the same pitch (tempo.js), here off the main thread. */
+    if (tempo && tempo !== 1) samples = require('./tempo').stretch(samples, tempo);
     const enc = new Mp3Encoder(1, sampleRate, kbps);
     const out = [];
     const block = 1152 * 64;
@@ -26,7 +28,7 @@ const { parentPort, workerData } = require('worker_threads');
     const tail = enc.flush();
     if (tail.length) out.push(Buffer.from(tail));
     const mp3 = Buffer.concat(out);
-    parentPort.postMessage({ mp3 }, [mp3.buffer]);
+    parentPort.postMessage({ mp3, samples: samples.length }, [mp3.buffer]);
   } catch (err) {
     parentPort.postMessage({ error: err.message });
   }

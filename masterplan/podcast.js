@@ -101,18 +101,13 @@ async function writeScript(name, narrative, article, usage) {
 /* ---- voices ---------------------------------------------------------------- */
 
 /* One steady character per host, so the voice does not drift from line to line. */
-const HOSTS = {
-  A: 'Host A, a woman in her thirties, leads and argues the hopeful side: warm, bright and forward, high engaging energy, lifts her pitch on key words, smiles while she talks, about 150 words a minute.',
-  B: 'Host B, a man around forty, is the sceptical analyst: low-mid, dry, clear and grounded, punchy on the key words, drops his pitch at the end of a point, a clipped "Right" before his counterpoint, quickening during analysis.',
-};
-
 function voiceSystem(host, reaction) {
   return (
-    'You are a voice actor on "The Debate", a relaxed, conversational two-host podcast. The hosts borrow sports-analyst language but talk like two friends in one room, never like announcers or narrators. ' + HOSTS[host] + ' ' +
+    'You are a voice actor. ' + DIRECTION[host] + ' ' +
     (reaction
       ? 'You are reacting briefly and softly while the other host is still talking. Say only your reaction, naturally, as a listener would.'
       : 'Read your line aloud exactly as written, word for word: do not add, drop or change any words, and never read the context. ' +
-        'Speak like a real person thinking out loud: speed up through the easy parts, slow down on the point that matters, take a small breath before a long thought, keep the energy natural and never punchy. ' +
+        'Speak like a real person thinking out loud, with a small breath before a long thought. ' +
         'Answer the other host in tone: if they challenged you, push back; if they made a strong point, grant it; if you laugh, laugh for real.')
   );
 }
@@ -661,17 +656,16 @@ function mixEpisode(turns, lines, reacts, opts = {}) {
 
 /* ---- mp3 ----------------------------------------------------------------- */
 
-function encodeMp3(mix) {
-  const seconds = Math.round(mix.length / SAMPLE_RATE);
+function encodeMp3(mix, tempo = 1) {
   const pcm = new Uint8Array(mix.buffer, mix.byteOffset, mix.byteLength);
   return new Promise((resolve, reject) => {
     const worker = new Worker(path.join(__dirname, 'mp3-worker.js'), {
-      workerData: { pcm, sampleRate: SAMPLE_RATE, kbps: 96 },
+      workerData: { pcm, sampleRate: SAMPLE_RATE, kbps: 96, tempo },
       transferList: [mix.buffer],
     });
     worker.once('message', (m) => {
       if (m && m.error) reject(new Error(m.error));
-      else resolve({ mp3: Buffer.from(m.mp3), seconds });
+      else resolve({ mp3: Buffer.from(m.mp3), seconds: Math.round(m.samples / SAMPLE_RATE) });
     });
     worker.once('error', reject);
     worker.once('exit', (code) => {
@@ -689,6 +683,7 @@ async function makePodcast({ name, narrative, article, usage, log }) {
   const count = script.turns.reduce((n, t) => n + t.text.split(/\s+/).length, 0);
   if (log) log('podcast script: ' + script.turns.length + ' turns, ' + count + ' words, ' + script.turns.filter((t) => t.react).length + ' reactions, ' + script.turns.filter((t) => t.cut).length + ' cut-ins');
   let mix;
+  let tempo = 1;
   if (gemini.available()) {
     /* Google's voices; if Google cannot voice it (quota, outage), the
        line-by-line voices do, so the member still gets the episode. */
@@ -703,8 +698,10 @@ async function makePodcast({ name, narrative, article, usage, log }) {
   if (!mix) {
     const { lines, reacts } = await voiceAll(script.turns, usage);
     mix = mixEpisode(script.turns, lines, reacts);
+    /* These voices talk a little slower than the sample: brought to its pace. */
+    tempo = config.podcast.tempo;
   }
-  const { mp3, seconds } = await encodeMp3(mix);
+  const { mp3, seconds } = await encodeMp3(mix, tempo);
   return { mp3, seconds, title: script.title, script };
 }
 
