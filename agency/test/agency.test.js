@@ -12,6 +12,10 @@ const path = require('path');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'yma-test-'));
 Object.assign(process.env, {
+  MP_USCREEN_API_KEY: '', // never the developer's own key from .env
+  MP_OPENAI_API_KEY: '', // never the developer's own key from .env
+  MP_GEMINI_API_KEY: '', // never the developer's own key from .env
+  YMA_APIFY_TOKEN: '', // never the developer's own key from .env
   NODE_ENV: 'development',
   MEMBER_GATE_MODE: 'open',
   MP_ENABLED: 'true',

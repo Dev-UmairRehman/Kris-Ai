@@ -5,6 +5,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
+/* Never the developer's own keys from .env: each test sets the key it means. */
+Object.assign(process.env, { MP_OPENAI_API_KEY: '', MP_GEMINI_API_KEY: '' });
 const podcast = require('../podcast');
 
 const RATE = podcast.SAMPLE_RATE;
