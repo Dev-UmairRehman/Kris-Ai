@@ -107,8 +107,24 @@ test('with a Gemini key the episode is voiced by Google in parts, both hosts per
     sent.push(body);
     const pcm = Buffer.alloc(RATE * 2 * 3);
     for (let i = 0; i < pcm.length / 2; i++) pcm.writeInt16LE(Math.round(Math.sin(i / 9) * 5000), i * 2);
+    /* The 3.x models answer with a WAV, as the real API did; 2.5 with raw PCM. */
+    const old = /gemini-2\./.test(String(url));
+    const wav = Buffer.alloc(44);
+    wav.write('RIFF', 0, 'latin1');
+    wav.writeUInt32LE(36 + pcm.length, 4);
+    wav.write('WAVEfmt ', 8, 'latin1');
+    wav.writeUInt32LE(16, 16);
+    wav.writeUInt16LE(1, 20);
+    wav.writeUInt16LE(1, 22);
+    wav.writeUInt32LE(RATE, 24);
+    wav.writeUInt32LE(RATE * 2, 28);
+    wav.writeUInt16LE(2, 32);
+    wav.writeUInt16LE(16, 34);
+    wav.write('data', 36, 'latin1');
+    wav.writeUInt32LE(pcm.length, 40);
+    const audio = old ? pcm : Buffer.concat([wav, pcm]);
     return new Response(JSON.stringify({
-      candidates: [{ content: { parts: [{ inlineData: { mimeType: 'audio/L16;rate=24000', data: pcm.toString('base64') } }] } }],
+      candidates: [{ content: { parts: [{ inlineData: { mimeType: old ? 'audio/L16;rate=24000' : 'audio/wav', data: audio.toString('base64') } }] } }],
       usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 3000 },
     }), { status: 200, headers: { 'content-type': 'application/json' } });
   };
@@ -124,13 +140,31 @@ test('with a Gemini key the episode is voiced by Google in parts, both hosts per
     assert.deepStrictEqual(first.generationConfig.responseModalities, ['AUDIO']);
     const voices = first.generationConfig.speechConfig.multiSpeakerVoiceConfig.speakerVoiceConfigs;
     assert.deepStrictEqual(voices.map((v) => v.speaker), [gemini.SPEAKERS.A, gemini.SPEAKERS.B]);
-    const text = first.contents[0].parts[0].text;
-    assert.match(text, /\nAlex: word0/);
-    assert.match(text, /Sam: Mm-hmm\. word0/, 'a reaction opens the other host\'s next turn');
-    assert.match(sent[1].contents[0].parts[0].text, /continues a conversation already under way/);
-    assert.ok(Math.abs(usage.cost_usd - sent.length * (1000 * 1 + 3000 * 20) / 1e6) < 1e-9, 'cost from the token counts');
-    assert.ok(ep.seconds >= sent.length * 3, 'every part is in the episode: ' + ep.seconds + ' s');
+    /* 3.x: every turn its own part, tagged with its speaker. */
+    const ps = first.contents[0].parts;
+    assert.deepStrictEqual(ps.slice(0, 2).map((p) => p.speechMetadata.speaker), ['Alex', 'Sam']);
+    assert.match(ps[0].text, /^word0 /);
+    assert.ok(ps.some((p) => p.speechMetadata.speaker === 'Sam' && /^Mm-hmm\. word0/.test(p.text)), 'a reaction opens the other host\'s next turn');
+    assert.ok(!first.systemInstruction, 'no separate style instruction: the 3.x models refuse one');
+    assert.ok(Math.abs(usage.cost_usd - sent.length * (1000 * g.inputPerMillion + 3000 * g.outputPerMillion) / 1e6) < 1e-9, 'cost from the token counts');
+    /* Three seconds a part: the WAV header is not taken for sound. */
+    const expected = sent.length * 3 + (sent.length - 1) * 0.22 + 1.15;
+    assert.ok(Math.abs(ep.seconds - expected) <= 1, 'every part, unwrapped: ' + ep.seconds + ' s vs ' + expected.toFixed(1));
     assert.strictEqual(ep.mp3.slice(0, 3).toString('latin1') === 'ID3' || ep.mp3[0] === 0xff, true, 'an MP3');
+
+    /* 2.5 models: one transcript with the style above it. */
+    sent.length = 0;
+    const model = g.model;
+    g.model = 'gemini-2.5-pro-preview-tts';
+    try {
+      await podcast.makePodcast({ name: 'Ana', narrative: 'n', article: 'a', usage: {} });
+    } finally {
+      g.model = model;
+    }
+    const text = sent[0].contents[0].parts[0].text;
+    assert.match(text, /\nAlex: word0/);
+    assert.match(text, /Sam: Mm-hmm\. word0/);
+    assert.match(sent[1].contents[0].parts[0].text, /continues a conversation already under way/);
   } finally {
     g.apiKey = saved.key;
     global.fetch = saved.fetch;

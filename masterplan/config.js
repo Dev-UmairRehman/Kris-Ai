@@ -117,12 +117,12 @@ const config = {
     /* Google's two-speaker speech (podcast-gemini.js), used when the key is set: the closest to NotebookLM. */
     gemini: {
       apiKey: str('MP_GEMINI_API_KEY', ''),
-      model: str('MP_GEMINI_TTS_MODEL', 'gemini-2.5-pro-preview-tts'),
+      model: str('MP_GEMINI_TTS_MODEL', 'gemini-3.8-flash-tts'),
       voiceA: str('MP_GEMINI_VOICE_A', 'Puck'),
       voiceB: str('MP_GEMINI_VOICE_B', 'Aoede'),
       /* Dollars per million tokens, for the cost log and the daily ceiling. */
-      inputPerMillion: Number(process.env.MP_GEMINI_TTS_INPUT_PER_M || 1),
-      outputPerMillion: Number(process.env.MP_GEMINI_TTS_OUTPUT_PER_M || 20),
+      inputPerMillion: Number(process.env.MP_GEMINI_TTS_INPUT_PER_M || 0.5),
+      outputPerMillion: Number(process.env.MP_GEMINI_TTS_OUTPUT_PER_M || 10),
     },
   },
 

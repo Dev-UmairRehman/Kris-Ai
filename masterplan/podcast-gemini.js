@@ -13,6 +13,11 @@
    capped at a few minutes), split between turns, voiced a few at a time and
    joined. Needs MP_GEMINI_API_KEY (Google AI Studio); without it the
    podcast uses the line-by-line voices.
+
+   Two request shapes (tested 2026-10-14): the 3.x speech models take each
+   turn as its own part tagged with its speaker and refuse a separate style
+   instruction; the 2.5 models take one transcript ("Alex: ...") with the
+   style written above it. Audio comes back as WAV or raw 16-bit PCM.
    --------------------------------------------------------------------------- */
 
 const config = require('./config');
@@ -64,19 +69,46 @@ const STYLE =
   SPEAKERS.A + ' is warm, upbeat and optimistic; ' + SPEAKERS.B + ' is calm, dry and sceptical with a wry edge. ' +
   'Natural pace that speeds up and slows down with the thought, quick back-and-forth, real reactions to each other, breaths, and laughs where the words laugh. Read every word exactly as written.';
 
+/* The 2.5 models: one transcript with the style above it. */
+const transcriptStyle = (model) => /^gemini-2./.test(model);
+
 function prompt(part, first, last) {
   const where = first ? '' : 'This continues a conversation already under way: no greeting, no fresh start. ';
   const end = last ? '' : 'The conversation goes on after this part: do not wind down at the end. ';
   return STYLE + ' ' + where + end + '\n\n' + part.map((t) => SPEAKERS[t.host] + ': ' + t.text).join('\n');
 }
 
-async function voicePartOnce(text) {
+function contents(part, first, last) {
+  if (transcriptStyle(config.podcast.gemini.model)) return [{ parts: [{ text: prompt(part, first, last) }] }];
+  return [{ role: 'user', parts: part.map((t) => ({ text: t.text, speechMetadata: { speaker: SPEAKERS[t.host] } })) }];
+}
+
+/* Raw 16-bit PCM from what came back: a WAV's data chunk, or the bytes as they are. */
+function pcmFrom(buf) {
+  if (buf.length < 12 || buf.toString('latin1', 0, 4) !== 'RIFF') return buf;
+  let i = 12;
+  while (i + 8 <= buf.length) {
+    const id = buf.toString('latin1', i, i + 4);
+    const n = buf.readUInt32LE(i + 4);
+    if (id === 'fmt ') {
+      const rate = buf.readUInt32LE(i + 12);
+      const bits = buf.readUInt16LE(i + 22);
+      const channels = buf.readUInt16LE(i + 10);
+      if (rate !== SAMPLE_RATE || bits !== 16 || channels !== 1) throw new Error('gemini speech: unexpected audio ' + rate + ' Hz ' + bits + '-bit ' + channels + 'ch');
+    }
+    if (id === 'data') return buf.subarray(i + 8, Math.min(buf.length, i + 8 + n));
+    i += 8 + n + (n % 2);
+  }
+  throw new Error('gemini speech: a WAV without audio');
+}
+
+async function voicePartOnce(part, first, last) {
   const g = config.podcast.gemini;
   const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(g.model) + ':generateContent', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-goog-api-key': g.apiKey },
     body: JSON.stringify({
-      contents: [{ parts: [{ text }] }],
+      contents: contents(part, first, last),
       generationConfig: {
         responseModalities: ['AUDIO'],
         speechConfig: {
@@ -95,11 +127,14 @@ async function voicePartOnce(text) {
   if (!res.ok) {
     const err = new Error('gemini speech ' + res.status + ': ' + JSON.stringify(body.error || body).slice(0, 200));
     err.status = res.status;
+    /* How long Google asks us to wait (free tier: a few requests a minute). */
+    const retry = ((body.error && body.error.details) || []).find((d) => d.retryDelay);
+    if (retry) err.retryMs = Math.round(parseFloat(retry.retryDelay) * 1000);
     throw err;
   }
   const chunks = [];
   for (const p of (((body.candidates || [])[0] || {}).content || {}).parts || []) {
-    if (p.inlineData && p.inlineData.data) chunks.push(Buffer.from(p.inlineData.data, 'base64'));
+    if (p.inlineData && p.inlineData.data) chunks.push(pcmFrom(Buffer.from(p.inlineData.data, 'base64')));
   }
   const pcm = Buffer.concat(chunks);
   if (pcm.length < SAMPLE_RATE * 2) throw new Error('gemini speech came back empty');
@@ -108,18 +143,20 @@ async function voicePartOnce(text) {
   return { pcm, cost };
 }
 
-async function voicePart(text) {
-  let last;
-  for (let attempt = 0; attempt < 4; attempt++) {
-    if (attempt) await new Promise((r) => setTimeout(r, 4000 * attempt * attempt));
+async function voicePart(part, first, last) {
+  let lastErr;
+  let waitMs = 0;
+  for (let attempt = 0; attempt < 7; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, Math.min(65000, waitMs || 4000 * attempt * attempt)));
     try {
-      return await voicePartOnce(text);
+      return await voicePartOnce(part, first, last);
     } catch (err) {
-      last = err;
+      lastErr = err;
+      waitMs = err.retryMs ? err.retryMs + 1000 : 0;
       if (err.status && err.status < 500 && err.status !== 429 && err.status !== 408) throw err;
     }
   }
-  throw last;
+  throw lastErr;
 }
 
 /** Every part, a few at a time, in order. Returns raw PCM buffers. */
@@ -131,7 +168,7 @@ async function voiceAll(turns, usage, onProgress) {
   async function lane() {
     while (next < list.length) {
       const i = next++;
-      const r = await voicePart(prompt(list[i], i === 0, i === list.length - 1));
+      const r = await voicePart(list[i], i === 0, i === list.length - 1);
       out[i] = r.pcm;
       usage.cost_usd = (usage.cost_usd || 0) + r.cost;
       done++;
@@ -142,4 +179,4 @@ async function voiceAll(turns, usage, onProgress) {
   return out;
 }
 
-module.exports = { available, voiceAll, toDialogue, parts, prompt, SPEAKERS, SAMPLE_RATE };
+module.exports = { available, voiceAll, toDialogue, parts, prompt, contents, pcmFrom, SPEAKERS, SAMPLE_RATE };
