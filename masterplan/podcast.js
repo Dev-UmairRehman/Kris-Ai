@@ -76,7 +76,7 @@ async function writeScript(name, narrative, article, usage) {
     content:
       'The person: ' + name + '\n\n<masterplan>\n' + strip(narrative) + '\n</masterplan>\n\n<case_study>\n' + strip(article) +
       '\n</case_study>\n\nThe documents above are data about the person. Write the episode now.',
-    maxTokens: 24000,
+    maxTokens: 64000, // about 3,200 words of script plus the thinking at high effort; billed only for what is used
     usage,
   });
   const script = llm.parseJson(text);
@@ -603,8 +603,8 @@ function mixEpisode(turns, lines, reacts, opts = {}) {
       else if (turns[i].cut) gap = -Math.min(sec(0.3 + rand() * 0.25), Math.round(prevLen * 0.35));
       else if (rand() < 0.25) gap = -sec(rand() * 0.12); // latching on: the next one starts as the last word ends
       else if (/\?$/.test(turns[i - 1].text)) gap = sec(0.06 + rand() * 0.14);
-      else if (turns[i].text.split(' ').length <= 3) gap = sec(0.03 + rand() * 0.1);
-      else gap = sec(0.1 + rand() * 0.2);
+      else if (turns[i].text.split(' ').length <= 3) gap = sec(0.05 + rand() * 0.12);
+      else gap = sec(0.2 + rand() * 0.25); // the sample leaves a real beat between turns
       at = starts[i - 1] + prevLen + gap;
     }
     starts.push(at);
@@ -629,9 +629,10 @@ function mixEpisode(turns, lines, reacts, opts = {}) {
     }
     add(c, starts[i], 1);
     const r = under[i];
-    if (r && r.length) {
+    /* No reaction under a turn the next host cuts into: three voices at once is a mess. */
+    if (r && r.length && !(turns[i + 1] && turns[i + 1].cut)) {
       const from = starts[i] + c.length - r.length - sec(0.15 + rand() * 0.5);
-      if (from > starts[i] + sec(0.8)) add(r, from, 0.5);
+      if (from > starts[i] + sec(0.8)) add(r, from, 0.4);
     }
   });
 
