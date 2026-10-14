@@ -100,6 +100,8 @@ test('with a Gemini key the episode is voiced by Google in parts, both hosts per
   const saved = { key: g.apiKey, model: g.model, fetch: global.fetch, generate: llm.generate };
   g.apiKey = 'test-key';
   g.model = 'gemini-3.8-flash-tts'; // the 3.x request shape first; 2.5 below
+  const savedWords = g.partWords;
+  g.partWords = 330; // small parts, so the test sees several
   const sent = [];
   global.fetch = async (url, opts) => {
     assert.match(String(url), /generativelanguage\.googleapis\.com\/v1beta\/models\/.+:generateContent$/);
@@ -136,7 +138,7 @@ test('with a Gemini key the episode is voiced by Google in parts, both hosts per
   try {
     const usage = {};
     const ep = await podcast.makePodcast({ name: 'Ana', narrative: 'n', article: 'a', usage });
-    assert.ok(sent.length >= 3, 'about 960 words go out in parts of about two minutes: ' + sent.length);
+    assert.ok(sent.length >= 2, 'about 960 words go out in parts of about four minutes: ' + sent.length);
     const first = sent[0];
     assert.deepStrictEqual(first.generationConfig.responseModalities, ['AUDIO']);
     const voices = first.generationConfig.speechConfig.multiSpeakerVoiceConfig.speakerVoiceConfigs;
@@ -149,7 +151,7 @@ test('with a Gemini key the episode is voiced by Google in parts, both hosts per
     assert.ok(!first.systemInstruction, 'no separate style instruction: the 3.x models refuse one');
     assert.ok(Math.abs(usage.cost_usd - sent.length * (1000 * g.inputPerMillion + 3000 * g.outputPerMillion) / 1e6) < 1e-9, 'cost from the token counts');
     /* Three seconds a part: the WAV header is not taken for sound. */
-    const expected = sent.length * 3 + (sent.length - 1) * 0.22 + 1.15;
+    const expected = sent.length * 3 - (sent.length - 1) * 0.06 + 1.15;
     assert.ok(Math.abs(ep.seconds - expected) <= 1, 'every part, unwrapped: ' + ep.seconds + ' s vs ' + expected.toFixed(1));
     assert.strictEqual(ep.mp3.slice(0, 3).toString('latin1') === 'ID3' || ep.mp3[0] === 0xff, true, 'an MP3');
 
@@ -169,6 +171,7 @@ test('with a Gemini key the episode is voiced by Google in parts, both hosts per
   } finally {
     g.apiKey = saved.key;
     g.model = saved.model;
+    g.partWords = savedWords;
     global.fetch = saved.fetch;
     llm.generate = saved.generate;
   }

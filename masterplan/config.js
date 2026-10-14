@@ -124,6 +124,11 @@ const config = {
       model: str('MP_GEMINI_TTS_MODEL', 'gemini-2.5-flash-preview-tts'),
       voiceA: str('MP_GEMINI_VOICE_A', 'Gacrux'),
       voiceB: str('MP_GEMINI_VOICE_B', 'Orus'),
+      /* Pauses inside Google's speech made this much longer, to the sample's relaxed pace. */
+      /* Words per request. Each request is voiced on its own, so a voice can come back a
+         little different in the next part: bigger parts, fewer such joins. */
+      partWords: int('MP_GEMINI_PART_WORDS', 1100), // tested: 1,050 words came back whole (5.6 min) in one request
+      pauseFactor: Math.min(2, Math.max(1, Number(process.env.MP_GEMINI_PAUSE_FACTOR || 1.55))),
       /* Dollars per million tokens, for the cost log and the daily ceiling. */
       inputPerMillion: Number(process.env.MP_GEMINI_TTS_INPUT_PER_M || 0.5),
       outputPerMillion: Number(process.env.MP_GEMINI_TTS_OUTPUT_PER_M || 10),

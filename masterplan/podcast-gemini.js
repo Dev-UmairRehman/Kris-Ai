@@ -23,7 +23,6 @@
 const config = require('./config');
 
 const SAMPLE_RATE = 24000; // Gemini speech: 16-bit mono PCM at 24 kHz
-const PART_WORDS = 330; // about two minutes of speech per request
 const SPEAKERS = { A: 'Alex', B: 'Sam' }; // names the model uses to tell the hosts apart; never spoken
 
 function available() {
@@ -52,7 +51,7 @@ function parts(dialogue) {
   let n = 0;
   for (const t of dialogue) {
     const w = t.text.split(/\s+/).length;
-    if (cur.length && n + w > PART_WORDS) {
+    if (cur.length && n + w > config.podcast.gemini.partWords) {
       out.push(cur);
       cur = [];
       n = 0;
@@ -68,16 +67,16 @@ function parts(dialogue) {
    an audio model from the sample, 2026-10-14): the woman leads and argues the
    hopeful side, the man is the sceptic. */
 const STYLE =
-  'Voice this as a fast-paced, unscripted two-host debate podcast called "The Debate": the energy of sports talk radio applied to a career, rapid back-and-forth, polished but conversational, never like announcers reading. ' +
-  SPEAKERS.A + ' (woman, mid-30s, General American) leads: warm, full, chest-resonant voice with no vocal fry, bright and forward, high and engaging energy with an upbeat, bouncy optimism and a wide pitch range, lifts her pitch on key words, smiles while she talks, says "Exactly" and "Spot on" with real enthusiasm, about 150 words a minute. ' +
-  SPEAKERS.B + ' (man, around 40, General American) is the sceptical analyst: low-mid, dry, clear and grounded, a little vocal fry, punchy consonants, drops his pitch at the end of a point, clipped "Right" before pivoting to the counterpoint, quickens during analysis, about 160 words a minute. ' +
+  'Voice this as an unscripted two-host debate podcast called "The Debate": the energy of sports talk radio applied to a career, but relaxed, natural conversational banter, unhurried, with real pauses between thoughts; polished but never like announcers reading. ' +
+  SPEAKERS.A + ' (woman, mid-30s, General American) leads: warm, full, chest-resonant voice with no vocal fry, bright and forward, high and engaging energy with an upbeat, bouncy optimism and a wide pitch range, lifts her pitch on key words, smiles while she talks, says "Exactly" and "Spot on" with real enthusiasm, about 140 words a minute. ' +
+  SPEAKERS.B + ' (man, around 40, General American) is the sceptical analyst: low-mid, dry, clear and grounded, a little vocal fry, punchy consonants, drops his pitch at the end of a point, clipped "Right" before pivoting to the counterpoint, quickens a little during analysis, about 145 words a minute. ' +
   'They react to each other in the moment, with breaths and light laughs where the words laugh. Read every word exactly as written.';
 
 /* The 2.5 models: one transcript with the style above it. */
 const transcriptStyle = (model) => /^gemini-2./.test(model);
 
 function prompt(part, first, last) {
-  const where = first ? '' : 'This continues a conversation already under way: no greeting, no fresh start. ';
+  const where = first ? '' : 'This continues a conversation already under way, with exactly the same voices, pace and energy as before: no greeting, no fresh start. ';
   const end = last ? '' : 'The conversation goes on after this part: do not wind down at the end. ';
   return STYLE + ' ' + where + end + '\n\n' + part.map((t) => SPEAKERS[t.host] + ': ' + t.text).join('\n');
 }

@@ -282,7 +282,8 @@ function windowRms(s, from) {
 /* The speech in a clip, without the silence the model puts around it, at the
    same loudness as every other clip, with tiny fades so a cut never clicks. */
 function prepareClip(buf, opts = {}) {
-  const s = opts.keepPauses ? asInt16(buf) : shortenPauses(asInt16(buf));
+  const raw = asInt16(buf);
+  const s = opts.lengthenPauses ? lengthenPauses(raw, opts.lengthenPauses) : opts.keepPauses ? raw : shortenPauses(raw);
   let first = -1;
   let last = -1;
   let sum = 0;
@@ -298,13 +299,17 @@ function prepareClip(buf, opts = {}) {
     }
   }
   if (first < 0) return new Int16Array(0);
-  const start = Math.max(0, first - Math.round(SAMPLE_RATE * 0.03));
-  const end = Math.min(s.length, last + Math.round(SAMPLE_RATE * 0.08));
+  /* A long part keeps the breath before its first word and a little air after
+     its last, so a join between parts sounds like a pause, not a cut. */
+  const lead = opts.lengthenPauses ? 0.25 : 0.03;
+  const tail = opts.lengthenPauses ? 0.2 : 0.08;
+  const start = Math.max(0, first - Math.round(SAMPLE_RATE * lead));
+  const end = Math.min(s.length, last + Math.round(SAMPLE_RATE * tail));
   const clip = s.subarray(start, end);
   let peak = 1;
   for (let i = 0; i < clip.length; i++) peak = Math.max(peak, Math.abs(clip[i]));
   const gain = Math.min(3, Math.max(0.4, TARGET_RMS / Math.sqrt(sum / n)), 30000 / peak);
-  const fade = Math.round(SAMPLE_RATE * 0.008);
+  const fade = Math.round(SAMPLE_RATE * (opts.lengthenPauses ? 0.06 : 0.008));
   const out = new Int16Array(clip.length);
   for (let i = 0; i < clip.length; i++) {
     const f = Math.min(1, i / fade, (clip.length - 1 - i) / fade);
@@ -344,6 +349,139 @@ function shortenPauses(s) {
   return out;
 }
 
+/* Google's voices talk at about the sample's pace (193 against 179 words a
+   minute) but pause less (0.28 s against 0.39 s on average), which is what
+   makes the sample sound relaxed. Each pause between 0.12 and 0.7 s is made
+   longer by the given factor, from its own quiet sound; the speech is untouched. */
+function lengthenPauses(s, factor) {
+  const MIN = Math.round(SAMPLE_RATE * 0.12);
+  const MAX = Math.round(SAMPLE_RATE * 0.7);
+  const parts = [];
+  let from = 0;
+  let quietStart = -1;
+  for (let w = 0; w + WIN <= s.length; w += WIN) {
+    const quiet = windowRms(s, w) < SPEECH * 0.6;
+    if (quiet && quietStart < 0) quietStart = w;
+    if (!quiet && quietStart >= 0) {
+      const len = w - quietStart;
+      if (len >= MIN && len <= MAX && quietStart > 0) {
+        const extra = Math.round(len * (factor - 1));
+        const mid = quietStart + Math.floor(len / 2);
+        parts.push(s.subarray(from, mid));
+        /* the quiet itself, repeated (mirrored, so the join never clicks) */
+        const fill = new Int16Array(extra);
+        for (let k = 0; k < extra; k++) {
+          const span = Math.max(1, Math.floor(len / 2));
+          const t = k % (2 * span);
+          fill[k] = s[mid - 1 - (t < span ? t : 2 * span - 1 - t)] || 0;
+        }
+        parts.push(fill);
+        from = mid;
+      }
+      quietStart = -1;
+    }
+  }
+  if (!parts.length) return s;
+  parts.push(s.subarray(from));
+  const out = new Int16Array(parts.reduce((n, p) => n + p.length, 0));
+  let at = 0;
+  for (const p of parts) {
+    out.set(p, at);
+    at += p.length;
+  }
+  return out;
+}
+
+/* Each Google part is a separate request and can come back a little brighter
+   or duller, warmer or thinner. Two measures of a part's tone ... */
+
+/* brightness: the share of energy in the changes from sample to sample (the top end) */
+function brightness(s) {
+  let all = 0;
+  let top = 0;
+  for (let i = 1; i < s.length; i += 3) {
+    all += s[i] * s[i];
+    const d = s[i] - s[i - 1];
+    top += d * d;
+  }
+  return all ? top / all : 0;
+}
+
+/* warmth: the share of energy below about 300 Hz (chest, closeness to the microphone) */
+const LOW = 1 - Math.exp((-2 * Math.PI * 300) / SAMPLE_RATE);
+const HIGH = 1 - Math.exp((-2 * Math.PI * 2000) / SAMPLE_RATE);
+function warmth(s) {
+  let all = 0;
+  let low = 0;
+  let y = 0;
+  for (let i = 0; i < s.length; i++) {
+    y += LOW * (s[i] - y);
+    if (i % 3) continue;
+    all += s[i] * s[i];
+    low += y * y;
+  }
+  return all ? low / all : 0;
+}
+
+/* ... and the two shelves that move them: g > 0 adds top end above about
+   2 kHz (hi) or low end below about 300 Hz (lo), g < 0 takes it away. */
+function shelves(s, hi, lo) {
+  const out = new Int16Array(s.length);
+  let yh = 0;
+  let yl = 0;
+  for (let i = 0; i < s.length; i++) {
+    yh += HIGH * (s[i] - yh);
+    yl += LOW * (s[i] - yl);
+    const v = s[i] + hi * (s[i] - yh) + lo * yl;
+    out[i] = v > 32767 ? 32767 : v < -32768 ? -32768 : Math.round(v);
+  }
+  return out;
+}
+
+const rms = (s) => {
+  let sum = 0;
+  for (let i = 0; i < s.length; i += 2) sum += s[i] * s[i];
+  return Math.sqrt(sum / Math.max(1, Math.ceil(s.length / 2)));
+};
+
+/**
+ * A later part brought to the first part's tone: the two shelf amounts are
+ * found on 20 seconds from the middle of the part (quick), then applied to
+ * the whole part once, at its own loudness.
+ */
+function matchTone(s, ref) {
+  if (!s.length || !ref.bright || !ref.warm) return s;
+  const n = Math.min(s.length, SAMPLE_RATE * 20);
+  const from = Math.max(0, Math.floor((s.length - n) / 2));
+  const probe = s.subarray(from, from + n);
+  const HI = [-0.45, -0.3, -0.15, 0, 0.15, 0.3, 0.5, 0.75];
+  const LO = [-0.4, -0.2, 0, 0.25, 0.5, 0.8, 1.2];
+  let best = { hi: 0, lo: 0, err: Infinity };
+  for (const hi of HI) {
+    for (const lo of LO) {
+      const t = shelves(probe, hi, lo);
+      const err = Math.abs(brightness(t) - ref.bright) / ref.bright + Math.abs(warmth(t) - ref.warm) / ref.warm;
+      if (err < best.err) best = { hi, lo, err };
+    }
+  }
+  /* then finer, around the best */
+  const coarse = { ...best };
+  for (let dh = -0.12; dh <= 0.12; dh += 0.04) {
+    for (let dl = -0.15; dl <= 0.15; dl += 0.05) {
+      const hi = coarse.hi + dh;
+      const lo = coarse.lo + dl;
+      const t = shelves(probe, hi, lo);
+      const err = Math.abs(brightness(t) - ref.bright) / ref.bright + Math.abs(warmth(t) - ref.warm) / ref.warm;
+      if (err < best.err) best = { hi, lo, err };
+    }
+  }
+  if (!best.hi && !best.lo) return s;
+  const out = shelves(s, best.hi, best.lo);
+  const k = rms(s) / Math.max(1, rms(out));
+  for (let i = 0; i < out.length; i++) out[i] = Math.max(-32768, Math.min(32767, Math.round(out[i] * k)));
+  return out;
+}
+
 /* A gentle cut of the top end and a little level: the brighter voice
    otherwise sounds closer and louder than the other. */
 function soften(s, amount) {
@@ -379,8 +517,14 @@ function mixEpisode(turns, lines, reacts, opts = {}) {
   const sec = (x) => Math.round(x * SAMPLE_RATE);
   /* Gemini parts are a conversation already: only levelled and joined. */
   const natural = !!opts.natural;
-  const tone = (host) => (natural ? { keepPauses: true } : { soften: host === 'B' ? config.podcast.softenB : config.podcast.softenA });
-  const clips = lines.map((l, i) => prepareClip(l, tone(turns[i].host)));
+  const tone = (host) => (natural ? { lengthenPauses: config.podcast.gemini.pauseFactor } : { soften: host === 'B' ? config.podcast.softenB : config.podcast.softenA });
+  let clips = lines.map((l, i) => prepareClip(l, tone(turns[i].host)));
+  /* Each Google part is a separate request and can come back a little brighter
+     or duller: every later part is matched to the first one. */
+  if (natural && clips.length > 1) {
+    const ref = { bright: brightness(clips[0]), warm: warmth(clips[0]) };
+    clips = clips.map((c, i) => (i ? matchTone(c, ref) : c));
+  }
   const under = (reacts || []).map((r) => (r ? prepareClip(r, { soften: 0.8 }) : null));
 
   /* Where each turn starts. */
@@ -390,7 +534,7 @@ function mixEpisode(turns, lines, reacts, opts = {}) {
     if (i) {
       const prevLen = clips[i - 1].length;
       let gap;
-      if (natural) gap = sec(0.22);
+      if (natural) gap = -sec(0.06); // the parts fade into each other: the room sound never drops
       else if (turns[i].cut) gap = -Math.min(sec(0.3 + rand() * 0.25), Math.round(prevLen * 0.35));
       else if (rand() < 0.25) gap = -sec(rand() * 0.12); // latching on: the next one starts as the last word ends
       else if (/\?$/.test(turns[i - 1].text)) gap = sec(0.06 + rand() * 0.14);
@@ -499,4 +643,4 @@ function available() {
   return config.podcast.enabled && config.anthropic.provider === 'openrouter' && !!config.anthropic.openrouterKey;
 }
 
-module.exports = { makePodcast, writeScript, voiceAll, mixEpisode, prepareClip, readFaithfully, encodeMp3, available, FOCUS, SAMPLE_RATE };
+module.exports = { makePodcast, writeScript, voiceAll, mixEpisode, prepareClip, lengthenPauses, brightness, warmth, matchTone, readFaithfully, encodeMp3, available, FOCUS, SAMPLE_RATE };
