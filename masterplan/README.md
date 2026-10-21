@@ -176,3 +176,18 @@ npm run test:masterplan
   someone who forges requests by hand with another member's email could open
   that member's MasterPlans. `strict` mode with the Uscreen API key checks the
   subscription; an emailed sign-in link would make the email itself proven.
+
+## Social feeds, read in depth (2026-10-21)
+
+The client found the MasterPlan leaned on the resume. Each profile link is now
+read in depth (`feeds.js`): LinkedIn (profile with every position, education,
+skills, recommendations, and the latest 15 posts with reactions), YouTube (30
+videos with views), Instagram (bio, followers, 12 Reels with whole captions)
+and TikTok (bio, followers, 12 videos). Instagram, TikTok and LinkedIn go
+through Apify with the agency's token (YMA_APIFY_TOKEN), about 11 cents a
+MasterPlan; YouTube needs no key. The profile step fills a fuller feed section
+(themes, voice, what resonates, cadence, what the feed adds to the resume,
+persona vs resume, short quotes), and every writing step gets the feed itself
+with the rule to use it as fully as the resume. Without the token, or when a
+reader fails, a link falls back to its page title and description. The
+fourth link field is TikTok (it was "Other").

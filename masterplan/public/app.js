@@ -337,7 +337,7 @@
     ['f-link-1', 'https://www.linkedin.com/in/'],
     ['f-link-2', 'https://www.youtube.com/@'],
     ['f-link-3', 'https://www.instagram.com/'],
-    ['f-link-4', ''],
+    ['f-link-4', 'https://www.tiktok.com/@'],
   ];
   function profileLink(id, base) {
     var raw = $(id).value.trim();

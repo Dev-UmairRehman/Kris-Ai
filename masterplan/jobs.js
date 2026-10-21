@@ -23,6 +23,7 @@ const crypto = require('crypto');
 const config = require('./config');
 const store = require('./store');
 const intake = require('./intake');
+const feeds = require('./feeds');
 const writer = require('./writer');
 const costs = require('./costs');
 const render = require('./render');
@@ -218,7 +219,10 @@ function longDate(d) {
 /* Profile, cost research and the writing - everything that costs model
    calls. Returns what is saved as work.json. */
 async function write(id, inputs, meta, now, usage, log) {
-  const pages = await Promise.all((inputs.links || []).map((u) => intake.readProfilePage(u)));
+  /* The feeds read in depth (feeds.js), not only their page titles. */
+  const social = await feeds.gather(inputs.links || [], log);
+  if (social.costUsd) usage.cost_usd = (usage.cost_usd || 0) + social.costUsd;
+  if (log) log('feeds: ' + social.pages.map((p) => feeds.platformOf(p.url) + ' ' + p.depth.split(' (')[0]).join('; '));
   const profile = await writer.extractProfile(
     {
       name: inputs.name,
@@ -229,7 +233,7 @@ async function write(id, inputs, meta, now, usage, log) {
       country: inputs.country,
       today: longDate(now),
       resume: inputs.resume,
-      social: { pages, pasted: inputs.pasted },
+      social: { pages: social.pages, feeds: social.feeds, pasted: inputs.pasted },
     },
     usage,
   );
@@ -263,7 +267,7 @@ async function write(id, inputs, meta, now, usage, log) {
   );
   const model = costs.model(research, { age });
 
-  const ctx = { profile, research, costs: model, month: monthYear(now), today: longDate(now) };
+  const ctx = { profile, research, costs: model, month: monthYear(now), today: longDate(now), feeds: social.feeds };
   const docs = await writer.writeDocuments(ctx, {
     usage,
     log,
@@ -273,6 +277,7 @@ async function write(id, inputs, meta, now, usage, log) {
 
   return {
     profile,
+    feeds: social.feeds,
     research,
     figures: model.f,
     narrative: docs.narrative,

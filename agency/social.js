@@ -116,7 +116,9 @@ async function runActor(actor, input, timeoutSec, maxItems) {
 const firstLine = (t) => String(t || '').split('\n')[0].trim().slice(0, 140);
 
 /** The account's latest `limit` videos with their numbers. */
-async function read(platform, handle, limit) {
+/** opts.full: also each post's whole caption and (TikTok) the bio, for MasterPlan. */
+async function read(platform, handle, limit, opts = {}) {
+  const full = (t) => (opts.full ? { text: String(t || '').trim().slice(0, 700) } : {});
   if (!available()) throw userError('Reading Instagram and TikTok is not switched on yet.', 503);
   limit = limit || config.social.videosPerRead;
   if (platform === 'instagram') {
@@ -138,6 +140,7 @@ async function read(platform, handle, limit) {
         comments: Number(i.commentsCount) || 0,
         published: i.timestamp || null,
         short: true,
+        ...full(i.caption),
       })),
     };
   }
@@ -163,6 +166,7 @@ async function read(platform, handle, limit) {
       handle,
       title: author.nickName || author.name || handle,
       followers: Number(author.fans) || null,
+      ...(opts.full ? { bio: String(author.signature || '').slice(0, 500), following: Number(author.following) || null, totalLikes: Number(author.heart) || null, videoCount: Number(author.video) || null, verified: !!author.verified } : {}),
       costUsd,
       videos: vids.slice(0, limit).map((i) => ({
         id: String(i.id),
@@ -174,6 +178,7 @@ async function read(platform, handle, limit) {
         shares: Number(i.shareCount) || 0,
         published: i.createTimeISO || null,
         short: true,
+        ...full(i.text),
       })),
     };
   }

@@ -26,6 +26,14 @@
 const fs = require('fs');
 const path = require('path');
 const llm = require('./llm');
+const feeds = require('./feeds');
+
+/* The member's own posts for the writing steps, so the documents can name
+   and quote them (the profile only summarises them). */
+function feedBlock(ctx) {
+  const text = feeds.asText(ctx.feeds, 16000);
+  return text ? '<member_feed>\n' + text + '\n</member_feed>\n\nThe feed above is the member\'s public posts and profiles, read in depth: use it as fully as the resume (house rules).\n\n' : '';
+}
 
 const knowledge = require('./knowledge');
 const K = (name) => knowledge.read(name);
@@ -42,6 +50,7 @@ Rules that apply to every line you write:
 - Name no one but the member. No case-study people from the book, no theorists, no coaches, no feed handles. Book case studies become "a founder", "a lawyer", "a young professional". Theory is credited to "the psychodynamic tradition" or "the MasterPlan". Employers, schools and programs on the member's own resume stay, because they are the member's facts.
 - Facts from the resume or feed carry no mark. Every inference, estimate or reading carries the mark ¤ placed directly after the word or punctuation it qualifies, like this:¤ Never use * for this.
 - Show possibilities and tensions, never predictions. Write "the resume says X and the feed says Y" and leave it open.
+- The feed is half of the evidence, not an appendix. Where the feeds were read in depth (a LinkedIn profile and posts, YouTube videos, Instagram or TikTok posts), use them as fully as the resume, in every part of both documents: what the member chooses to talk about in public and how often, their public voice, what their audience responds to (name the posts or videos with the most reactions, comments or views, with the numbers and the month), the causes and people they show up for, what the LinkedIn profile adds that the resume leaves out, and every place where the public persona and the resume tell different stories. Quote short phrases from their own posts (under twenty words, with the month). Where the feed is thin, say so once and do not pad.
 - Anything only the member can answer gets an italic sample answer that begins "Sample answer:" and is written in _underscores_.
 - Always "the MasterPlan", with the article and the capitals.
 - Style: no em dashes and no en dashes between words. No "not X but Y" constructions. Short declarative sentences, one idea per paragraph, concrete detail first. No filler that sounds machine-written. Long-form magazine voice.
@@ -70,7 +79,7 @@ function system() {
 
 /* ---- step 1: the profile ---------------------------------------------- */
 
-const PROFILE_TASK = `Read the member's materials below and extract a profile for the documents. Work only from what is there. Where you infer, say so in the field.
+const PROFILE_TASK = `Read the member's materials below and extract a profile for the documents. Work only from what is there. Where you infer, say so in the field. When feeds were read in depth, the feed fields matter as much as the resume fields: fill each one from the posts and profiles, with the numbers.
 
 Reply with one JSON object in a \`\`\`json fence:
 {
@@ -91,9 +100,19 @@ Reply with one JSON object in a \`\`\`json fence:
   "household": "anything known about partner, children, dependents - or 'not stated'",
   "feed": {
     "platforms": ["bare platform names only, e.g. 'LinkedIn', 'Instagram'"],
-    "what_is_visible": "exactly what the public pages and pasted text show: bio lines, follower counts, post titles",
+    "what_is_visible": "exactly what the public pages, the feeds and pasted text show: bios, follower counts, how many posts were read",
     "evidence_strength": "thin | moderate | rich",
-    "evidence_note": "one sentence for the document's opening note on how much the feed shows"
+    "evidence_note": "one sentence for the document's opening note on how much the feed shows",
+    "audience": "followers, connections, subscribers per platform, as numbers",
+    "themes": ["what they post about, most frequent first, with how many posts touch it"],
+    "voice": "how they come across in public, in a phrase or two, with an example",
+    "resonates": ["the posts or videos that got the most response: what it was, the month, the numbers"],
+    "falls_flat": ["what gets little response, if a pattern shows"],
+    "cadence": "how often they post on each platform, and how recent the last post is",
+    "values_shown": ["causes, people and principles they show up for in public"],
+    "beyond_resume": ["what the feeds add that the resume lacks: roles, projects, recommendations, awards, side work, volunteering"],
+    "persona_vs_resume": ["places where the public persona and the resume tell different stories"],
+    "quotes": [{"text": "a short phrase from their own post, under twenty words", "when": "Month Year", "platform": ""}]
   },
   "conflicts": ["each place where two sources disagree, stated as a tension"],
   "must_confirm": ["facts the member must confirm: marital status, savings, ownership of the feed, etc."],
@@ -110,9 +129,11 @@ City: ${input.city}${input.region ? ', ' + input.region : ''} ${input.postalCode
 Today: ${input.today}`);
   if (input.resume.text) parts.push('<resume>\n' + input.resume.text + '\n</resume>');
   const pages = (input.social.pages || [])
-    .map((p) => `- ${p.url}\n  read: ${p.ok ? 'yes' : 'no'}${p.note ? ' (' + p.note + ')' : ''}\n  title: ${p.title || '-'}\n  description: ${p.description || '-'}`)
+    .map((p) => `- ${p.url}\n  read: ${p.depth || (p.ok ? 'page title and description' : 'no')}${p.note ? ' (' + p.note + ')' : ''}\n  title: ${p.title || '-'}\n  description: ${p.description || '-'}`)
     .join('\n');
   parts.push('<social_profiles>\n' + (pages || '(no links given)') + '\n</social_profiles>');
+  const deep = feeds.asText(input.social.feeds, 45000);
+  if (deep) parts.push('<social_feeds_read_in_depth>\n' + deep + '\n</social_feeds_read_in_depth>');
   parts.push(
     '<member_pasted_feed_text>\n' + (input.social.pasted ? input.social.pasted.slice(0, 8000) : '(nothing pasted)') + '\n</member_pasted_feed_text>'
   );
@@ -203,7 +224,7 @@ ${JSON.stringify(profile, null, 1)}
 ${JSON.stringify(facts, null, 1)}
 </member_figures>
 
-The profile and figures above describe this member. The resume transcription is the only source for resume facts; record dates, numbers and ranks exactly as written there.`;
+${feedBlock(ctx)}The profile and figures above describe this member. The resume transcription is the only source for resume facts; record dates, numbers and ranks exactly as written there.`;
 }
 
 const N = (heading, words, extra) => ({ heading, words, extra });
