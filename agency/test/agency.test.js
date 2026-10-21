@@ -82,7 +82,7 @@ llm.generate = async (p) => {
     assert.ok(stories.every((s) => s.title === 'The typewriter'), 'only publishable stories reach the ideas model');
     return json({
       ideas: [
-        { topic: 'The typewriter', angle: 'A dream that shaped a career', goal: 'trust', storyId: stories[0].id, why: 'her story' },
+        { topic: 'The typewriter', angle: 'A dream that shaped a career', goal: 'trust', format: 'Through hardship to the stars', storyId: stories[0].id, why: 'her story' },
         { topic: 'A myth in coaching', angle: 'What beginners get wrong', goal: 'expertise', storyId: 'made-up-id', why: 'expertise' },
       ],
     });
@@ -93,6 +93,7 @@ llm.generate = async (p) => {
     return json({
       titles: ['The typewriter', 'Dreams that write', 'What I wanted at seven'],
       hook: repair ? 'I wanted a typewriter more than anything.' : 'I wanted a typewriter — more than anything.',
+      hookText: 'The gift I never got',
       script: [{ say: 'I wanted a typewriter.', show: 'Close-up, window light' }],
       seconds: 40,
       filming: { framing: 'chest up', light: 'window', sound: 'lapel mic', location: 'desk', tips: ['look at the lens'] },
@@ -263,6 +264,8 @@ test('ideas use only publishable stories; packs follow the writing rules; covers
   }, 'ideas');
   assert.strictEqual(ideas.length, 2);
   assert.strictEqual(ideas[0].story, 'The typewriter');
+  assert.strictEqual(ideas[0].format, 'Through hardship to the stars', 'each idea carries a proven format');
+  assert.strictEqual(ideas[1].format, '', 'no format given: empty, not undefined');
   assert.strictEqual(ideas[1].story, null, 'an invented story id is dropped');
 
   const iid = ideas[0].id;
@@ -276,6 +279,7 @@ test('ideas use only publishable stories; packs follow the writing rules; covers
   assert.strictEqual(packDrafts, 2, 'the em dash in the first draft was sent back for repair');
   assert.doesNotMatch(content.hook, /—/);
   assert.deepStrictEqual(content.ruleIssues, []);
+  assert.strictEqual(content.hookText, 'The gift I never got', 'the on-screen text for the hook');
   assert.deepStrictEqual(content.hashtags, ['#writing', '#dreams']);
 
   const photo = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(2000, 7)]);

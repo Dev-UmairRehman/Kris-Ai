@@ -55,6 +55,8 @@ All are `YMA_MODEL_*` settings. Measured on a real run: one answer â†’ profile â
 member asks. Daily limits per member (`YMA_*_PER_DAY`) and a site-wide daily
 dollar ceiling (`YMA_GLOBAL_DOLLARS_PER_DAY`) stop runaway costs.
 
+**Method from the client's course material** (`your-marketing-agency-research/additional-pdfs`): ideas are given a proven short-video format (the course's 100 video examples, its 15 "million-view" ideas, Meta's Reels guide) and balanced across topic, trust, expertise and offer; scripts follow Meta's Attract (first 2 s) / Hold / Reward with its hook forms and the course's storytelling steps, with an on-screen hook text; covers keep the title out of the top 14% of a Reel (Meta's safe zone).
+
 The writing rules are Kris's global writing rules for everyone (`rules.js`),
 plus each member's own. What a program can check (banned phrases, em dashes,
 "not X but Y", emojis...) is checked on every pack and sent back once for repair.

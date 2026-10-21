@@ -458,7 +458,7 @@ router.post('/api/rules', wrap(async (req, res) => {
 function publicIdea(memberId, m, i) {
   const pack = jobState({ jobs: i.jobs || {} }, memberId, 'pack:' + i.id) || (i.packed ? { status: 'ready' } : null);
   const cover = jobState({ jobs: i.jobs || {} }, memberId, 'cover:' + i.id) || (i.covered ? { status: 'ready' } : null);
-  return { id: i.id, topic: i.topic, angle: i.angle, goal: i.goal, why: i.why, posted: i.posted || [], story: i.storyId ? (m.stories.find((s) => s.id === i.storyId) || {}).title || null : null, createdAt: i.createdAt, pack, cover };
+  return { id: i.id, topic: i.topic, angle: i.angle, goal: i.goal, format: i.format || '', why: i.why, posted: i.posted || [], story: i.storyId ? (m.stories.find((s) => s.id === i.storyId) || {}).title || null : null, createdAt: i.createdAt, pack, cover };
 }
 
 router.get('/api/ideas', wrap(async (req, res) => {

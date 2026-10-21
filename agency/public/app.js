@@ -601,6 +601,7 @@
       h.appendChild(el('span', 'y-goal', GOALS[i.goal] || i.goal));
       li.appendChild(h);
       li.appendChild(el('p', 'mp-sub', i.angle + (i.story ? ' (from your story "' + i.story + '")' : '')));
+      if (i.format) li.appendChild(el('p', 'y-format', 'Format: ' + i.format));
       var foot = el('div', 'mp-item-foot');
       var open = el('button', 'mp-link', openIdea === i.id ? 'Close' : i.pack && i.pack.status === 'ready' ? 'Open the content' : 'Write the content');
       open.type = 'button';
@@ -681,6 +682,7 @@
     var spoken = c.script.map(function (l) { return l.say; }).join('\n');
     box.appendChild(heading('Short video script · about ' + c.seconds + ' seconds', spoken));
     box.appendChild(el('p', 'y-hook', c.hook));
+    if (c.hookText) box.appendChild(el('p', 'y-onscreen', 'On screen in the first 2 seconds: ' + c.hookText));
     var table = el('table', 'y-script');
     c.script.forEach(function (l) {
       var tr = el('tr');
@@ -1185,11 +1187,16 @@
     });
   }
 
-  /* The picture, cropped to fill, with the title in the calm top area. */
+  /* The picture, cropped to fill, with the title in the calm top area. On a
+     Reels/Shorts cover the title starts below the top 14% (Meta's safe zone:
+     the account name and camera icon sit there) and stays far above the
+     bottom 20% (the caption); it also stays inside the profile grid's 3:4
+     crop. A 4:5 post has nothing over it, so it keeps a normal margin. */
   function paint(canvas, img, text) {
     var g = canvas.getContext('2d');
     var W = canvas.width;
     var H = canvas.height;
+    var tall = H / W > 1.5;
     g.fillStyle = '#e9eaee';
     g.fillRect(0, 0, W, H);
     if (img) {
@@ -1198,11 +1205,12 @@
       var h = img.height * s;
       g.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
     }
-    var grad = g.createLinearGradient(0, 0, 0, H * 0.45);
+    var shade = tall ? 0.55 : 0.45;
+    var grad = g.createLinearGradient(0, 0, 0, H * shade);
     grad.addColorStop(0, 'rgba(10,12,20,0.72)');
     grad.addColorStop(1, 'rgba(10,12,20,0)');
     g.fillStyle = grad;
-    g.fillRect(0, 0, W, H * 0.45);
+    g.fillRect(0, 0, W, H * shade);
     text = String(text || '').trim().toUpperCase();
     if (!text) return;
     var size = Math.round(W * 0.105);
@@ -1218,7 +1226,7 @@
     g.fillStyle = '#fff';
     g.shadowColor = 'rgba(0,0,0,0.45)';
     g.shadowBlur = size * 0.25;
-    var y = H * 0.07;
+    var y = H * (tall ? 0.16 : 0.07);
     lines.forEach(function (l) {
       g.fillText(l, W / 2, y);
       y += size * 1.08;
