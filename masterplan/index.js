@@ -137,6 +137,8 @@ router.get('/healthz', (req, res) => {
     email: config.email.driver,
     plansRequired: membership.enabled() || config.pagePlanCheck === 'enforce',
     planCheck: membership.enabled() ? 'Uscreen API' : 'store page /delphi (' + config.pagePlanCheck + ')',
+    /* Which voices the podcast uses: Google's when its key is set (podcast-gemini.js). */
+    podcastVoices: !config.podcast.enabled ? 'off' : config.podcast.gemini.apiKey ? 'google ' + config.podcast.gemini.model + ' ' + config.podcast.gemini.voiceA + '/' + config.podcast.gemini.voiceB : config.podcast.openai.apiKey ? 'openai ' + config.podcast.openai.model : 'openrouter ' + config.podcast.model,
   });
 });
 
